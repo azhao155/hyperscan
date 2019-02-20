@@ -1,0 +1,14 @@
+version: "3"
+
+services:
+  dev:
+    build: .
+    volumes:
+      - ./:/azure/azwaf
+    ports:
+      - "2345:2345"
+      - "37291:37291"
+    working_dir: /azure/azwaf
+    entrypoint: /bin/bash
+    cap_add:
+      - SYS_PTRACE

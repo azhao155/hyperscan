@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package wafservice;
+
+service WafService {
+  rpc EvalRequest (WafHttpRequest) returns (WafDecision) {}
+}
+
+message HeaderPair {
+   string key = 1;
+   string value = 2;
+}
+
+message WafHttpRequest {
+  string method = 1;
+  string uri = 2;
+  repeated HeaderPair headers = 3;
+
+  // TODO Use gRPC streaming instead of a simple string type
+  string body = 4;
+}
+
+message WafDecision {
+  bool allow = 1;
+}
