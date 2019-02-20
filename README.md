@@ -1,4 +1,4 @@
-WAF used by Azure Application Gateway.
+Web application firewall used by Azure Application Gateway.
 
 Container management:
 ```
