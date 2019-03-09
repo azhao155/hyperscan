@@ -11,7 +11,7 @@
             "mode": "remote",
             "remotePath": "/azure/azwaf/",
             "port": 2345,
-            "host": "allanbodev23.mshome.net", // Replace with remote hostname or IP if not localhost
+            "host": "localhost", // Replace with remote hostname or IP if not localhost
             "program": "${workspaceRoot}"
         }
     ]

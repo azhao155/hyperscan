@@ -16,16 +16,16 @@ docker-compose build --no-cache dev
 Within the container you can run the following commands:
 ```
 # To run main function
-go run .
+go run azwaf/cmd/server
 
 # To run all tests
-go test ./... -v
+go test azwaf/...
 
 # To wait for a remote debugger to attach and debug tests
 dlv test --api-version=2 --headless --listen=:2345 "azwaf/somepackage" -- -test.v
 
 # To wait for a remote debugger to attach to the main function
-dlv debug --api-version=2 --headless --listen=:2345
+dlv debug --api-version=2 --headless --listen=:2345 "azwaf/cmd/server"
 
 # To regenerate the gRPC stubs
 protoc -I./proto/ waf.proto --go_out=plugins=grpc:proto
