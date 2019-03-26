@@ -1,0 +1,17 @@
+[Unit]
+Description=Azwaf
+After=local-fs.target network-online.target
+Requires=local-fs.target network-online.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+User=appgw
+Group=appgw
+PIDFile=/applicationgateway/run/azwaf.pid
+Restart=always
+RestartSec=3
+TimeoutSec=30
+KillMode=process
+ExecStart=/applicationgateway/package/azwaf/azwafd
