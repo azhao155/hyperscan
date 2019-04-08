@@ -1,0 +1,50 @@
+// @rx, @beginsWith, @contains, @containsWord, @eq, @pm, @pmf, @pmFromFile are all rolled into the same regex engine
+rules = initRules(config)
+
+// Handle the special multiMatch action
+for each rule that has multiMatch
+    // "t:urlDecodeUni,t:htmlEntityDecode,t:lowercase" is an example of a transformation pipeline
+    unroll each variation of the transformation pipelines into separate transformation pipelines
+
+while true
+    req = getRequest()
+
+    // TODO deal with persistent storage collections (GLOBAL, RESOURCE, IP, SESSION and USER)
+
+    // TODO handle %{VARIABLE} expansion
+
+    // TODO handle compressed bodies (this is a stretch, as modsec doesn't even do this)
+
+    // engineState contains a dictionary of variables such as tx.anomaly_score
+    engineState = {}
+    engineState.matchedData = {[]} // Key is rule id. Value is array, as there may be multiple matches (in URI, in cookies, in body, etc.).
+
+    // Main pass through content
+    for each req.field that has non-tx targets // TODO instead of foreach, maybe let this be a while next(), and this whole thing in a separate go routine, so other componants than secRuleEngine can also get the body fields
+        for each transformation pipeline
+            tf = transform(field)
+            mm = scanEngine.scan(tf)
+
+            // Update state with info on which rules were hit
+            for each m in mm
+                engineState.matches += (m.ruleId, field, m.position)
+                if rules[m.rule].needsMatchedData
+                    engineState.matchedData[m.rule] += m.data
+
+    // Pass through rules sequentially
+    for each rule
+        if rule contains TX:0, MATCHED_VAR, etc. as input
+            for each of these variables
+                for each transformation pipeline
+                    tf = transform(engineState.vars[variable])
+                    mm = scanEngine.scan(tf)
+
+                    // Update state with info on which rules were hit
+                    for each m in mm
+                        engineState.matches += (m.ruleId, field, m.position)
+                        if rules[m.rule].needsMatchedData
+                            engineState.matchedData[m.rule] += m.data
+
+        // Evaluate will update variables such as tx.anomaly_score
+        // Special variables such as MATCHED_VAR, MATCHED_VARS, MATCHED_VAR_NAME, MATCHED_VARS_NAMES are also updated. If capture action, then also TX:0, TX:1, etc.
+        rule.evaluate(engineState)
