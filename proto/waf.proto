@@ -17,7 +17,7 @@ message WafHttpRequest {
   repeated HeaderPair headers = 3;
 
   // TODO Use gRPC streaming instead of a simple string type
-  string body = 4;
+  bytes body = 4;
 }
 
 message WafDecision {
