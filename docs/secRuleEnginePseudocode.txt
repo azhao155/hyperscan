@@ -1,50 +1,118 @@
-// @rx, @beginsWith, @contains, @containsWord, @eq, @pm, @pmf, @pmFromFile are all rolled into the same regex engine
-rules = initRules(config)
+func init()
+    rules = parseRules()
 
-// Handle the special multiMatch action
-for each rule that has multiMatch
-    // "t:urlDecodeUni,t:htmlEntityDecode,t:lowercase" is an example of a transformation pipeline
-    unroll each variation of the transformation pipelines into separate transformation pipelines
+    // @rx, @beginsWith, @contains, @containsWord, @eq, @pm, @pmf, @pmFromFile are all rolled into the same regex engine
+    // multiMatch transformations are unrolled into separate transformation pipelines
+    scanPatterns = initScanPatterns(rules)
+    // shape of scanPatterns is something like
+    // [
+    //     "ARGS": [
+    //         // scan target object:
+    //         {
+    //             transformations: [ "urlDecodeUni", "htmlEntityDecode", "lowercase" ],
+    //             patterns: [
+    //                 { patternId: 1, regex: "(?i:(sleep\((\s*?)(\d*?)(\s*?)\)))" },
+    //                 { patternId: 2, regex: "(?i:(?:(union(.*?)select(.*?)from)))" },
+    //                 ...
+    //             ],
+    //             exceptTargets: [ "ARGS:someArgument", "ARGS:someOtherArgument" ]
+    //             scanEngine: { ... } // a HyperScan instance or RE2 set instance
+    //          },
+    //          {
+    //             transformations: ["urlDecodeUni", "htmlEntityDecode"], // here a different transformation pipeline than above
+    //             ...
+    //          }
+    //     ]
+    //     "ARG_NAMES: [
+    //         // can point to same scan target object instances as above
+    //         ...
+    //     ]
+    // ]
 
-while true
-    req = getRequest()
 
-    // TODO deal with persistent storage collections (GLOBAL, RESOURCE, IP, SESSION and USER)
 
-    // TODO handle %{VARIABLE} expansion
+// Entry point for each request
+func evalRequest(req)
+    scanResults = scanRequestContent(rules, req)
+    return evaluateRules(rules, scanResults)
 
-    // TODO handle compressed bodies (this is a stretch, as modsec doesn't even do this)
 
-    // engineState contains a dictionary of variables such as tx.anomaly_score
-    engineState = {}
-    engineState.matchedData = {[]} // Key is rule id. Value is array, as there may be multiple matches (in URI, in cookies, in body, etc.).
+// Single pass through the request content, ignoring rule order and chaining logic
+func scanRequestContent(req)
+    result = {}
 
-    // Main pass through content
-    for each req.field that has non-tx targets // TODO instead of foreach, maybe let this be a while next(), and this whole thing in a separate go routine, so other componants than secRuleEngine can also get the body fields
-        for each transformation pipeline
-            tf = transform(field)
-            mm = scanEngine.scan(tf)
+    result.matches += scanTarget(req.uri)
+    getargs = parseGetArgs(req.uri)
+    result.argscount += len(getargs)
+    for each getargs
+        result.matches += scanTarget(arg)
 
-            // Update state with info on which rules were hit
-            for each m in mm
-                engineState.matches += (m.ruleId, field, m.position)
-                if rules[m.rule].needsMatchedData
-                    engineState.matchedData[m.rule] += m.data
+    result.headercount = len(req.headers)
+    for each req.headers
+        result.matches += scanTarget(header)
 
-    // Pass through rules sequentially
-    for each rule
-        if rule contains TX:0, MATCHED_VAR, etc. as input
-            for each of these variables
-                for each transformation pipeline
-                    tf = transform(engineState.vars[variable])
-                    mm = scanEngine.scan(tf)
+    for each cookie
+        result.matches += scanTarget(cookie)
 
-                    // Update state with info on which rules were hit
-                    for each m in mm
-                        engineState.matches += (m.ruleId, field, m.position)
-                        if rules[m.rule].needsMatchedData
-                            engineState.matchedData[m.rule] += m.data
+    func bodyFieldCallback(field)
+         += scanTarget(field)
+        result.argscount += 1
 
-        // Evaluate will update variables such as tx.anomaly_score
-        // Special variables such as MATCHED_VAR, MATCHED_VARS, MATCHED_VAR_NAME, MATCHED_VARS_NAMES are also updated. If capture action, then also TX:0, TX:1, etc.
-        rule.evaluate(engineState)
+    while c = req.nextBodyChunk()
+        // parseBodyChunk will use a callback based parser (like SAX) so we avoid having to build an entire AST of the body in memory
+        // parseBodyChunk could also optionally do decompression of compressed bodies (stretch, as ModSec doesn't do this)
+        parseBodyChunk(bodyFieldCallback, c)
+
+
+// Transform and scan a single target
+func scanTarget(content, result)
+    for each scanTarget in scanPatterns[content.targetName]
+        if scanTarget.exceptTargets.contains(content.targetName)
+            continue
+
+        tf = transform(scanTarget.transformations, content)
+        mm = scanEngine.scan(tf)
+
+        // Update with info on which patterns were hit
+        for each m in mm
+            result.matches += (m.ruleId, content.targetName, m.position, m.value)
+
+    if length of fieldName is used in any rule (example: "&REQUEST_HEADERS:Referer" in CRS rule 943120)
+        result.lengths[content.targetName] = len(content.value)
+
+
+// Sequential interpreter pass through the rules
+func evalRules(rules, scanResults)
+    environment = []
+    for each ruleChains
+        action = evalRuleChain(ruleChain, scanResults, environment)
+        if action is to just log
+            log()
+        if action is to block
+            log()
+            block()
+
+
+func evalRuleChain(ruleChain, scanResults, environment)
+    for each rule in ruleChain
+        for each target
+            // Is this a target that we scanned for in the scanRequestContent phase, such as URI, ARGS, ARG_NAMES, etc.
+            if isRequestContentTarget(target)
+                if scanResults does not have a result for this target in this rule
+                    return
+            else
+                // This is a target for which we need scan here in interpretation phase
+
+                val = environment[target]
+                tf = transform(rule.transformations, val)
+                pattern = expandMacros(rule.pattern, environmt)
+                if not scan(expandMacros, val)
+                    return
+
+    updateEnvironment(environment, rule.actions)
+
+
+func updateEnvironment(environment, actions)
+    expand macros in actions based on environment
+    update variables such as tx.anomaly_score
+    special variables such as MATCHED_VAR, MATCHED_VARS, MATCHED_VAR_NAME, MATCHED_VARS_NAMES are also updated
