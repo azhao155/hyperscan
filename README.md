@@ -1,6 +1,8 @@
 Web application firewall used by Azure Application Gateway.
 
-Container management:
+If you are using this repo as a submodule of Networking-AppGw, then you can
+simply use the AppGw dev container. Else, if you want to run this repo
+standalone, then use the following commands for container management:
 ```
 # Automatically build and run the dev container
 docker-compose run --rm --service-ports --name azwafdev dev
