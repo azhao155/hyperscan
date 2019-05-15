@@ -24,11 +24,12 @@ go run azwaf/cmd/server
 go test azwaf/...
 
 # To wait for a remote debugger to attach and debug tests
-dlv test --api-version=2 --headless --listen=:2345 "azwaf/somepackage" -- -test.v
+dlv test --api-version=2 --headless --listen=:2345 "azwaf/somepackage" -- -test.run TestSomeFunction
 
 # To wait for a remote debugger to attach to the main function
 dlv debug --api-version=2 --headless --listen=:2345 "azwaf/cmd/server"
 
 # To regenerate the gRPC stubs
 protoc -I./proto/ waf.proto --go_out=plugins=grpc:proto
+protoc -I./proto/ config.proto --go_out=plugins=grpc:proto
 ```

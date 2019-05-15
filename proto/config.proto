@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package azwaf;
+package wafservice;
 
 message ServiceID { string name = 1; }
 
