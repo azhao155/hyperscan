@@ -21,6 +21,11 @@ build:
     - !!buildcommand
       name: 'Build Azwaf'
       command: '.pipelines/build.sh'
+      artifacts:
+        - from: 'build'
+          to: 'bin'
+          include:
+            - '**/*'
 
     - !!testcommand
       name: 'Run Tests'
