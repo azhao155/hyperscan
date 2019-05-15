@@ -1,0 +1,30 @@
+# For full annotated example, please visit
+# https://cloudes.visualstudio.com/CDPX/_wiki/wikis/CDPX.wiki?pagePath=%2FCDPx%20%252D%20Cross%252DPlatform%20Cloud%20Delivery%20Pipeline%2FUsing%20CDPx%2FPipeline%20Specification%20YAML%2FAnnotated%20Example&wikiVersion=GBwikiMaster&pageId=103
+
+environment:
+  host:
+    os: 'linux'
+  runtime:
+    provider: 'appcontainer'
+    image: 'cdpxlinuxtest.azurecr.io/user/networking-azwaf/networking-azwaf:1.0'
+    source_mode: 'link'
+
+version:
+  name: 'Azwaf'
+  major: 1
+  minor: 0
+  tag: 'test'
+  system: 'buildrevision'
+
+build:
+  commands:
+    - !!buildcommand
+      name: 'Build Azwaf'
+      command: '.pipelines/build.sh'
+
+    - !!testcommand
+      name: 'Run Tests'
+      command: '.pipelines/test.sh'
+      testresults:
+        - title: 'Azwaf Test Run'
+          type: 'vstest'

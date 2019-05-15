@@ -1,9 +1,14 @@
-FROM  ubuntu:16.04
+FROM ubuntu:16.04
 
 SHELL ["/bin/bash", "-c"]
 
+# Install dependencies from apt and then tidy up cache
+RUN apt-get update && \
+    apt-get install -y vim curl wget git build-essential unzip && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
+
 # Install Go
-RUN apt-get update && apt-get install -y vim curl git build-essential unzip wget
 RUN curl -L -o /tmp/go.tar.gz https://dl.google.com/go/go1.11.4.linux-amd64.tar.gz && \
     tar -xzf /tmp/go.tar.gz -C /usr/local && \
     rm /tmp/go.tar.gz
