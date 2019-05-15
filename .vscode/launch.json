@@ -5,14 +5,30 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Connect to server",
+            "name": "Connect to server (azwaf dev container)",
             "type": "go",
             "request": "launch",
             "mode": "remote",
             "remotePath": "/azure/azwaf/",
             "port": 2345,
-            "host": "localhost", // Replace with remote hostname or IP if not localhost
-            "program": "${workspaceRoot}"
+            "host": "localhost", // Replace with remote hostname or IP if not localhost. Alternatively use this Windows NAT command: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=2345 connectport=2345 connectaddress=yourremotehost
+            "program": "${workspaceRoot}",
+            "dlvLoadConfig": {
+                "maxStringLen": 5000
+            }
+        },
+        {
+            "name": "Connect to server (appgw dev container)",
+            "type": "go",
+            "request": "launch",
+            "mode": "remote",
+            "remotePath": "/azure/appgw/src/datapath/azwaf",
+            "port": 2345,
+            "host": "localhost", // Replace with remote hostname or IP if not localhost. Alternatively use this Windows NAT command: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=2345 connectport=2345 connectaddress=yourremotehost
+            "program": "${workspaceRoot}",
+            "dlvLoadConfig": {
+                "maxStringLen": 5000
+            }
         }
     ]
 }

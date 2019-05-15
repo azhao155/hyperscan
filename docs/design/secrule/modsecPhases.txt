@@ -1,0 +1,14 @@
+Note on phases:
+    Numbers to names:
+        re_actions.c line 764
+            1              REQUEST_HEADERS
+            2 "request"    REQUEST_BODY
+            3              RESPONSE_HEADERS
+            4 "response"   RESPONSE_BODY
+            5 "logging"    LOGGING
+    REQUEST-912-DOS-PROTECTION.conf does something special with phases, but we will not build dos protection into the secrule engine
+
+    Can we just ignore phases?
+        Yes, I think they can just be ignored.
+        Phases may have been useful once for short circuiting, but with an score based system anyway it doesn't have any benefit.
+        Phases are also useful to determine which body parser to use, but rather than letting this be rule driving we can probably just hardcode this.

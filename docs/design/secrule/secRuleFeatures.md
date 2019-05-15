@@ -302,6 +302,7 @@ SecRule language features we should support. The following list is based on the 
 | Operator                        | Will supoprt        | Notes |
 |---------------------------------|---------------------|-------|
 | beginsWith                      | Yes                 | Basic functionality. |
+| endsWith                        | Yes                 | Basic functionality. |
 | contains                        | Yes                 | Basic functionality. |
 | containsWord                    | Yes                 | Basic functionality. |
 | detectSQLi                      | Yes                 | Used in CRS |
