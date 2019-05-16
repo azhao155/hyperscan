@@ -16,6 +16,12 @@ version:
   tag: 'test'
   system: 'buildrevision'
 
+restore:
+  commands:
+    - !!defaultcommand
+      name: 'Download packages'
+      command: '.pipelines/downloadpackages.sh'
+
 build:
   commands:
     - !!buildcommand
@@ -27,9 +33,13 @@ build:
           include:
             - '**/*'
 
+test:
+  commands:
     - !!testcommand
       name: 'Run Tests'
       command: '.pipelines/test.sh'
       testresults:
-        - title: 'Azwaf Test Run'
+        - title: 'Test Run'
           type: 'vstest'
+          include:
+            - 'build/*.trx'
