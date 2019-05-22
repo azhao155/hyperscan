@@ -40,7 +40,7 @@ func TestCrs30(t *testing.T) {
 		testrulefile{"rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf", 11},
 		testrulefile{"rules/REQUEST-949-BLOCKING-EVALUATION.conf", 10},
 	}
-	p := newRuleParser()
+	p := NewRuleParser()
 
 	// Act and assert
 	for _, trf := range testrulefiles {
@@ -49,7 +49,7 @@ func TestCrs30(t *testing.T) {
 			t.Fatalf("Failed to load rule file: %s", err)
 		}
 
-		rr, err := p.parse(string(b))
+		rr, err := p.Parse(string(b))
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", trf.filename, err)
@@ -91,7 +91,7 @@ func TestCrs229(t *testing.T) {
 		testrulefile{"base_rules/modsecurity_crs_49_inbound_blocking.conf", 2},
 		testrulefile{"base_rules/modsecurity_crs_60_correlation.conf", 5},
 	}
-	p := newRuleParser()
+	p := NewRuleParser()
 
 	// Act and assert
 	for _, trf := range testrulefiles {
@@ -100,7 +100,7 @@ func TestCrs229(t *testing.T) {
 			t.Fatalf("Failed to load rule file: %s", err)
 		}
 
-		rr, err := p.parse(string(b))
+		rr, err := p.Parse(string(b))
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", trf.filename, err)

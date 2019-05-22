@@ -9,7 +9,7 @@ import (
 
 // RuleParser parses SecRule language files.
 type ruleParser interface {
-	parse(input string) (rules []rule, err error)
+	Parse(input string) (rules []Rule, err error)
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
@@ -21,67 +21,67 @@ var argSpaceRegex = regexp.MustCompile(`(?s)^([ \t]|\\\n)+`)
 var operatorRegex = regexp.MustCompile(`^@\w+`)
 var actionRegex = regexp.MustCompile(`^(\w+:('(\\.|[^'\\])+'|[^,]+))|\w+`)
 
-var transformationsMap = map[string]transformation{
-	"cmdline":            cmdLine,
-	"compresswhitespace": compressWhitespace,
-	"cssdecode":          cssDecode,
-	"hexencode":          hexEncode,
-	"htmlentitydecode":   htmlEntityDecode,
-	"jsdecode":           jsDecode,
-	"length":             length,
-	"lowercase":          lowercase,
-	"normalisepath":      normalisePath,
-	"normalisepathwin":   normalisePathWin,
-	"normalizepath":      normalizePath,
-	"normalizepathwin":   normalizePathWin,
-	"removecomments":     removeComments,
-	"removenulls":        removeNulls,
-	"removewhitespace":   removeWhitespace,
-	"replacecomments":    replaceComments,
-	"sha1":               sha1,
-	"urldecode":          urlDecode,
-	"urldecodeuni":       urlDecodeUni,
-	"utf8tounicode":      utf8toUnicode,
+var transformationsMap = map[string]Transformation{
+	"cmdline":            CmdLine,
+	"compresswhitespace": CompressWhitespace,
+	"cssdecode":          CssDecode,
+	"hexencode":          HexEncode,
+	"htmlentitydecode":   HtmlEntityDecode,
+	"jsdecode":           JsDecode,
+	"length":             Length,
+	"lowercase":          Lowercase,
+	"normalisepath":      NormalisePath,
+	"normalisepathwin":   NormalisePathWin,
+	"normalizepath":      NormalizePath,
+	"normalizepathwin":   NormalizePathWin,
+	"removecomments":     RemoveComments,
+	"removenulls":        RemoveNulls,
+	"removewhitespace":   RemoveWhitespace,
+	"replacecomments":    ReplaceComments,
+	"sha1":               Sha1,
+	"urldecode":          UrlDecode,
+	"urldecodeuni":       UrlDecodeUni,
+	"utf8tounicode":      Utf8toUnicode,
 }
 
-var operatorsMap = map[string]operator{
-	"@beginswith":           beginsWith,
-	"@endswith":             endsWith,
-	"@contains":             contains,
-	"@containsword":         containsWord,
-	"@detectsqli":           detectSQLi,
-	"@detectxss":            detectXSS,
-	"@eq":                   eq,
-	"@ge":                   ge,
-	"@gt":                   gt,
-	"@lt":                   lt,
-	"@pm":                   pm,
-	"@pmf":                  pmf,
-	"@pmfromfile":           pmFromFile,
-	"@rx":                   rx,
-	"@streq":                streq,
-	"@strmatch":             strmatch,
-	"@validatebyterange":    validateByteRange,
-	"@validateurlencoding":  validateUrlEncoding,
-	"@validateutf8encoding": validateUtf8Encoding,
-	"@within":               within,
-	"@geolookup":            geoLookup,
-	"@ipmatch":              ipMatch,
-	"@rbl":                  rbl,
+var operatorsMap = map[string]Operator{
+	"@beginswith":           BeginsWith,
+	"@endswith":             EndsWith,
+	"@contains":             Contains,
+	"@containsword":         ContainsWord,
+	"@detectsqli":           DetectSQLi,
+	"@detectxss":            DetectXSS,
+	"@eq":                   Eq,
+	"@ge":                   Ge,
+	"@gt":                   Gt,
+	"@lt":                   Lt,
+	"@pm":                   Pm,
+	"@pmf":                  Pmf,
+	"@pmfromfile":           PmFromFile,
+	"@rx":                   Rx,
+	"@streq":                Streq,
+	"@strmatch":             Strmatch,
+	"@validatebyterange":    ValidateByteRange,
+	"@validateurlencoding":  ValidateUrlEncoding,
+	"@validateutf8encoding": ValidateUtf8Encoding,
+	"@within":               Within,
+	"@geolookup":            GeoLookup,
+	"@ipmatch":              IpMatch,
+	"@rbl":                  Rbl,
 }
 
 type ruleParserImpl struct {
 }
 
 // NewRuleParser creates a secrule.ruleParser.
-func newRuleParser() ruleParser {
+func NewRuleParser() ruleParser {
 	return &ruleParserImpl{}
 }
 
 // Parse a ruleset.
-func (r *ruleParserImpl) parse(input string) (rules []rule, err error) {
-	rules = []rule{}
-	curRule := &rule{}
+func (r *ruleParserImpl) Parse(input string) (rules []Rule, err error) {
+	rules = []Rule{}
+	curRule := &Rule{}
 	rest := input
 	lineNumber := 0
 	for {
@@ -127,8 +127,8 @@ func (r *ruleParserImpl) parse(input string) (rules []rule, err error) {
 }
 
 // Parse a single rule.
-func (r *ruleParserImpl) parseSecRule(s string, curRule **rule, rules *[]rule) (err error) {
-	ru := &ruleItem{}
+func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (err error) {
+	ru := &RuleItem{}
 
 	ru.Targets, s, err = r.parseTargets(s)
 	if err != nil {
@@ -197,7 +197,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **rule, rules *[]rule) (
 	if !hasChainAction {
 		// End of rule chain
 		*rules = append(*rules, **curRule)
-		*curRule = &rule{}
+		*curRule = &Rule{}
 	}
 
 	return
@@ -227,9 +227,9 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []string, rest string, 
 	}
 }
 
-// Parse a SecRule operator field.
-func (r *ruleParserImpl) parseOperator(s string) (op operator, val string, rest string, err error) {
-	op = rx
+// Parse a SecRule Operator field.
+func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, rest string, err error) {
+	op = Rx
 
 	s, rest = r.nextArg(s)
 
@@ -251,8 +251,8 @@ func (r *ruleParserImpl) parseOperator(s string) (op operator, val string, rest 
 	return
 }
 
-// Parse a raw SecRule actions arg into rawAction key-value pairs.
-func (r *ruleParserImpl) parseRawActions(s string) (actions []rawAction, rest string, err error) {
+// Parse a raw SecRule actions arg into RawAction key-value pairs.
+func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest string, err error) {
 	s, rest = r.nextArg(s)
 
 	// Empty action set is OK. For example last rule item in a rule chain might be like this.
@@ -270,7 +270,7 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []rawAction, rest st
 
 		var k, v string
 		k, v = r.parseActionKeyValue(a)
-		actions = append(actions, rawAction{k, v})
+		actions = append(actions, RawAction{k, v})
 
 		// Consume whitespace
 		_, s = r.findConsume(argSpaceRegex, s)

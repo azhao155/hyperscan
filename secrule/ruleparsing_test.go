@@ -10,14 +10,14 @@ import (
 
 func TestTwoRules(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
 		SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if err != nil {
@@ -41,7 +41,7 @@ func TestTwoRules(t *testing.T) {
 
 func TestInvalidStatement(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
 
@@ -54,7 +54,7 @@ func TestInvalidStatement(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if err == nil {
@@ -72,7 +72,7 @@ func TestInvalidStatement(t *testing.T) {
 
 func TestCommentedRuleWithDanglingArg(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		#SecAction \
 			"id:'900004', \
@@ -84,7 +84,7 @@ func TestCommentedRuleWithDanglingArg(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if err != nil {
@@ -99,13 +99,13 @@ func TestCommentedRuleWithDanglingArg(t *testing.T) {
 
 func TestMissingId(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack'"
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if len(rr) != 0 {
@@ -124,13 +124,13 @@ func TestMissingId(t *testing.T) {
 
 func TestSecRuleTrailingArg(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "1=1" "id:123,deny,msg:'SQL Injection Attack'" something
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if len(rr) != 0 {
@@ -149,7 +149,7 @@ func TestSecRuleTrailingArg(t *testing.T) {
 
 func TestMissingChain(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901',chain"
 		SecRule ARGS "2=2" "deny,msg:'SQL Injection Attack'"
@@ -157,7 +157,7 @@ func TestMissingChain(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if len(rr) != 1 {
@@ -176,7 +176,7 @@ func TestMissingChain(t *testing.T) {
 
 func TestChaining(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901',chain"
@@ -186,7 +186,7 @@ func TestChaining(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if err != nil {
@@ -216,14 +216,14 @@ func TestChaining(t *testing.T) {
 
 func TestNoActions(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rules := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901',chain"
 		SecRule ARGS "2=2"
 	`
 
 	// Act
-	rr, err := p.parse(rules)
+	rr, err := p.Parse(rules)
 
 	// Assert
 	if err != nil {
@@ -243,7 +243,7 @@ func TestNoActions(t *testing.T) {
 
 func TestSecRuleTargets(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	type testcase struct {
 		input       string
 		expected    []string
@@ -273,7 +273,7 @@ func TestSecRuleTargets(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
+		rr, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
 
 		if test.expectedErr != "" {
 			if err == nil {
@@ -322,29 +322,29 @@ func TestSecRuleTargets(t *testing.T) {
 
 func TestSecRuleOperators(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	type testcase struct {
 		input string
-		op    operator
+		op    Operator
 		val   string
 	}
 	tests := []testcase{
-		testcase{`helloworld`, rx, `helloworld`},
-		testcase{`"hello world"`, rx, `hello world`},
-		testcase{`"hello \"world"`, rx, `hello "world`},
-		testcase{`"hello 'world"`, rx, `hello 'world`},
-		testcase{`'hello world'`, rx, `hello world`},
-		testcase{`'hello "world'`, rx, `hello "world`},
-		testcase{`"@contains helloworld"`, contains, `helloworld`},
-		testcase{`'@contains helloworld'`, contains, `helloworld`},
-		testcase{`'@detectSQLi'`, detectSQLi, ``},
-		testcase{`'@DeTeCtSqLi'`, detectSQLi, ``},
+		testcase{`helloworld`, Rx, `helloworld`},
+		testcase{`"hello world"`, Rx, `hello world`},
+		testcase{`"hello \"world"`, Rx, `hello "world`},
+		testcase{`"hello 'world"`, Rx, `hello 'world`},
+		testcase{`'hello world'`, Rx, `hello world`},
+		testcase{`'hello "world'`, Rx, `hello "world`},
+		testcase{`"@contains helloworld"`, Contains, `helloworld`},
+		testcase{`'@contains helloworld'`, Contains, `helloworld`},
+		testcase{`'@detectSQLi'`, DetectSQLi, ``},
+		testcase{`'@DeTeCtSqLi'`, DetectSQLi, ``},
 	}
 
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.parse("SecRule ARGS " + test.input + ` "id:'950902'"`)
+		rr, err := p.Parse("SecRule ARGS " + test.input + ` "id:'950902'"`)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -364,7 +364,7 @@ func TestSecRuleOperators(t *testing.T) {
 		}
 
 		if rr[0].Items[0].Op != test.op {
-			fmt.Fprintf(&b, "Wrong operator: %d. Tested input: %s\n", rr[0].Items[0].Op, test.input)
+			fmt.Fprintf(&b, "Wrong Operator: %d. Tested input: %s\n", rr[0].Items[0].Op, test.input)
 			continue
 		}
 
@@ -381,29 +381,29 @@ func TestSecRuleOperators(t *testing.T) {
 
 func TestSecRuleRawActions(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	type testcase struct {
 		input    string
-		expected []rawAction
+		expected []RawAction
 	}
 	tests := []testcase{
-		testcase{`id:950902`, []rawAction{rawAction{`id`, `950902`}}},
-		testcase{`id:'950902'`, []rawAction{rawAction{`id`, `950902`}}},
-		testcase{`id:'950902',deny`, []rawAction{rawAction{`id`, `950902`}, rawAction{`deny`, ``}}},
-		testcase{`"id:'950902'"`, []rawAction{rawAction{`id`, `950902`}}},
-		testcase{`"id:'950902',deny"`, []rawAction{rawAction{`id`, `950902`}, rawAction{`deny`, ``}}},
-		testcase{`'id:\'950902\''`, []rawAction{rawAction{`id`, `950902`}}},
-		testcase{`'id:\'950902\',deny'`, []rawAction{rawAction{`id`, `950902`}, rawAction{`deny`, ``}}},
-		testcase{`"id:'950902',deny,msg:'Hello World Attack'"`, []rawAction{rawAction{`id`, `950902`}, rawAction{`deny`, ``}, rawAction{`msg`, `Hello World Attack`}}},
-		testcase{`"id:950902,setvar:tx.sql_injection_score=+%{tx.critical_anomaly_score}"`, []rawAction{rawAction{`id`, `950902`}, rawAction{`setvar`, `tx.sql_injection_score=+%{tx.critical_anomaly_score}`}}},
-		testcase{`"id:'950902',setvar:'tx.sql_injection_score=+%{tx.critical_anomaly_score}'"`, []rawAction{rawAction{`id`, `950902`}, rawAction{`setvar`, `tx.sql_injection_score=+%{tx.critical_anomaly_score}`}}},
-		testcase{`"id:'950902',logdata:'Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}'"`, []rawAction{rawAction{`id`, `950902`}, rawAction{`logdata`, `Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}`}}},
+		testcase{`id:950902`, []RawAction{{`id`, `950902`}}},
+		testcase{`id:'950902'`, []RawAction{{`id`, `950902`}}},
+		testcase{`id:'950902',deny`, []RawAction{{`id`, `950902`}, {`deny`, ``}}},
+		testcase{`"id:'950902'"`, []RawAction{{`id`, `950902`}}},
+		testcase{`"id:'950902',deny"`, []RawAction{{`id`, `950902`}, {`deny`, ``}}},
+		testcase{`'id:\'950902\''`, []RawAction{{`id`, `950902`}}},
+		testcase{`'id:\'950902\',deny'`, []RawAction{{`id`, `950902`}, {`deny`, ``}}},
+		testcase{`"id:'950902',deny,msg:'Hello World Attack'"`, []RawAction{{`id`, `950902`}, {`deny`, ``}, {`msg`, `Hello World Attack`}}},
+		testcase{`"id:950902,setvar:tx.sql_injection_score=+%{tx.critical_anomaly_score}"`, []RawAction{{`id`, `950902`}, {`setvar`, `tx.sql_injection_score=+%{tx.critical_anomaly_score}`}}},
+		testcase{`"id:'950902',setvar:'tx.sql_injection_score=+%{tx.critical_anomaly_score}'"`, []RawAction{{`id`, `950902`}, {`setvar`, `tx.sql_injection_score=+%{tx.critical_anomaly_score}`}}},
+		testcase{`"id:'950902',logdata:'Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}'"`, []RawAction{{`id`, `950902`}, {`logdata`, `Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}`}}},
 	}
 
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.parse("SecRule ARGS helloworld " + test.input)
+		rr, err := p.Parse("SecRule ARGS helloworld " + test.input)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -444,13 +444,13 @@ func TestSecRuleRawActions(t *testing.T) {
 
 func TestTransformationCaseInsensitive(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rule := `
 		SecRule ARGS "helloworld" "t:cssDecode,t:UrLdEcOdEuNi,id:942320"
 	`
 
 	// Act
-	rr, err := p.parse(rule)
+	rr, err := p.Parse(rule)
 
 	// Assert
 	if err != nil {
@@ -465,7 +465,7 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 
 	r := rc.Items[0]
 
-	expectedTransformations := []transformation{cssDecode, urlDecodeUni}
+	expectedTransformations := []Transformation{CssDecode, UrlDecodeUni}
 	if len(r.Transformations) != len(expectedTransformations) {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
 	}
@@ -478,7 +478,7 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 
 func TestRule942320(t *testing.T) {
 	// Arrange
-	p := newRuleParser()
+	p := NewRuleParser()
 	rule := `
 		SecRule REQUEST_COOKIES|!REQUEST_COOKIES:/__utm/|REQUEST_COOKIES_NAMES|ARGS_NAMES|ARGS|XML:/* "(?i:(?:procedure\s+analyse\s*?\()|(?:;\s*?(declare|open)\s+[\w-]+)|(?:create\s+(procedure|function)\s*?\w+\s*?\(\s*?\)\s*?-)|(?:declare[^\w]+[@#]\s*?\w+)|(exec\s*?\(\s*?@))" \
 		"phase:request,\
@@ -509,7 +509,7 @@ func TestRule942320(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.parse(rule)
+	rr, err := p.Parse(rule)
 
 	// Assert
 	if err != nil {
@@ -543,8 +543,8 @@ func TestRule942320(t *testing.T) {
 		}
 	}
 
-	if r.Op != rx {
-		t.Fatalf("Unexpected operator: %d", r.Op)
+	if r.Op != Rx {
+		t.Fatalf("Unexpected Operator: %d", r.Op)
 	}
 
 	if r.Neg != false {
@@ -553,36 +553,36 @@ func TestRule942320(t *testing.T) {
 
 	expectedVal := `(?i:(?:procedure\s+analyse\s*?\()|(?:;\s*?(declare|open)\s+[\w-]+)|(?:create\s+(procedure|function)\s*?\w+\s*?\(\s*?\)\s*?-)|(?:declare[^\w]+[@#]\s*?\w+)|(exec\s*?\(\s*?@))`
 	if r.Val != expectedVal {
-		t.Fatalf("Unexpected operator value. Actual: %s. Expected: %s", r.Val, expectedVal)
+		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Val, expectedVal)
 	}
 
-	expectedRawActions := []rawAction{
-		rawAction{`phase`, `request`},
-		rawAction{`rev`, `2`},
-		rawAction{`ver`, `OWASP_CRS/3.0.0`},
-		rawAction{`maturity`, `9`},
-		rawAction{`accuracy`, `8`},
-		rawAction{`capture`, ``},
-		rawAction{`t`, `none`},
-		rawAction{`t`, `urlDecodeUni`},
-		rawAction{`block`, ``},
-		rawAction{`msg`, `Detects MySQL and PostgreSQL stored procedure/function injections`},
-		rawAction{`id`, `942320`},
-		rawAction{`tag`, `application-multi`},
-		rawAction{`tag`, `language-multi`},
-		rawAction{`tag`, `platform-multi`},
-		rawAction{`tag`, `attack-sqli`},
-		rawAction{`tag`, `OWASP_CRS/WEB_ATTACK/SQL_INJECTION`},
-		rawAction{`tag`, `WASCTC/WASC-19`},
-		rawAction{`tag`, `OWASP_TOP_10/A1`},
-		rawAction{`tag`, `OWASP_AppSensor/CIE1`},
-		rawAction{`tag`, `PCI/6.5.2`},
-		rawAction{`logdata`, `Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}`},
-		rawAction{`severity`, `CRITICAL`},
-		rawAction{`setvar`, `tx.msg=%{rule.msg}`},
-		rawAction{`setvar`, `tx.sql_injection_score=+%{tx.critical_anomaly_score}`},
-		rawAction{`setvar`, `tx.anomaly_score=+%{tx.critical_anomaly_score}`},
-		rawAction{`setvar`, `tx.%{rule.id}-OWASP_CRS/WEB_ATTACK/SQLI-%{matched_var_name}=%{tx.0}`},
+	expectedRawActions := []RawAction{
+		RawAction{`phase`, `request`},
+		RawAction{`rev`, `2`},
+		RawAction{`ver`, `OWASP_CRS/3.0.0`},
+		RawAction{`maturity`, `9`},
+		RawAction{`accuracy`, `8`},
+		RawAction{`capture`, ``},
+		RawAction{`t`, `none`},
+		RawAction{`t`, `urlDecodeUni`},
+		RawAction{`block`, ``},
+		RawAction{`msg`, `Detects MySQL and PostgreSQL stored procedure/function injections`},
+		RawAction{`id`, `942320`},
+		RawAction{`tag`, `application-multi`},
+		RawAction{`tag`, `language-multi`},
+		RawAction{`tag`, `platform-multi`},
+		RawAction{`tag`, `attack-sqli`},
+		RawAction{`tag`, `OWASP_CRS/WEB_ATTACK/SQL_INJECTION`},
+		RawAction{`tag`, `WASCTC/WASC-19`},
+		RawAction{`tag`, `OWASP_TOP_10/A1`},
+		RawAction{`tag`, `OWASP_AppSensor/CIE1`},
+		RawAction{`tag`, `PCI/6.5.2`},
+		RawAction{`logdata`, `Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}`},
+		RawAction{`severity`, `CRITICAL`},
+		RawAction{`setvar`, `tx.msg=%{rule.msg}`},
+		RawAction{`setvar`, `tx.sql_injection_score=+%{tx.critical_anomaly_score}`},
+		RawAction{`setvar`, `tx.anomaly_score=+%{tx.critical_anomaly_score}`},
+		RawAction{`setvar`, `tx.%{rule.id}-OWASP_CRS/WEB_ATTACK/SQLI-%{matched_var_name}=%{tx.0}`},
 	}
 	if len(r.RawActions) != len(expectedRawActions) {
 		t.Fatalf("Unexpected raw actions count. Actual: %d. Expected: %d.", len(r.RawActions), len(expectedRawActions))
@@ -593,7 +593,7 @@ func TestRule942320(t *testing.T) {
 		}
 	}
 
-	expectedTransformations := []transformation{urlDecodeUni}
+	expectedTransformations := []Transformation{UrlDecodeUni}
 	if len(r.Transformations) != len(expectedTransformations) {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
 	}

@@ -1,76 +1,76 @@
 package secrule
 
-type rule struct {
+type Rule struct {
 	ID    int
-	Items []ruleItem
+	Items []RuleItem
 }
 
-type ruleItem struct {
+type RuleItem struct {
 	Msg             string
 	Targets         []string
-	Op              operator
+	Op              Operator
 	Neg             bool
 	Val             string
-	RawActions      []rawAction
-	Transformations []transformation
+	RawActions      []RawAction
+	Transformations []Transformation
 }
 
-type rawAction struct {
+type RawAction struct {
 	Key string
 	Val string
 }
 
-type operator int
+type Operator int
 
 const (
-	_ operator = iota
-	beginsWith
-	endsWith
-	contains
-	containsWord
-	detectSQLi
-	detectXSS
-	eq
-	ge
-	gt
-	lt
-	pm
-	pmf
-	pmFromFile
-	rx
-	streq
-	strmatch
-	validateByteRange
-	validateUrlEncoding
-	validateUtf8Encoding
-	within
-	geoLookup
-	ipMatch
-	rbl
+	_ Operator = iota
+	BeginsWith
+	EndsWith
+	Contains
+	ContainsWord
+	DetectSQLi
+	DetectXSS
+	Eq
+	Ge
+	Gt
+	Lt
+	Pm
+	Pmf
+	PmFromFile
+	Rx
+	Streq
+	Strmatch
+	ValidateByteRange
+	ValidateUrlEncoding
+	ValidateUtf8Encoding
+	Within
+	GeoLookup
+	IpMatch
+	Rbl
 )
 
-type transformation int
+type Transformation int
 
 const (
-	_ transformation = iota
-	cmdLine
-	compressWhitespace
-	cssDecode
-	hexEncode
-	htmlEntityDecode
-	jsDecode
-	length
-	lowercase
-	normalisePath
-	normalisePathWin
-	normalizePath
-	normalizePathWin
-	removeComments
-	removeNulls
-	removeWhitespace
-	replaceComments
-	sha1
-	urlDecode
-	urlDecodeUni
-	utf8toUnicode
+	_ Transformation = iota
+	CmdLine
+	CompressWhitespace
+	CssDecode
+	HexEncode
+	HtmlEntityDecode
+	JsDecode
+	Length
+	Lowercase
+	NormalisePath
+	NormalisePathWin
+	NormalizePath
+	NormalizePathWin
+	RemoveComments
+	RemoveNulls
+	RemoveWhitespace
+	ReplaceComments
+	Sha1
+	UrlDecode
+	UrlDecodeUni
+	Utf8toUnicode
 )
