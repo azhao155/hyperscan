@@ -29,7 +29,7 @@ func (m *mockSecRuleEngineFactory) NewEngine(siteName string) secrule.Engine {
 
 func TestWafServerEvalRequest(t *testing.T) {
 	// Arrange
-	c := &config.Main{Sites: []config.Site{config.Site{Name: "site1"}}}
+	c := &config.Main{Sites: []config.Site{{Name: "site1"}}}
 	msre := &mockSecRuleEngine{}
 	msref := &mockSecRuleEngineFactory{msre: msre}
 	s := NewServer(c, msref)

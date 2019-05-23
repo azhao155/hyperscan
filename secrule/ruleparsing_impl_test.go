@@ -19,9 +19,9 @@ func TestFindConsume(t *testing.T) {
 		expectedRest  string
 	}
 	tests := []testcase{
-		testcase{regexp.MustCompile(`^abc`), `abcxyz`, `abc`, `xyz`},
-		testcase{regexp.MustCompile(`^abc`), `xyzabcxyz`, ``, `xyzabcxyz`},
-		testcase{regexp.MustCompile(`abc`), `xyzabcdef`, `abc`, `def`},
+		{regexp.MustCompile(`^abc`), `abcxyz`, `abc`, `xyz`},
+		{regexp.MustCompile(`^abc`), `xyzabcxyz`, ``, `xyzabcxyz`},
+		{regexp.MustCompile(`abc`), `xyzabcdef`, `abc`, `def`},
 	}
 
 	// Act and assert
@@ -201,9 +201,9 @@ func TestParseActionKeyValue(t *testing.T) {
 		expectedVal string
 	}
 	tests := []testcase{
-		testcase{`id:950902`, `id`, `950902`},
-		testcase{`id:'950902'`, `id`, `950902`},
-		testcase{`deny`, `deny`, ``},
+		{`id:950902`, `id`, `950902`},
+		{`id:'950902'`, `id`, `950902`},
+		{`deny`, `deny`, ``},
 	}
 
 	// Act and assert
