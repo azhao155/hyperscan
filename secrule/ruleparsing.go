@@ -180,6 +180,8 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 				err = fmt.Errorf("Unknown transformation: %s", a.Val)
 				return
 			}
+		case "setvar":
+			ru.Actions = append(ru.Actions, NewSetvarAction(a.Val))
 		}
 	}
 

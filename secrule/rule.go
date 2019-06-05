@@ -12,6 +12,7 @@ type RuleItem struct {
 	Neg             bool
 	Val             string
 	RawActions      []RawAction
+	Actions			[]actionHandler
 	Transformations []Transformation
 }
 
