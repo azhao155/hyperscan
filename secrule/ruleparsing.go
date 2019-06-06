@@ -13,7 +13,7 @@ type ruleParser interface {
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
-var targetRegex = regexp.MustCompile(`(?i)!?(XML:/[^|\s]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+)`)
+var targetRegex = regexp.MustCompile(`(?i)^!?&?(XML:/[^|\s]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+:[\w_-]+|\w+)`)
 var doubleQuotedStringRegex = regexp.MustCompile(`^"(\\.|\\\n|[^"\\])*"`)
 var singleQuotedStringRegex = regexp.MustCompile(`^'(\\.|\\\n|[^'\\])*'`)
 var nonQuotedStringRegex = regexp.MustCompile(`^[^ \t]+`)
@@ -225,6 +225,7 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []string, rest string, 
 		} else if s[0] == '|' {
 			// Another target will come
 			s = s[1:]
+			_, s = r.findConsume(argSpaceRegex, s)
 		}
 	}
 }
