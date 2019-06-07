@@ -23,7 +23,7 @@ A YAML definition of a configuration that can be taken by a service.
 
 Multiple Snap Shots Architecture
 
-![Alt text](config_manager.jpg?raw=true "Config Manager Diagram")
+![Config Manager Diagram](config_manager.jpg)
   
 We will be introducing a GRPC API in WafNextGen which will be used by the tenant to configure WafNextGen. This API will allow the the tenant to trigger changes in WafNextGen when it receives configuration updates from GWM.
 
