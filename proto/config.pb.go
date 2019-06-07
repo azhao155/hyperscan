@@ -18,227 +18,51 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
-type ServiceID struct {
-	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *ServiceID) Reset()         { *m = ServiceID{} }
-func (m *ServiceID) String() string { return proto.CompactTextString(m) }
-func (*ServiceID) ProtoMessage()    {}
-func (*ServiceID) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_e72f0790f2c586b8, []int{0}
-}
-func (m *ServiceID) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ServiceID.Unmarshal(m, b)
-}
-func (m *ServiceID) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ServiceID.Marshal(b, m, deterministic)
-}
-func (dst *ServiceID) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServiceID.Merge(dst, src)
-}
-func (m *ServiceID) XXX_Size() int {
-	return xxx_messageInfo_ServiceID.Size(m)
-}
-func (m *ServiceID) XXX_DiscardUnknown() {
-	xxx_messageInfo_ServiceID.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ServiceID proto.InternalMessageInfo
-
-func (m *ServiceID) GetName() string {
-	if m != nil {
-		return m.Name
-	}
-	return ""
-}
-
 //
 // This is an example service which we will be using as a place holder till we
 // light up a service on AzWaf.
-type ServiceDummy struct {
-	Id                   *ServiceID `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
-}
-
-func (m *ServiceDummy) Reset()         { *m = ServiceDummy{} }
-func (m *ServiceDummy) String() string { return proto.CompactTextString(m) }
-func (*ServiceDummy) ProtoMessage()    {}
-func (*ServiceDummy) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_e72f0790f2c586b8, []int{1}
-}
-func (m *ServiceDummy) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ServiceDummy.Unmarshal(m, b)
-}
-func (m *ServiceDummy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ServiceDummy.Marshal(b, m, deterministic)
-}
-func (dst *ServiceDummy) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ServiceDummy.Merge(dst, src)
-}
-func (m *ServiceDummy) XXX_Size() int {
-	return xxx_messageInfo_ServiceDummy.Size(m)
-}
-func (m *ServiceDummy) XXX_DiscardUnknown() {
-	xxx_messageInfo_ServiceDummy.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ServiceDummy proto.InternalMessageInfo
-
-func (m *ServiceDummy) GetId() *ServiceID {
-	if m != nil {
-		return m.Id
-	}
-	return nil
-}
-
-type Services struct {
-	Dummies              []*ServiceDummy `protobuf:"bytes,1,rep,name=dummies,proto3" json:"dummies,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
-	XXX_unrecognized     []byte          `json:"-"`
-	XXX_sizecache        int32           `json:"-"`
-}
-
-func (m *Services) Reset()         { *m = Services{} }
-func (m *Services) String() string { return proto.CompactTextString(m) }
-func (*Services) ProtoMessage()    {}
-func (*Services) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_e72f0790f2c586b8, []int{2}
-}
-func (m *Services) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Services.Unmarshal(m, b)
-}
-func (m *Services) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Services.Marshal(b, m, deterministic)
-}
-func (dst *Services) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Services.Merge(dst, src)
-}
-func (m *Services) XXX_Size() int {
-	return xxx_messageInfo_Services.Size(m)
-}
-func (m *Services) XXX_DiscardUnknown() {
-	xxx_messageInfo_Services.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Services proto.InternalMessageInfo
-
-func (m *Services) GetDummies() []*ServiceDummy {
-	if m != nil {
-		return m.Dummies
-	}
-	return nil
-}
-
-type Path struct {
-	Prefix               string       `protobuf:"bytes,1,opt,name=prefix,proto3" json:"prefix,omitempty"`
-	Services             []*ServiceID `protobuf:"bytes,2,rep,name=services,proto3" json:"services,omitempty"`
-	Paths                []*Path      `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
+type Service struct {
+	ServiceConfigId      string       `protobuf:"bytes,1,opt,name=serviceConfigId,proto3" json:"serviceConfigId,omitempty"`
+	Config               *ConfigDummy `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
 	XXX_unrecognized     []byte       `json:"-"`
 	XXX_sizecache        int32        `json:"-"`
 }
 
-func (m *Path) Reset()         { *m = Path{} }
-func (m *Path) String() string { return proto.CompactTextString(m) }
-func (*Path) ProtoMessage()    {}
-func (*Path) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_e72f0790f2c586b8, []int{3}
+func (m *Service) Reset()         { *m = Service{} }
+func (m *Service) String() string { return proto.CompactTextString(m) }
+func (*Service) ProtoMessage()    {}
+func (*Service) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_37981b6fcfdd6df9, []int{0}
 }
-func (m *Path) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Path.Unmarshal(m, b)
+func (m *Service) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Service.Unmarshal(m, b)
 }
-func (m *Path) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Path.Marshal(b, m, deterministic)
+func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Service.Marshal(b, m, deterministic)
 }
-func (dst *Path) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Path.Merge(dst, src)
+func (dst *Service) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Service.Merge(dst, src)
 }
-func (m *Path) XXX_Size() int {
-	return xxx_messageInfo_Path.Size(m)
+func (m *Service) XXX_Size() int {
+	return xxx_messageInfo_Service.Size(m)
 }
-func (m *Path) XXX_DiscardUnknown() {
-	xxx_messageInfo_Path.DiscardUnknown(m)
+func (m *Service) XXX_DiscardUnknown() {
+	xxx_messageInfo_Service.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_Path proto.InternalMessageInfo
+var xxx_messageInfo_Service proto.InternalMessageInfo
 
-func (m *Path) GetPrefix() string {
+func (m *Service) GetServiceConfigId() string {
 	if m != nil {
-		return m.Prefix
+		return m.ServiceConfigId
 	}
 	return ""
 }
 
-func (m *Path) GetServices() []*ServiceID {
+func (m *Service) GetConfig() *ConfigDummy {
 	if m != nil {
-		return m.Services
-	}
-	return nil
-}
-
-func (m *Path) GetPaths() []*Path {
-	if m != nil {
-		return m.Paths
-	}
-	return nil
-}
-
-type Site struct {
-	Domain               string       `protobuf:"bytes,1,opt,name=domain,proto3" json:"domain,omitempty"`
-	Services             []*ServiceID `protobuf:"bytes,2,rep,name=services,proto3" json:"services,omitempty"`
-	Paths                []*Path      `protobuf:"bytes,3,rep,name=paths,proto3" json:"paths,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}     `json:"-"`
-	XXX_unrecognized     []byte       `json:"-"`
-	XXX_sizecache        int32        `json:"-"`
-}
-
-func (m *Site) Reset()         { *m = Site{} }
-func (m *Site) String() string { return proto.CompactTextString(m) }
-func (*Site) ProtoMessage()    {}
-func (*Site) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_e72f0790f2c586b8, []int{4}
-}
-func (m *Site) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Site.Unmarshal(m, b)
-}
-func (m *Site) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Site.Marshal(b, m, deterministic)
-}
-func (dst *Site) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Site.Merge(dst, src)
-}
-func (m *Site) XXX_Size() int {
-	return xxx_messageInfo_Site.Size(m)
-}
-func (m *Site) XXX_DiscardUnknown() {
-	xxx_messageInfo_Site.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Site proto.InternalMessageInfo
-
-func (m *Site) GetDomain() string {
-	if m != nil {
-		return m.Domain
-	}
-	return ""
-}
-
-func (m *Site) GetServices() []*ServiceID {
-	if m != nil {
-		return m.Services
-	}
-	return nil
-}
-
-func (m *Site) GetPaths() []*Path {
-	if m != nil {
-		return m.Paths
+		return m.Config
 	}
 	return nil
 }
@@ -246,18 +70,17 @@ func (m *Site) GetPaths() []*Path {
 //
 // A representation of AzWaf configuration.
 type Config struct {
-	Services             *Services `protobuf:"bytes,1,opt,name=services,proto3" json:"services,omitempty"`
-	Sites                []*Site   `protobuf:"bytes,2,rep,name=sites,proto3" json:"sites,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}  `json:"-"`
-	XXX_unrecognized     []byte    `json:"-"`
-	XXX_sizecache        int32     `json:"-"`
+	ServiceConfig        []*Service `protobuf:"bytes,1,rep,name=serviceConfig,proto3" json:"serviceConfig,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
 }
 
 func (m *Config) Reset()         { *m = Config{} }
 func (m *Config) String() string { return proto.CompactTextString(m) }
 func (*Config) ProtoMessage()    {}
 func (*Config) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_e72f0790f2c586b8, []int{5}
+	return fileDescriptor_config_37981b6fcfdd6df9, []int{1}
 }
 func (m *Config) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_Config.Unmarshal(m, b)
@@ -277,47 +100,334 @@ func (m *Config) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Config proto.InternalMessageInfo
 
-func (m *Config) GetServices() *Services {
+func (m *Config) GetServiceConfig() []*Service {
 	if m != nil {
-		return m.Services
+		return m.ServiceConfig
 	}
 	return nil
 }
 
-func (m *Config) GetSites() []*Site {
+type ConfigDummy struct {
+	// Types that are valid to be assigned to Message:
+	//	*ConfigDummy_SecRuleConfig
+	//	*ConfigDummy_GeoDbConfig
+	//	*ConfigDummy_IpReputationConfig
+	Message              isConfigDummy_Message `protobuf_oneof:"message"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
+}
+
+func (m *ConfigDummy) Reset()         { *m = ConfigDummy{} }
+func (m *ConfigDummy) String() string { return proto.CompactTextString(m) }
+func (*ConfigDummy) ProtoMessage()    {}
+func (*ConfigDummy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_37981b6fcfdd6df9, []int{2}
+}
+func (m *ConfigDummy) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ConfigDummy.Unmarshal(m, b)
+}
+func (m *ConfigDummy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ConfigDummy.Marshal(b, m, deterministic)
+}
+func (dst *ConfigDummy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ConfigDummy.Merge(dst, src)
+}
+func (m *ConfigDummy) XXX_Size() int {
+	return xxx_messageInfo_ConfigDummy.Size(m)
+}
+func (m *ConfigDummy) XXX_DiscardUnknown() {
+	xxx_messageInfo_ConfigDummy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ConfigDummy proto.InternalMessageInfo
+
+type isConfigDummy_Message interface {
+	isConfigDummy_Message()
+}
+
+type ConfigDummy_SecRuleConfig struct {
+	SecRuleConfig *SecRuleConfigDummy `protobuf:"bytes,1,opt,name=secRuleConfig,proto3,oneof"`
+}
+
+type ConfigDummy_GeoDbConfig struct {
+	GeoDbConfig *GeoDbConfigDummy `protobuf:"bytes,2,opt,name=geoDbConfig,proto3,oneof"`
+}
+
+type ConfigDummy_IpReputationConfig struct {
+	IpReputationConfig *IPReputationConfigDummy `protobuf:"bytes,3,opt,name=ipReputationConfig,proto3,oneof"`
+}
+
+func (*ConfigDummy_SecRuleConfig) isConfigDummy_Message() {}
+
+func (*ConfigDummy_GeoDbConfig) isConfigDummy_Message() {}
+
+func (*ConfigDummy_IpReputationConfig) isConfigDummy_Message() {}
+
+func (m *ConfigDummy) GetMessage() isConfigDummy_Message {
 	if m != nil {
-		return m.Sites
+		return m.Message
 	}
 	return nil
+}
+
+func (m *ConfigDummy) GetSecRuleConfig() *SecRuleConfigDummy {
+	if x, ok := m.GetMessage().(*ConfigDummy_SecRuleConfig); ok {
+		return x.SecRuleConfig
+	}
+	return nil
+}
+
+func (m *ConfigDummy) GetGeoDbConfig() *GeoDbConfigDummy {
+	if x, ok := m.GetMessage().(*ConfigDummy_GeoDbConfig); ok {
+		return x.GeoDbConfig
+	}
+	return nil
+}
+
+func (m *ConfigDummy) GetIpReputationConfig() *IPReputationConfigDummy {
+	if x, ok := m.GetMessage().(*ConfigDummy_IpReputationConfig); ok {
+		return x.IpReputationConfig
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*ConfigDummy) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _ConfigDummy_OneofMarshaler, _ConfigDummy_OneofUnmarshaler, _ConfigDummy_OneofSizer, []interface{}{
+		(*ConfigDummy_SecRuleConfig)(nil),
+		(*ConfigDummy_GeoDbConfig)(nil),
+		(*ConfigDummy_IpReputationConfig)(nil),
+	}
+}
+
+func _ConfigDummy_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*ConfigDummy)
+	// message
+	switch x := m.Message.(type) {
+	case *ConfigDummy_SecRuleConfig:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.SecRuleConfig); err != nil {
+			return err
+		}
+	case *ConfigDummy_GeoDbConfig:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.GeoDbConfig); err != nil {
+			return err
+		}
+	case *ConfigDummy_IpReputationConfig:
+		b.EncodeVarint(3<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.IpReputationConfig); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("ConfigDummy.Message has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _ConfigDummy_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*ConfigDummy)
+	switch tag {
+	case 1: // message.secRuleConfig
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(SecRuleConfigDummy)
+		err := b.DecodeMessage(msg)
+		m.Message = &ConfigDummy_SecRuleConfig{msg}
+		return true, err
+	case 2: // message.geoDbConfig
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(GeoDbConfigDummy)
+		err := b.DecodeMessage(msg)
+		m.Message = &ConfigDummy_GeoDbConfig{msg}
+		return true, err
+	case 3: // message.ipReputationConfig
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(IPReputationConfigDummy)
+		err := b.DecodeMessage(msg)
+		m.Message = &ConfigDummy_IpReputationConfig{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _ConfigDummy_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*ConfigDummy)
+	// message
+	switch x := m.Message.(type) {
+	case *ConfigDummy_SecRuleConfig:
+		s := proto.Size(x.SecRuleConfig)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ConfigDummy_GeoDbConfig:
+		s := proto.Size(x.GeoDbConfig)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *ConfigDummy_IpReputationConfig:
+		s := proto.Size(x.IpReputationConfig)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type SecRuleConfigDummy struct {
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *SecRuleConfigDummy) Reset()         { *m = SecRuleConfigDummy{} }
+func (m *SecRuleConfigDummy) String() string { return proto.CompactTextString(m) }
+func (*SecRuleConfigDummy) ProtoMessage()    {}
+func (*SecRuleConfigDummy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_37981b6fcfdd6df9, []int{3}
+}
+func (m *SecRuleConfigDummy) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_SecRuleConfigDummy.Unmarshal(m, b)
+}
+func (m *SecRuleConfigDummy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_SecRuleConfigDummy.Marshal(b, m, deterministic)
+}
+func (dst *SecRuleConfigDummy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_SecRuleConfigDummy.Merge(dst, src)
+}
+func (m *SecRuleConfigDummy) XXX_Size() int {
+	return xxx_messageInfo_SecRuleConfigDummy.Size(m)
+}
+func (m *SecRuleConfigDummy) XXX_DiscardUnknown() {
+	xxx_messageInfo_SecRuleConfigDummy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_SecRuleConfigDummy proto.InternalMessageInfo
+
+func (m *SecRuleConfigDummy) GetEnabled() bool {
+	if m != nil {
+		return m.Enabled
+	}
+	return false
+}
+
+type GeoDbConfigDummy struct {
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *GeoDbConfigDummy) Reset()         { *m = GeoDbConfigDummy{} }
+func (m *GeoDbConfigDummy) String() string { return proto.CompactTextString(m) }
+func (*GeoDbConfigDummy) ProtoMessage()    {}
+func (*GeoDbConfigDummy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_37981b6fcfdd6df9, []int{4}
+}
+func (m *GeoDbConfigDummy) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GeoDbConfigDummy.Unmarshal(m, b)
+}
+func (m *GeoDbConfigDummy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GeoDbConfigDummy.Marshal(b, m, deterministic)
+}
+func (dst *GeoDbConfigDummy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GeoDbConfigDummy.Merge(dst, src)
+}
+func (m *GeoDbConfigDummy) XXX_Size() int {
+	return xxx_messageInfo_GeoDbConfigDummy.Size(m)
+}
+func (m *GeoDbConfigDummy) XXX_DiscardUnknown() {
+	xxx_messageInfo_GeoDbConfigDummy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_GeoDbConfigDummy proto.InternalMessageInfo
+
+func (m *GeoDbConfigDummy) GetEnabled() bool {
+	if m != nil {
+		return m.Enabled
+	}
+	return false
+}
+
+type IPReputationConfigDummy struct {
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *IPReputationConfigDummy) Reset()         { *m = IPReputationConfigDummy{} }
+func (m *IPReputationConfigDummy) String() string { return proto.CompactTextString(m) }
+func (*IPReputationConfigDummy) ProtoMessage()    {}
+func (*IPReputationConfigDummy) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_37981b6fcfdd6df9, []int{5}
+}
+func (m *IPReputationConfigDummy) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_IPReputationConfigDummy.Unmarshal(m, b)
+}
+func (m *IPReputationConfigDummy) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_IPReputationConfigDummy.Marshal(b, m, deterministic)
+}
+func (dst *IPReputationConfigDummy) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_IPReputationConfigDummy.Merge(dst, src)
+}
+func (m *IPReputationConfigDummy) XXX_Size() int {
+	return xxx_messageInfo_IPReputationConfigDummy.Size(m)
+}
+func (m *IPReputationConfigDummy) XXX_DiscardUnknown() {
+	xxx_messageInfo_IPReputationConfigDummy.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_IPReputationConfigDummy proto.InternalMessageInfo
+
+func (m *IPReputationConfigDummy) GetEnabled() bool {
+	if m != nil {
+		return m.Enabled
+	}
+	return false
 }
 
 func init() {
-	proto.RegisterType((*ServiceID)(nil), "wafservice.ServiceID")
-	proto.RegisterType((*ServiceDummy)(nil), "wafservice.ServiceDummy")
-	proto.RegisterType((*Services)(nil), "wafservice.Services")
-	proto.RegisterType((*Path)(nil), "wafservice.Path")
-	proto.RegisterType((*Site)(nil), "wafservice.Site")
+	proto.RegisterType((*Service)(nil), "wafservice.Service")
 	proto.RegisterType((*Config)(nil), "wafservice.Config")
+	proto.RegisterType((*ConfigDummy)(nil), "wafservice.ConfigDummy")
+	proto.RegisterType((*SecRuleConfigDummy)(nil), "wafservice.SecRuleConfigDummy")
+	proto.RegisterType((*GeoDbConfigDummy)(nil), "wafservice.GeoDbConfigDummy")
+	proto.RegisterType((*IPReputationConfigDummy)(nil), "wafservice.IPReputationConfigDummy")
 }
 
-func init() { proto.RegisterFile("config.proto", fileDescriptor_config_e72f0790f2c586b8) }
+func init() { proto.RegisterFile("config.proto", fileDescriptor_config_37981b6fcfdd6df9) }
 
-var fileDescriptor_config_e72f0790f2c586b8 = []byte{
-	// 256 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x92, 0x3f, 0x4f, 0xc3, 0x30,
-	0x10, 0xc5, 0x95, 0xb4, 0x84, 0xf6, 0xda, 0x01, 0x9d, 0x00, 0x79, 0xa3, 0x8a, 0x04, 0xea, 0x14,
-	0x41, 0x10, 0x2b, 0x0b, 0x5d, 0xd8, 0x90, 0xfb, 0x09, 0xdc, 0xc6, 0xa1, 0x37, 0x38, 0x8e, 0x62,
-	0x17, 0xe8, 0xb7, 0x47, 0xfe, 0xd3, 0xd0, 0x4a, 0x65, 0xec, 0x76, 0xe7, 0x7b, 0x7e, 0xbf, 0xe7,
-	0x3f, 0x30, 0x5d, 0xeb, 0xa6, 0xa6, 0xcf, 0xa2, 0xed, 0xb4, 0xd5, 0x08, 0xdf, 0xa2, 0x36, 0xb2,
-	0xfb, 0xa2, 0xb5, 0xcc, 0xef, 0x60, 0xbc, 0x0c, 0xe5, 0xfb, 0x02, 0x11, 0x86, 0x8d, 0x50, 0x92,
-	0x25, 0xb3, 0x64, 0x3e, 0xe6, 0xbe, 0xce, 0x5f, 0x60, 0x1a, 0x05, 0x8b, 0xad, 0x52, 0x3b, 0xbc,
-	0x87, 0x94, 0x2a, 0xaf, 0x98, 0x94, 0x37, 0xc5, 0x9f, 0x53, 0xd1, 0xdb, 0xf0, 0x94, 0xaa, 0xfc,
-	0x15, 0x46, 0x71, 0xc1, 0x60, 0x09, 0x97, 0xd5, 0x56, 0x29, 0x92, 0x86, 0x25, 0xb3, 0xc1, 0x7c,
-	0x52, 0xb2, 0x13, 0xfb, 0xbc, 0x3b, 0xdf, 0x0b, 0xf3, 0x1d, 0x0c, 0x3f, 0x84, 0xdd, 0xe0, 0x2d,
-	0x64, 0x6d, 0x27, 0x6b, 0xfa, 0x89, 0xa1, 0x62, 0x87, 0x4f, 0x30, 0x8a, 0x06, 0x86, 0xa5, 0xde,
-	0xf4, 0x9f, 0x30, 0xbd, 0x0c, 0x1f, 0xe0, 0xa2, 0x15, 0x76, 0x63, 0xd8, 0xc0, 0xeb, 0xaf, 0x0e,
-	0xf5, 0x8e, 0xc5, 0xc3, 0xd8, 0xa1, 0x97, 0x64, 0xa5, 0x43, 0x57, 0x5a, 0x09, 0x6a, 0xf6, 0xe8,
-	0xd0, 0x9d, 0x13, 0xbd, 0x82, 0xec, 0xcd, 0xbf, 0x14, 0x3e, 0x1e, 0x40, 0xc2, 0x65, 0x5f, 0x9f,
-	0x80, 0x98, 0x63, 0x86, 0x21, 0xdb, 0x67, 0x3a, 0x62, 0xb8, 0xf3, 0xf0, 0x30, 0x5e, 0x65, 0xfe,
-	0x13, 0x3c, 0xff, 0x06, 0x00, 0x00, 0xff, 0xff, 0x5e, 0x99, 0x6e, 0x9b, 0x14, 0x02, 0x00, 0x00,
+var fileDescriptor_config_37981b6fcfdd6df9 = []byte{
+	// 273 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0xd2, 0x41, 0x4b, 0x84, 0x40,
+	0x14, 0x07, 0xf0, 0xa6, 0x05, 0x6d, 0x9f, 0x45, 0xf1, 0x3a, 0xac, 0x87, 0x08, 0x99, 0x2e, 0x1e,
+	0xc2, 0x60, 0xf7, 0xd4, 0x2d, 0x72, 0xa9, 0xf6, 0x16, 0x13, 0x7d, 0x00, 0x75, 0xdf, 0x8a, 0xb0,
+	0x3a, 0xb2, 0x6a, 0xd1, 0x47, 0xef, 0x16, 0xeb, 0x28, 0xce, 0x58, 0xdb, 0x4d, 0x9f, 0xff, 0xf7,
+	0xe3, 0x3f, 0x38, 0x70, 0x9a, 0xc8, 0x62, 0x93, 0xa5, 0x41, 0xb9, 0x93, 0xb5, 0x44, 0xf8, 0x8c,
+	0x36, 0x15, 0xed, 0x3e, 0xb2, 0x84, 0xf8, 0x1a, 0xec, 0x37, 0xf5, 0x88, 0x3e, 0x9c, 0x77, 0xd3,
+	0xb0, 0x4d, 0xaf, 0xd6, 0x2e, 0xf3, 0x98, 0x3f, 0x15, 0xe3, 0x31, 0xde, 0x81, 0xa5, 0x40, 0xf7,
+	0xd8, 0x63, 0xbe, 0x33, 0x9f, 0x05, 0x83, 0x18, 0xa8, 0xd4, 0xb2, 0xc9, 0xf3, 0x2f, 0xd1, 0xc5,
+	0x78, 0x08, 0x96, 0x1a, 0xe3, 0x3d, 0x9c, 0x19, 0x9a, 0xcb, 0xbc, 0x89, 0xef, 0xcc, 0x2f, 0x75,
+	0xa1, 0x2b, 0x24, 0xcc, 0x24, 0xff, 0x66, 0xe0, 0x68, 0x38, 0x3e, 0xed, 0xa9, 0x44, 0x34, 0xdb,
+	0x81, 0xda, 0x97, 0xb9, 0x36, 0x29, 0x2d, 0xd0, 0xae, 0xbd, 0x1c, 0x09, 0x73, 0x0d, 0x1f, 0xc0,
+	0x49, 0x49, 0x2e, 0xe3, 0x50, 0x3f, 0xd2, 0x95, 0xae, 0x3c, 0x0f, 0x9f, 0x7b, 0x43, 0x5f, 0xc1,
+	0x77, 0xc0, 0xac, 0x14, 0x54, 0x36, 0x75, 0x54, 0x67, 0xb2, 0xe8, 0xa0, 0x49, 0x0b, 0xdd, 0xe8,
+	0xd0, 0xea, 0x75, 0x9c, 0xea, 0xbd, 0x3f, 0x80, 0xc7, 0x29, 0xd8, 0x39, 0x55, 0x55, 0x94, 0x12,
+	0x0f, 0x00, 0x7f, 0x1f, 0x05, 0x5d, 0xb0, 0xa9, 0x88, 0xe2, 0x2d, 0xa9, 0x3f, 0x75, 0x22, 0xfa,
+	0x57, 0x7e, 0x0b, 0x17, 0xe3, 0xd2, 0xff, 0xa4, 0x17, 0x30, 0x3b, 0xd0, 0xec, 0xf0, 0x52, 0x6c,
+	0xb5, 0x97, 0x69, 0xf1, 0x13, 0x00, 0x00, 0xff, 0xff, 0x55, 0x5d, 0xbc, 0xcb, 0x5c, 0x02, 0x00,
+	0x00,
 }
