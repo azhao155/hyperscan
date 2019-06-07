@@ -25,23 +25,23 @@ Multiple Snap Shots Architecture
 
 ![Config Manager Diagram](config_manager.jpg)
   
-We will be introducing a GRPC API in WafNextGen which will be used by the tenant to configure WafNextGen. This API will allow the the tenant to trigger changes in WafNextGen when it receives configuration updates from GWM.
+We will be introducing a GRPC API in Azwaf which will be used by the tenant to configure Azwaf. This API will allow the the tenant to trigger changes in Azwaf when it receives configuration updates from GWM.
 
-The configuration API will be supported by a configuration manager module (CFGM) within WafNextGen. This module will be responsible for keeping track of the current configuration, caching it on disk for restarts, and performing hitless reload on services whose configuration has changed.
+The configuration API will be supported by a configuration manager module (CFGM) within Azwaf. This module will be responsible for keeping track of the current configuration, caching it on disk for restarts, and performing hitless reload on services whose configuration has changed.
 
 Multiple Snap Shots Architecture:
-Waf Next Gen always keeps multiple copies of configurations in memory, each index with config id which is passed from Tenant.
+Waf Next Gen always keeps multiple generations of configuration maps in memory, each configuration map is hash table structure with key as config id and value will be different type of config.
 Nginx are using the config id in the GRPC call to differentiate the configs between the older worker and new worker.
-Tenant should maintain the transaction of applying config on wafNextGen and Nginx.
+Tenant should maintain the transaction of applying config on Azwaf and Nginx.
 The process is as following:
 
-1. Tenant send config GRPC call to WafNextGen to update the config. WafNextGen call config manager to generate new config in memory with new config id, and report success.
-2. After Tenant receive success status of WafNextGen, it start to apply the config to the Nginx. Nginx will apply the config, increase the generation id and report success.
+1. Tenant send config GRPC call to Azwaf to update the config. Azwaf call config manager to generate new config in memory with new config id, and report success.
+2. After Tenant receive success status of Azwaf, it start to apply the config to the Nginx. Nginx will apply the config, increase the generation id and report success.
 3. Tenant report success for config update.
 During this process, any steps could fail, here is the summary:
 step 1 failed: Tenant will stop applying config and report failure
-step 2 failed: Tenant will send old config to WafNextGen, WafNexGen will update config manager.
-With this method, WAFNextGen will keep multiple version of configs in memory, also it needs to keep track of connection with Nginx workers. If the connection with old config id go away, it needs to call the service manager to release the memory of the old running services.
+step 2 failed: Tenant will update Azwaf to Dispose all the newly created configs and services.
+With this method, Azwaf will keep multiple version of configs in memory, also it needs to keep track of connection with Nginx workers. If the connection with old config id go away, it needs to call the service manager to release the memory of the old running services.
 
 # Configuration Schema
 The schema has beend defined as protobuf in `proto/config.proto` .
@@ -61,8 +61,5 @@ The Service Manager will use the config from config manager, and create all the 
 Internal API in AzWAF:
 Create_Service:
 Create_Service will create one to one mapping service from the config map. And this service will handle concurrency requests. So in service manager, we don't need to worry about handling the concurrency.
-Destroy_Service:
-Destroy_Service will free the service not needed and clean up the internal service map.
-
-# Open questions
-* What are the failure modes for configuration maanger and how does it handle them? E.g., what happends when AzWaf process restarts? What happens if the tenant comes up but the AzWaf process is not up yet?
+Dispose_Service:
+Dispose_Service will free the service not needed and clean up the internal service map.

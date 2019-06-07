@@ -8,26 +8,26 @@ package wafservice;
  */
 message Service {
   string serviceConfigId = 1;
-  ConfigDummy config = 2;
+  Config config = 2;
 }
 
 /*
  * A representation of AzWaf configuration.
  */
-message Config {
+message WAFConfig {
   repeated Service serviceConfig = 1;
 }
 
-message ConfigDummy {
+message Config {
   oneof message {
-    SecRuleConfigDummy secRuleConfig = 1;
-    GeoDbConfigDummy geoDbConfig = 2;
-    IPReputationConfigDummy ipReputationConfig = 3;
+    SecRuleConfig secRuleConfig = 1;
+    GeoDbConfig geoDbConfig = 2;
+    IPReputationConfig ipReputationConfig = 3;
   }
 }
 
-message SecRuleConfigDummy { bool enabled = 1; }
+message SecRuleConfig { bool enabled = 1; }
 
-message GeoDbConfigDummy { bool enabled = 1; }
+message GeoDbConfig { bool enabled = 1; }
 
-message IPReputationConfigDummy { bool enabled = 1; }
+message IPReputationConfig { bool enabled = 1; }
