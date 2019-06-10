@@ -4,7 +4,7 @@ SHELL ["/bin/bash", "-c"]
 
 # Install dependencies from apt and then tidy up cache
 RUN apt-get update && \
-    apt-get install -y vim curl wget git build-essential unzip && \
+    apt-get install -y vim curl wget git build-essential pkg-config unzip && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -28,7 +28,7 @@ RUN curl -L -o /tmp/protoc.zip https://github.com/protocolbuffers/protobuf/relea
 
 # Install Hyperscan
 RUN cd /tmp && \
-    HYPERSCAN_PKG_FILENAME=azwaf-libhyperscan_5.1.1.deb && \
+    HYPERSCAN_PKG_FILENAME=azwaf-libhyperscan_5.1.1.2.deb && \
     wget -q https://azwafdependencies.blob.core.windows.net/ubuntu/$HYPERSCAN_PKG_FILENAME && \
     dpkg --install $HYPERSCAN_PKG_FILENAME && \
     rm $HYPERSCAN_PKG_FILENAME

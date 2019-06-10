@@ -23,6 +23,10 @@ go run azwaf/cmd/server
 # To run all tests
 go test azwaf/...
 
+# To run code style analysis
+go get -u golang.org/x/lint/golint
+golint ./...
+
 # To wait for a remote debugger to attach and debug tests
 dlv test --api-version=2 --headless --listen=:2345 "azwaf/somepackage" -- -test.run TestSomeFunction
 
