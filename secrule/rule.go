@@ -62,6 +62,7 @@ const (
 	JsDecode
 	Length
 	Lowercase
+	None
 	NormalisePath
 	NormalisePathWin
 	NormalizePath

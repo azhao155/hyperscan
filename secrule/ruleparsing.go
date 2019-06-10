@@ -30,6 +30,7 @@ var transformationsMap = map[string]Transformation{
 	"jsdecode":           JsDecode,
 	"length":             Length,
 	"lowercase":          Lowercase,
+	"none":               None,
 	"normalisepath":      NormalisePath,
 	"normalisepathwin":   NormalisePathWin,
 	"normalizepath":      NormalizePath,
@@ -170,10 +171,6 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 		case "msg":
 			ru.Msg = a.Val
 		case "t":
-			if a.Val == "none" {
-				continue
-			}
-
 			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
 				ru.Transformations = append(ru.Transformations, t)
 			} else {

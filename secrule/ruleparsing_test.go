@@ -593,7 +593,7 @@ func TestRule942320(t *testing.T) {
 		}
 	}
 
-	expectedTransformations := []Transformation{UrlDecodeUni}
+	expectedTransformations := []Transformation{None, UrlDecodeUni}
 	if len(r.Transformations) != len(expectedTransformations) {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
 	}
