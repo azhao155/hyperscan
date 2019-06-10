@@ -38,9 +38,11 @@ The process is as following:
 1. Tenant send config GRPC call to Azwaf to update the config. Azwaf call config manager to generate new config in memory with new config id, and report success.
 2. After Tenant receive success status of Azwaf, it start to apply the config to the Nginx. Nginx will apply the config, increase the generation id and report success.
 3. Tenant report success for config update.
+
 During this process, any steps could fail, here is the summary:
 step 1 failed: Tenant will stop applying config and report failure
 step 2 failed: Tenant will update Azwaf to Dispose all the newly created configs and services.
+
 With this method, Azwaf will keep multiple version of configs in memory, also it needs to keep track of connection with Nginx workers. If the connection with old config id go away, it needs to call the service manager to release the memory of the old running services.
 
 # Configuration Schema
@@ -60,6 +62,6 @@ The Service Manager will use the config from config manager, and create all the 
 
 Internal API in AzWAF:
 Create_Service:
-Create_Service will create one to one mapping service from the config map. And this service will handle concurrency requests. So in service manager, we don't need to worry about handling the concurrency.
+Create_Service will create one to one mapping service from the config map. The service and config is one to one mapping, which means, even multiple prefix has the same config, the service created by this config will handle concurrency requests with different prefix. So in service manager, we don't need to worry about handling the concurrency.
 Dispose_Service:
 Dispose_Service will free the service not needed and clean up the internal service map.
