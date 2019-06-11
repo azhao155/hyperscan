@@ -2,32 +2,32 @@ syntax = "proto3";
 
 package wafservice;
 
-message ServiceID { string name = 1; }
-
 /*
  * This is an example service which we will be using as a place holder till we
  * light up a service on AzWaf.
  */
-message ServiceDummy { ServiceID id = 1; }
-
-message Services { repeated ServiceDummy dummies = 1; }
-
-message Path {
-  string prefix = 1;
-  repeated ServiceID services = 2;
-  repeated Path paths = 3;
-}
-
-message Site {
-  string domain = 1;
-  repeated ServiceID services = 2;
-  repeated Path paths = 3;
+message Service {
+  string serviceConfigId = 1;
+  Config config = 2;
 }
 
 /*
  * A representation of AzWaf configuration.
  */
-message Config {
-  Services services = 1;
-  repeated Site sites = 2;
+message WAFConfig {
+  repeated Service serviceConfig = 1;
 }
+
+message Config {
+  oneof message {
+    SecRuleConfig secRuleConfig = 1;
+    GeoDbConfig geoDbConfig = 2;
+    IPReputationConfig ipReputationConfig = 3;
+  }
+}
+
+message SecRuleConfig { bool enabled = 1; }
+
+message GeoDbConfig { bool enabled = 1; }
+
+message IPReputationConfig { bool enabled = 1; }
