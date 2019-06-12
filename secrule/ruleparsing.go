@@ -138,7 +138,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 
 	_, s = r.findConsume(argSpaceRegex, s)
 
-	ru.Op, ru.Val, s, err = r.parseOperator(s)
+	ru.Op, ru.Val, ru.Neg, s, err = r.parseOperator(s)
 	if err != nil {
 		return
 	}
@@ -228,10 +228,15 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []string, rest string, 
 }
 
 // Parse a SecRule Operator field.
-func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, rest string, err error) {
+func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, neg bool, rest string, err error) {
 	op = Rx
 
 	s, rest = r.nextArg(s)
+
+	if len(s) > 0 && s[0] == '!' {
+		neg = true
+		s = s[1:]
+	}
 
 	ops, s := r.findConsume(operatorRegex, s)
 	if ops != "" {

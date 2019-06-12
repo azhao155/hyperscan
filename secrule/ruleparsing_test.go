@@ -330,18 +330,23 @@ func TestSecRuleOperators(t *testing.T) {
 		input string
 		op    Operator
 		val   string
+		neg   bool
 	}
 	tests := []testcase{
-		{`helloworld`, Rx, `helloworld`},
-		{`"hello world"`, Rx, `hello world`},
-		{`"hello \"world"`, Rx, `hello "world`},
-		{`"hello 'world"`, Rx, `hello 'world`},
-		{`'hello world'`, Rx, `hello world`},
-		{`'hello "world'`, Rx, `hello "world`},
-		{`"@contains helloworld"`, Contains, `helloworld`},
-		{`'@contains helloworld'`, Contains, `helloworld`},
-		{`'@detectSQLi'`, DetectSQLi, ``},
-		{`'@DeTeCtSqLi'`, DetectSQLi, ``},
+		{`helloworld`, Rx, `helloworld`, false},
+		{`"hello world"`, Rx, `hello world`, false},
+		{`"hello \"world"`, Rx, `hello "world`, false},
+		{`"hello 'world"`, Rx, `hello 'world`, false},
+		{`'hello world'`, Rx, `hello world`, false},
+		{`'hello "world'`, Rx, `hello "world`, false},
+		{`"@rx hello world"`, Rx, `hello world`, false},
+		{`"@contains helloworld"`, Contains, `helloworld`, false},
+		{`'@contains helloworld'`, Contains, `helloworld`, false},
+		{`'@detectSQLi'`, DetectSQLi, ``, false},
+		{`'@DeTeCtSqLi'`, DetectSQLi, ``, false},
+		{`!helloworld`, Rx, `helloworld`, true},
+		{`"!helloworld"`, Rx, `helloworld`, true},
+		{`"!@rx helloworld"`, Rx, `helloworld`, true},
 	}
 
 	// Act and assert
@@ -373,6 +378,11 @@ func TestSecRuleOperators(t *testing.T) {
 
 		if rr[0].Items[0].Val != test.val {
 			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", rr[0].Items[0].Val, test.input)
+			continue
+		}
+
+		if rr[0].Items[0].Neg != test.neg {
+			fmt.Fprintf(&b, "Wrong negate value: %t. Tested input: %s\n", rr[0].Items[0].Neg, test.input)
 			continue
 		}
 	}
