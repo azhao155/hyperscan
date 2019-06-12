@@ -6,6 +6,53 @@ import (
 	"testing"
 )
 
+func TestHyperscanAlone(t *testing.T) {
+	// Arrange
+	f := NewMultiRegexEngineFactory()
+	e, err := f.NewMultiRegexEngine([]secrule.MultiRegexEnginePattern{
+		{ID: 1, Expr: "ab+"},
+		{ID: 2, Expr: "ac+"},
+	})
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+
+	// Act
+	m, err := e.Scan([]byte("abbbbcccccc"))
+
+	// Assert
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if len(m) != 1 {
+		t.Fatalf("Scan 1, unexpected count of matches: %d", len(m))
+	}
+	if m[0].ID != 1 {
+		t.Fatalf("Scan 1, unexpected match ID: %d", m[0].ID)
+	}
+	if m[0].EndPos != 2 {
+		t.Fatalf("Scan 1, unexpected match EndPos: %d", m[0].EndPos)
+	}
+
+	// Act
+	m, err = e.Scan([]byte("accccccbbbb"))
+
+	// Assert
+	if err != nil {
+		t.Fatalf("%s", err)
+	}
+	if len(m) != 1 {
+		t.Fatalf("Scan 2, unexpected count of matches: %d", len(m))
+	}
+	if m[0].ID != 2 {
+		t.Fatalf("Scan 2, unexpected match ID: %d", m[0].ID)
+	}
+	if m[0].EndPos != 2 {
+		t.Fatalf("Scan 2, unexpected match EndPos: %d", m[0].EndPos)
+	}
+
+}
+
 func TestReqScannerSimpleRules(t *testing.T) {
 	// Arrange
 	f := NewMultiRegexEngineFactory()

@@ -31,6 +31,11 @@ func (f *EngineFactory) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern
 	for _, m := range mm {
 		p := hs.NewPattern(m.Expr, 0)
 		p.Id = m.ID
+
+		// SingleMatch makes Hyperscan only return one match per regex. So if a regex is found multiple time, still only one match is recorded.
+		// PrefilterMode gives broader regex compatibility, at the cost possible false positives. Potential matches therefore must be verified with another regex engine.
+		p.Flags = hs.SingleMatch | hs.PrefilterMode
+
 		patterns = append(patterns, p)
 	}
 
