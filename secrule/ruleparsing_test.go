@@ -253,18 +253,21 @@ func TestSecRuleTargets(t *testing.T) {
 		{`ARGS|ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}, ``},
 		{`ARGS:/helloworld/`, []string{`ARGS:/helloworld/`}, ``},
 		{`ARGS|ARGS:/helloworld/|ARGS_NAMES`, []string{`ARGS`, `ARGS:/helloworld/`, `ARGS_NAMES`}, ``},
+		{`REQUEST_HEADERS:X.Filename`, []string{`REQUEST_HEADERS:X.Filename`}, ``},
 		{`"ARGS|ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}, ``},
 		{`"ARGS:'helloworld'"`, []string{`ARGS:'helloworld'`}, ``},
 		{`"ARGS:'hello world'"`, []string{`ARGS:'hello world'`}, ``},
 		{`"ARGS:'hello \"world'"`, []string{`ARGS:'hello "world'`}, ``},
 		{`"ARGS:'hello \\'world'"`, []string{`ARGS:'hello \'world'`}, ``},
 		{`"ARGS|ARGS:'helloworld'|ARGS_NAMES"`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}, ``},
+		{`"REQUEST_HEADERS:X.Filename"`, []string{`REQUEST_HEADERS:X.Filename`}, ``},
 		{`'ARGS|ARGS_NAMES'`, []string{`ARGS`, `ARGS_NAMES`}, ``},
 		{`'ARGS:\'helloworld\''`, []string{`ARGS:'helloworld'`}, ``},
 		{`'ARGS:\'hello world\''`, []string{`ARGS:'hello world'`}, ``},
 		{`'ARGS:\'hello "world\''`, []string{`ARGS:'hello "world'`}, ``},
 		{`'ARGS:\'hello \\\'world\''`, []string{`ARGS:'hello \'world'`}, ``},
 		{`'ARGS|ARGS:\'helloworld\'|ARGS_NAMES'`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}, ``},
+		{`'REQUEST_HEADERS:X.Filename'`, []string{`REQUEST_HEADERS:X.Filename`}, ``},
 		{`"ARGS| ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}, ``},
 		{"\"ARGS| \\\nARGS_NAMES\"", []string{`ARGS`, `ARGS_NAMES`}, ``},
 		{`|`, nil, `Parse error in SecRule on line 1: Unable to parse targets`},
@@ -605,9 +608,9 @@ func TestRule942320(t *testing.T) {
 }
 
 func TestRule901001(t *testing.T) {
-    // Arrange
-    p := NewRuleParser()
-    rule := `
+	// Arrange
+	p := NewRuleParser()
+	rule := `
         SecRule &TX:crs_setup_version "@eq 0" \
         "id:901001,\
         phase:1,\
@@ -619,75 +622,75 @@ func TestRule901001(t *testing.T) {
         msg:'ModSecurity Core Rule Set is deployed without configuration! Please copy the crs-setup.conf.example template to crs-setup.conf, and include the crs-setup.conf file in your webserver configuration before including the CRS rules. See the INSTALL file in the CRS directory for detailed instructions.'"
     `
 
-    // Act
-    rr, err := p.Parse(rule)
+	// Act
+	rr, err := p.Parse(rule)
 
-    // Assert
-    if err != nil {
-        t.Fatalf("Got unexpected error: %s", err)
-    }
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
 
-    rc := rr[0]
+	rc := rr[0]
 
-    if rc.ID != 901001 {
-        t.Fatalf("Unexpected rule ID: %d", rc.ID)
-    }
+	if rc.ID != 901001 {
+		t.Fatalf("Unexpected rule ID: %d", rc.ID)
+	}
 
-    if len(rc.Items) != 1 {
-        t.Fatalf("Unexpected rule count: %d", len(rc.Items))
-    }
+	if len(rc.Items) != 1 {
+		t.Fatalf("Unexpected rule count: %d", len(rc.Items))
+	}
 
-    r := rc.Items[0]
+	r := rc.Items[0]
 
-    expectedMsg := "ModSecurity Core Rule Set is deployed without configuration! Please copy the crs-setup.conf.example template to crs-setup.conf, and include the crs-setup.conf file in your webserver configuration before including the CRS rules. See the INSTALL file in the CRS directory for detailed instructions."
-    if r.Msg != expectedMsg {
-        t.Fatalf("Unexpected Msg. Actual: %s. Expected: %s.", r.Msg, expectedMsg)
-    }
+	expectedMsg := "ModSecurity Core Rule Set is deployed without configuration! Please copy the crs-setup.conf.example template to crs-setup.conf, and include the crs-setup.conf file in your webserver configuration before including the CRS rules. See the INSTALL file in the CRS directory for detailed instructions."
+	if r.Msg != expectedMsg {
+		t.Fatalf("Unexpected Msg. Actual: %s. Expected: %s.", r.Msg, expectedMsg)
+	}
 
-    expectedTargets := []string{`&TX:crs_setup_version`}
-    if len(r.Targets) != len(expectedTargets) {
-        t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Targets), len(expectedTargets))
-    }
-    for i := range expectedTargets {
-        if r.Targets[i] != expectedTargets[i] {
-            t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Targets[i], expectedTargets[i])
-        }
-    }
+	expectedTargets := []string{`&TX:crs_setup_version`}
+	if len(r.Targets) != len(expectedTargets) {
+		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Targets), len(expectedTargets))
+	}
+	for i := range expectedTargets {
+		if r.Targets[i] != expectedTargets[i] {
+			t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Targets[i], expectedTargets[i])
+		}
+	}
 
-    if r.Op != Eq {
-        t.Fatalf("Unexpected Operator: %d", r.Op)
-    }
+	if r.Op != Eq {
+		t.Fatalf("Unexpected Operator: %d", r.Op)
+	}
 
-    if r.Neg != false {
-        t.Fatalf("Unexpected neg value: %t", r.Neg)
-    }
+	if r.Neg != false {
+		t.Fatalf("Unexpected neg value: %t", r.Neg)
+	}
 
-    expectedVal := `0`
-    if r.Val != expectedVal {
-        t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Val, expectedVal)
-    }
+	expectedVal := `0`
+	if r.Val != expectedVal {
+		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Val, expectedVal)
+	}
 
-    expectedRawActions := []RawAction{
-        {`id`, `901001`},
-        {`phase`, `1`},
-        {`auditlog`, ``},
-        {`log`, ``},
-        {`deny`, ``},
-        {`status`, `500`},
-        {`severity`, `CRITICAL`},
-        {`msg`, `ModSecurity Core Rule Set is deployed without configuration! Please copy the crs-setup.conf.example template to crs-setup.conf, and include the crs-setup.conf file in your webserver configuration before including the CRS rules. See the INSTALL file in the CRS directory for detailed instructions.`},
-    }
-    if len(r.RawActions) != len(expectedRawActions) {
-        t.Fatalf("Unexpected raw actions count. Actual: %d. Expected: %d.", len(r.RawActions), len(expectedRawActions))
-    }
-    for i := range expectedRawActions {
-        if r.RawActions[i] != expectedRawActions[i] {
-            t.Fatalf("Unexpected raw action. Actual: %s. Expected: %s.", r.RawActions[i], expectedRawActions[i])
-        }
-    }
+	expectedRawActions := []RawAction{
+		{`id`, `901001`},
+		{`phase`, `1`},
+		{`auditlog`, ``},
+		{`log`, ``},
+		{`deny`, ``},
+		{`status`, `500`},
+		{`severity`, `CRITICAL`},
+		{`msg`, `ModSecurity Core Rule Set is deployed without configuration! Please copy the crs-setup.conf.example template to crs-setup.conf, and include the crs-setup.conf file in your webserver configuration before including the CRS rules. See the INSTALL file in the CRS directory for detailed instructions.`},
+	}
+	if len(r.RawActions) != len(expectedRawActions) {
+		t.Fatalf("Unexpected raw actions count. Actual: %d. Expected: %d.", len(r.RawActions), len(expectedRawActions))
+	}
+	for i := range expectedRawActions {
+		if r.RawActions[i] != expectedRawActions[i] {
+			t.Fatalf("Unexpected raw action. Actual: %s. Expected: %s.", r.RawActions[i], expectedRawActions[i])
+		}
+	}
 
-    expectedTransformations := []Transformation{UrlDecodeUni}
-    if len(r.Transformations) != 0 {
-        t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
-    }
+	expectedTransformations := []Transformation{UrlDecodeUni}
+	if len(r.Transformations) != 0 {
+		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
+	}
 }

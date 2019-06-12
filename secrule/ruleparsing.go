@@ -13,7 +13,7 @@ type ruleParser interface {
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
-var targetRegex = regexp.MustCompile(`(?i)^!?&?(XML:/[^|\s]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+:[\w_-]+|\w+)`)
+var targetRegex = regexp.MustCompile(`(?i)^!?&?(XML:/[^|\s]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+:[\w_.-]+|\w+)`)
 var doubleQuotedStringRegex = regexp.MustCompile(`^"(\\.|\\\n|[^"\\])*"`)
 var singleQuotedStringRegex = regexp.MustCompile(`^'(\\.|\\\n|[^'\\])*'`)
 var nonQuotedStringRegex = regexp.MustCompile(`^[^ \t]+`)
