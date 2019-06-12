@@ -5,14 +5,14 @@ simply use the AppGw dev container. Else, if you want to run this repo
 standalone, then use the following commands for container management:
 ```
 # Automatically build and run the dev container
-docker-compose run --rm --service-ports --name azwafdev dev
+docker-compose run --rm --service-ports --name azwafdev azwafdev
 
 # If you get errors about an existing container with the same name, delete existing containers first
 docker container prune -f
 docker network prune -f
 
 # To force rebuild of container image
-docker-compose build --no-cache dev
+docker-compose build --no-cache azwafdev
 ```
 
 Within the container you can run the following commands:
