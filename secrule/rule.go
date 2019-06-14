@@ -47,6 +47,7 @@ const (
 	Within
 	GeoLookup
 	IpMatch
+	IpMatchFromFile
 	Rbl
 )
 

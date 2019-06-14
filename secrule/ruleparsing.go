@@ -13,7 +13,7 @@ type ruleParser interface {
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
-var targetRegex = regexp.MustCompile(`(?i)^!?&?(XML:/[^|\s]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+:[\w_.-]+|\w+)`)
+var targetRegex = regexp.MustCompile(`(?i)^!?&?(XML:/[^|\s,]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+:[^|\s,]+|\w+)`)
 var doubleQuotedStringRegex = regexp.MustCompile(`^"(\\.|\\\n|[^"\\])*"`)
 var singleQuotedStringRegex = regexp.MustCompile(`^'(\\.|\\\n|[^'\\])*'`)
 var nonQuotedStringRegex = regexp.MustCompile(`^[^ \t]+`)
@@ -68,6 +68,7 @@ var operatorsMap = map[string]Operator{
 	"@within":               Within,
 	"@geolookup":            GeoLookup,
 	"@ipmatch":              IpMatch,
+	"@ipmatchfromfile":      IpMatchFromFile,
 	"@rbl":                  Rbl,
 }
 
@@ -219,7 +220,7 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []string, rest string, 
 		_, s = r.findConsume(argSpaceRegex, s)
 		if len(s) == 0 {
 			return
-		} else if s[0] == '|' {
+		} else if s[0] == '|' || s[0] == ',' {
 			// Another target will come
 			s = s[1:]
 			_, s = r.findConsume(argSpaceRegex, s)
@@ -259,9 +260,10 @@ func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, neg b
 // Parse a raw SecRule actions arg into RawAction key-value pairs.
 func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest string, err error) {
 	s, rest = r.nextArg(s)
+	s = strings.Trim(s, " \t\r\n")
 
 	// Empty action set is OK. For example last rule item in a rule chain might be like this.
-	if strings.Trim(s, " \t\r\n") == "" {
+	if s == "" {
 		return
 	}
 
