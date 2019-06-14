@@ -8,7 +8,7 @@ import (
 )
 
 // RuleParser parses SecRule language files.
-type ruleParser interface {
+type RuleParser interface {
 	Parse(input string) (rules []Rule, err error)
 }
 
@@ -24,9 +24,9 @@ var actionRegex = regexp.MustCompile(`^(\w+:('(\\.|[^'\\])+'|[^,]+))|\w+`)
 var transformationsMap = map[string]Transformation{
 	"cmdline":            CmdLine,
 	"compresswhitespace": CompressWhitespace,
-	"cssdecode":          CssDecode,
+	"cssdecode":          CSSDecode,
 	"hexencode":          HexEncode,
-	"htmlentitydecode":   HtmlEntityDecode,
+	"htmlentitydecode":   HTMLEntityDecode,
 	"jsdecode":           JsDecode,
 	"length":             Length,
 	"lowercase":          Lowercase,
@@ -40,8 +40,8 @@ var transformationsMap = map[string]Transformation{
 	"removewhitespace":   RemoveWhitespace,
 	"replacecomments":    ReplaceComments,
 	"sha1":               Sha1,
-	"urldecode":          UrlDecode,
-	"urldecodeuni":       UrlDecodeUni,
+	"urldecode":          URLDecode,
+	"urldecodeuni":       URLDecodeUni,
 	"utf8tounicode":      Utf8toUnicode,
 }
 
@@ -63,20 +63,20 @@ var operatorsMap = map[string]Operator{
 	"@streq":                Streq,
 	"@strmatch":             Strmatch,
 	"@validatebyterange":    ValidateByteRange,
-	"@validateurlencoding":  ValidateUrlEncoding,
+	"@validateurlencoding":  ValidateURLEncoding,
 	"@validateutf8encoding": ValidateUtf8Encoding,
 	"@within":               Within,
 	"@geolookup":            GeoLookup,
-	"@ipmatch":              IpMatch,
-	"@ipmatchfromfile":      IpMatchFromFile,
+	"@ipmatch":              IPMatch,
+	"@ipmatchfromfile":      IPMatchFromFile,
 	"@rbl":                  Rbl,
 }
 
 type ruleParserImpl struct {
 }
 
-// NewRuleParser creates a secrule.ruleParser.
-func NewRuleParser() ruleParser {
+// NewRuleParser creates a secrule.RuleParser.
+func NewRuleParser() RuleParser {
 	return &ruleParserImpl{}
 }
 
@@ -179,7 +179,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 				return
 			}
 		case "setvar":
-			ru.Actions = append(ru.Actions, NewSetvarAction(a.Val))
+			ru.Actions = append(ru.Actions, newSetvarAction(a.Val))
 		}
 	}
 

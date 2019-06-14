@@ -24,7 +24,7 @@ go run azwaf/cmd/server
 go test azwaf/...
 
 # To run code style analysis
-go get -u golang.org/x/lint/golint
+go install golang.org/x/lint/golint
 golint ./...
 
 # To wait for a remote debugger to attach and debug tests

@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// Unit tests that only know the ruleParser interface. More "black box" than ruleparsing_impl_test.go.
+// Unit tests that only know the RuleParser interface. More "black box" than ruleparsing_impl_test.go.
 
 func TestTwoRules(t *testing.T) {
 	// Arrange
@@ -354,7 +354,7 @@ func TestSecRuleOperators(t *testing.T) {
 		{`"@rx hello world"`, Rx, `hello world`, false},
 		{`"@contains helloworld"`, Contains, `helloworld`, false},
 		{`'@contains helloworld'`, Contains, `helloworld`, false},
-		{`'@ipMatchFromFile https://example.com/file.txt'`, IpMatchFromFile, `https://example.com/file.txt`, false},
+		{`'@ipMatchFromFile https://example.com/file.txt'`, IPMatchFromFile, `https://example.com/file.txt`, false},
 		{`'@detectSQLi'`, DetectSQLi, ``, false},
 		{`'@DeTeCtSqLi'`, DetectSQLi, ``, false},
 		{`!helloworld`, Rx, `helloworld`, true},
@@ -492,7 +492,7 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 
 	r := rc.Items[0]
 
-	expectedTransformations := []Transformation{CssDecode, UrlDecodeUni}
+	expectedTransformations := []Transformation{CSSDecode, URLDecodeUni}
 	if len(r.Transformations) != len(expectedTransformations) {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
 	}
@@ -620,7 +620,7 @@ func TestRule942320(t *testing.T) {
 		}
 	}
 
-	expectedTransformations := []Transformation{None, UrlDecodeUni}
+	expectedTransformations := []Transformation{None, URLDecodeUni}
 	if len(r.Transformations) != len(expectedTransformations) {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
 	}
@@ -713,7 +713,7 @@ func TestRule901001(t *testing.T) {
 		}
 	}
 
-	expectedTransformations := []Transformation{UrlDecodeUni}
+	expectedTransformations := []Transformation{URLDecodeUni}
 	if len(r.Transformations) != 0 {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
 	}
