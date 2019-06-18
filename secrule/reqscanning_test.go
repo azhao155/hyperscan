@@ -18,20 +18,22 @@ func TestReqScanner1(t *testing.T) {
 			return &mockMultiRegexEngine{
 				scanMockFunc: func(input []byte) []MultiRegexEngineMatch {
 					type preCannedAnswer struct {
-						rx     string
-						val    string
-						endPos int
+						rx       string
+						val      string
+						startPos int
+						endPos   int
+						data     []byte
 					}
 					preCannedAnswers := []preCannedAnswer{
-						{"ab+c", "aaaaaaabccc", 9},
-						{"abc+", "aaaaaaabccc", 9},
-						{"a+bc", "/hello.php?arg1=aaaaaaabccc", 25},
+						{"ab+c", "aaaaaaabccc", 0, 9, []byte("aaaaaaabc")},
+						{"abc+", "aaaaaaabccc", 6, 11, []byte("abccc")},
+						{"a+bc", "/hello.php?arg1=aaaaaaabccc", 16, 25, []byte("aaaaaaabc")},
 					}
 
 					r := []MultiRegexEngineMatch{}
 					for _, a := range preCannedAnswers {
 						if id, ok := rxIds[a.rx]; ok && bytes.Equal(input, []byte(a.val)) {
-							r = append(r, MultiRegexEngineMatch{ID: id, EndPos: a.endPos})
+							r = append(r, MultiRegexEngineMatch{ID: id, StartPos: a.startPos, EndPos: a.endPos, Data: a.data})
 						}
 					}
 
@@ -44,40 +46,20 @@ func TestReqScanner1(t *testing.T) {
 		{
 			ID: 100,
 			Items: []RuleItem{
-				{
-					Targets:         []string{"ARGS"},
-					Op:              Rx,
-					Val:             "ab+c",
-					Transformations: []Transformation{},
-				},
+				{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c", Transformations: []Transformation{}},
 			},
 		},
 		{
 			ID: 200,
 			Items: []RuleItem{
-				{
-					Targets:         []string{"ARGS"},
-					Op:              Rx,
-					Val:             "abc+",
-					Transformations: []Transformation{},
-				},
-				{
-					Targets:         []string{"ARGS"},
-					Op:              Rx,
-					Val:             "xyz",
-					Transformations: []Transformation{Lowercase},
-				},
+				{Targets: []string{"ARGS"}, Op: Rx, Val: "abc+", Transformations: []Transformation{}},
+				{Targets: []string{"ARGS"}, Op: Rx, Val: "xyz", Transformations: []Transformation{Lowercase}},
 			},
 		},
 		{
 			ID: 300,
 			Items: []RuleItem{
-				{
-					Targets:         []string{"REQUEST_URI_RAW"},
-					Op:              Rx,
-					Val:             "a+bc",
-					Transformations: []Transformation{Lowercase, RemoveWhitespace},
-				},
+				{Targets: []string{"REQUEST_URI_RAW"}, Op: Rx, Val: "a+bc", Transformations: []Transformation{Lowercase, RemoveWhitespace}},
 			},
 		},
 	}
@@ -101,6 +83,12 @@ func TestReqScanner1(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
+	if string(m.Data) != "aaaaaaabc" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+	if m.StartPos != 16 {
+		t.Fatalf("Unexpected match pos: %d", m.StartPos)
+	}
 	if m.EndPos != 25 {
 		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
@@ -109,7 +97,13 @@ func TestReqScanner1(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if m.EndPos != 9 {
+	if string(m.Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+	if m.StartPos != 6 {
+		t.Fatalf("Unexpected match pos: %d", m.StartPos)
+	}
+	if m.EndPos != 11 {
 		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
@@ -126,6 +120,9 @@ type mockMultiRegexEngine struct {
 func (m *mockMultiRegexEngine) Scan(input []byte) (matches []MultiRegexEngineMatch, err error) {
 	matches = m.scanMockFunc(input)
 	return
+}
+
+func (m *mockMultiRegexEngine) Close() {
 }
 
 type mockMultiRegexEngineFactory struct {

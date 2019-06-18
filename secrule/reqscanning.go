@@ -12,7 +12,9 @@ type ReqScanner interface {
 
 // RxMatch represents a regex match found while scanning.
 type RxMatch struct {
-	EndPos int
+	StartPos int
+	EndPos   int
+	Data     []byte
 }
 
 // ScanResults is the collection of all results found while scanning.
@@ -173,7 +175,11 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 			// Store the match for fast retrieval in the eval phase
 			key := rxMatchKey{p.rule.ID, p.ruleItemIdx, targetName}
 			if _, alreadyFound := results.rxMatches[key]; !alreadyFound {
-				results.rxMatches[key] = RxMatch{EndPos: m.EndPos}
+				results.rxMatches[key] = RxMatch{
+					StartPos: m.StartPos,
+					EndPos:   m.EndPos,
+					Data:     m.Data,
+				}
 			}
 		}
 	}

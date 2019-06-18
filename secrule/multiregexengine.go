@@ -8,6 +8,7 @@ type MultiRegexEngineFactory interface {
 // MultiRegexEngine is an interface to a regex engine that can scan for multiple regexes at once.
 type MultiRegexEngine interface {
 	Scan(input []byte) (matches []MultiRegexEngineMatch, err error)
+	Close()
 }
 
 // MultiRegexEnginePattern is used by the MultiRegexEngineFactory to tell it what to scan for.
@@ -18,6 +19,8 @@ type MultiRegexEnginePattern struct {
 
 // MultiRegexEngineMatch is used by the MultiRegexEngine interface to communicate back which matches were found.
 type MultiRegexEngineMatch struct {
-	ID     int
-	EndPos int
+	ID       int
+	StartPos int
+	EndPos   int
+	Data     []byte
 }
