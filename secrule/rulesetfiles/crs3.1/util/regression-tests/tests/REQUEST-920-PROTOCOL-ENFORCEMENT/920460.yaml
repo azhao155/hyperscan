@@ -1,6 +1,7 @@
 ---
   meta:
     author: "csanders-git"
+    enabled: true
     name: "920460.yaml"
     description: "Description"
   tests:
