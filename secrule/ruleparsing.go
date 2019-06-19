@@ -179,7 +179,12 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 				return
 			}
 		case "setvar":
-			ru.Actions = append(ru.Actions, newSetvarAction(a.Val))
+			sv, err := NewSetvarAction(a.Val)
+			if err != nil {
+				return err
+			} 
+			
+			ru.Actions = append(ru.Actions, sv)
 		}
 	}
 

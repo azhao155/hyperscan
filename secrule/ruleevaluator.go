@@ -6,6 +6,8 @@ type ruleEvaluator interface {
 }
 
 type ruleEvaluatorImpl struct {
+	// TODO: populate initial values as part of TxState task
+	perRequestEnv envMap
 }
 
 func (r *ruleEvaluatorImpl) Process(rules []Rule) (err error) {
@@ -13,7 +15,7 @@ func (r *ruleEvaluatorImpl) Process(rules []Rule) (err error) {
 		for curRuleItemIdx := range rules[curRuleIdx].Items {
 			for actionIdx := range rules[curRuleIdx].Items[curRuleItemIdx].Actions {
 				// TODO: Handle chaining correctly
-				rules[curRuleIdx].Items[curRuleItemIdx].Actions[actionIdx].Execute()
+				rules[curRuleIdx].Items[curRuleItemIdx].Actions[actionIdx].Execute(r.perRequestEnv)
 			}
 		}
 	}
