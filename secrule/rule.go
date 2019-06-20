@@ -9,10 +9,7 @@ type Rule struct {
 // RuleItem represents a SecRule.
 type RuleItem struct {
 	Msg             string
-	Targets         []string
-	Op              Operator
-	Neg             bool
-	Val             string
+	Predicate       RulePredicate
 	RawActions      []RawAction
 	Actions         []actionHandler
 	Transformations []Transformation

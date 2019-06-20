@@ -317,15 +317,15 @@ func TestSecRuleTargets(t *testing.T) {
 			continue
 		}
 
-		n = len(rr[0].Items[0].Targets)
+		n = len(rr[0].Items[0].Predicate.Targets)
 		if n != len(test.expected) {
 			fmt.Fprintf(&b, "Wrong targets count: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
 		for i, val := range test.expected {
-			if rr[0].Items[0].Targets[i] != val {
-				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", rr[0].Items[0].Targets[i], test.input)
+			if rr[0].Items[0].Predicate.Targets[i] != val {
+				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", rr[0].Items[0].Predicate.Targets[i], test.input)
 			}
 		}
 	}
@@ -384,18 +384,18 @@ func TestSecRuleOperators(t *testing.T) {
 			continue
 		}
 
-		if rr[0].Items[0].Op != test.op {
-			fmt.Fprintf(&b, "Wrong Operator: %d. Tested input: %s\n", rr[0].Items[0].Op, test.input)
+		if rr[0].Items[0].Predicate.Op != test.op {
+			fmt.Fprintf(&b, "Wrong Operator: %d. Tested input: %s\n", rr[0].Items[0].Predicate.Op, test.input)
 			continue
 		}
 
-		if rr[0].Items[0].Val != test.val {
-			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", rr[0].Items[0].Val, test.input)
+		if rr[0].Items[0].Predicate.Val != test.val {
+			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", rr[0].Items[0].Predicate.Val, test.input)
 			continue
 		}
 
-		if rr[0].Items[0].Neg != test.neg {
-			fmt.Fprintf(&b, "Wrong negate value: %t. Tested input: %s\n", rr[0].Items[0].Neg, test.input)
+		if rr[0].Items[0].Predicate.Neg != test.neg {
+			fmt.Fprintf(&b, "Wrong negate value: %t. Tested input: %s\n", rr[0].Items[0].Predicate.Neg, test.input)
 			continue
 		}
 	}
@@ -561,26 +561,26 @@ func TestRule942320(t *testing.T) {
 	}
 
 	expectedTargets := []string{`REQUEST_COOKIES`, `!REQUEST_COOKIES:/__utm/`, `REQUEST_COOKIES_NAMES`, `ARGS_NAMES`, `ARGS`, `XML:/*`}
-	if len(r.Targets) != len(expectedTargets) {
-		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Targets), len(expectedTargets))
+	if len(r.Predicate.Targets) != len(expectedTargets) {
+		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Predicate.Targets), len(expectedTargets))
 	}
 	for i := range expectedTargets {
-		if r.Targets[i] != expectedTargets[i] {
-			t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Targets[i], expectedTargets[i])
+		if r.Predicate.Targets[i] != expectedTargets[i] {
+			t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Predicate.Targets[i], expectedTargets[i])
 		}
 	}
 
-	if r.Op != Rx {
-		t.Fatalf("Unexpected Operator: %d", r.Op)
+	if r.Predicate.Op != Rx {
+		t.Fatalf("Unexpected Operator: %d", r.Predicate.Op)
 	}
 
-	if r.Neg != false {
-		t.Fatalf("Unexpected neg value: %t", r.Neg)
+	if r.Predicate.Neg != false {
+		t.Fatalf("Unexpected neg value: %t", r.Predicate.Neg)
 	}
 
 	expectedVal := `(?i:(?:procedure\s+analyse\s*?\()|(?:;\s*?(declare|open)\s+[\w-]+)|(?:create\s+(procedure|function)\s*?\w+\s*?\(\s*?\)\s*?-)|(?:declare[^\w]+[@#]\s*?\w+)|(exec\s*?\(\s*?@))`
-	if r.Val != expectedVal {
-		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Val, expectedVal)
+	if r.Predicate.Val != expectedVal {
+		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Predicate.Val, expectedVal)
 	}
 
 	expectedRawActions := []RawAction{
@@ -672,26 +672,26 @@ func TestRule901001(t *testing.T) {
 	}
 
 	expectedTargets := []string{`&TX:crs_setup_version`}
-	if len(r.Targets) != len(expectedTargets) {
-		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Targets), len(expectedTargets))
+	if len(r.Predicate.Targets) != len(expectedTargets) {
+		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Predicate.Targets), len(expectedTargets))
 	}
 	for i := range expectedTargets {
-		if r.Targets[i] != expectedTargets[i] {
-			t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Targets[i], expectedTargets[i])
+		if r.Predicate.Targets[i] != expectedTargets[i] {
+			t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Predicate.Targets[i], expectedTargets[i])
 		}
 	}
 
-	if r.Op != Eq {
-		t.Fatalf("Unexpected Operator: %d", r.Op)
+	if r.Predicate.Op != Eq {
+		t.Fatalf("Unexpected Operator: %d", r.Predicate.Op)
 	}
 
-	if r.Neg != false {
-		t.Fatalf("Unexpected neg value: %t", r.Neg)
+	if r.Predicate.Neg != false {
+		t.Fatalf("Unexpected neg value: %t", r.Predicate.Neg)
 	}
 
 	expectedVal := `0`
-	if r.Val != expectedVal {
-		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Val, expectedVal)
+	if r.Predicate.Val != expectedVal {
+		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Predicate.Val, expectedVal)
 	}
 
 	expectedRawActions := []RawAction{

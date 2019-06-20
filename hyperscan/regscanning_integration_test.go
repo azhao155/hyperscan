@@ -13,20 +13,32 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		{
 			ID: 100,
 			Items: []secrule.RuleItem{
-				{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "ab+c", Transformations: []secrule.Transformation{}},
+				{
+					Predicate:       secrule.RulePredicate{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "ab+c"},
+					Transformations: []secrule.Transformation{},
+				},
 			},
 		},
 		{
 			ID: 200,
 			Items: []secrule.RuleItem{
-				{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "abc+", Transformations: []secrule.Transformation{}},
-				{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "xyz", Transformations: []secrule.Transformation{secrule.Lowercase}},
+				{
+					Predicate:       secrule.RulePredicate{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "abc+"},
+					Transformations: []secrule.Transformation{},
+				},
+				{
+					Predicate:       secrule.RulePredicate{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "xyz"},
+					Transformations: []secrule.Transformation{secrule.Lowercase},
+				},
 			},
 		},
 		{
 			ID: 300,
 			Items: []secrule.RuleItem{
-				{Targets: []string{"REQUEST_URI_RAW"}, Op: secrule.Rx, Val: "a+bc", Transformations: []secrule.Transformation{secrule.Lowercase, secrule.RemoveWhitespace}},
+				{
+					Predicate:       secrule.RulePredicate{Targets: []string{"REQUEST_URI_RAW"}, Op: secrule.Rx, Val: "a+bc"},
+					Transformations: []secrule.Transformation{secrule.Lowercase, secrule.RemoveWhitespace},
+				},
 			},
 		},
 	}

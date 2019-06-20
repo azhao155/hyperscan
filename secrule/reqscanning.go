@@ -54,7 +54,7 @@ func NewReqScanner(rules []Rule, m MultiRegexEngineFactory) (r ReqScanner, err e
 		curRule := &rules[curRuleIdx]
 		for curRuleItemIdx := range curRule.Items {
 			curRuleItem := &curRule.Items[curRuleItemIdx]
-			for _, target := range curRuleItem.Targets {
+			for _, target := range curRuleItem.Predicate.Targets {
 				curScanTargets := scanPatterns[target]
 
 				// This target can have multiple different transformations. Find the right one or create one.
@@ -70,7 +70,7 @@ func NewReqScanner(rules []Rule, m MultiRegexEngineFactory) (r ReqScanner, err e
 					scanPatterns[target] = append(scanPatterns[target], curScanGroup)
 				}
 
-				switch curRuleItem.Op {
+				switch curRuleItem.Predicate.Op {
 				case Rx:
 					p := patternRef{curRule, curRuleItem, curRuleItemIdx}
 					curScanGroup.patterns = append(curScanGroup.patterns, p)
@@ -95,7 +95,7 @@ func NewReqScanner(rules []Rule, m MultiRegexEngineFactory) (r ReqScanner, err e
 				// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
 				backRefs = append(backRefs, p)
 
-				patterns = append(patterns, MultiRegexEnginePattern{backRefCurID, p.ruleItem.Val})
+				patterns = append(patterns, MultiRegexEnginePattern{backRefCurID, p.ruleItem.Predicate.Val})
 
 				backRefCurID++
 			}

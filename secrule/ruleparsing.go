@@ -132,16 +132,22 @@ func (r *ruleParserImpl) Parse(input string) (rules []Rule, err error) {
 func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (err error) {
 	ru := &RuleItem{}
 
-	ru.Targets, s, err = r.parseTargets(s)
+	ru.Predicate.Targets, s, err = r.parseTargets(s)
 	if err != nil {
 		return
 	}
 
 	_, s = r.findConsume(argSpaceRegex, s)
 
-	ru.Op, ru.Val, ru.Neg, s, err = r.parseOperator(s)
+	ru.Predicate.Op, ru.Predicate.Val, ru.Predicate.Neg, s, err = r.parseOperator(s)
 	if err != nil {
 		return
+	}
+	switch ru.Predicate.Op {
+	case DetectSQLi:
+		ru.Predicate.OpE = &detectSQLiOperator{}
+	case DetectXSS:
+		ru.Predicate.OpE = &detectXSSOperator{}
 	}
 
 	_, s = r.findConsume(argSpaceRegex, s)
@@ -182,8 +188,8 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 			sv, err := NewSetvarAction(a.Val)
 			if err != nil {
 				return err
-			} 
-			
+			}
+
 			ru.Actions = append(ru.Actions, sv)
 		}
 	}

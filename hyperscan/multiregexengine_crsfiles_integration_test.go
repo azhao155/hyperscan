@@ -59,13 +59,13 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 				}
 
 				for itemIdx, item := range rule.Items {
-					if item.Op != secrule.Rx {
+					if item.Predicate.Op != secrule.Rx {
 						continue
 					}
 
 					// Act
 					e, err := f.NewMultiRegexEngine([]secrule.MultiRegexEnginePattern{
-						{ID: 1, Expr: item.Val},
+						{ID: 1, Expr: item.Predicate.Val},
 					})
 
 					if e != nil {
@@ -74,7 +74,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 
 					// Assert
 					if err != nil {
-						fmt.Fprintf(&errors, "Error with in ruleset %s, rule %d, item index %d, expression \"%s\". Error was: %s\n", dir, rule.ID, itemIdx, item.Val, err)
+						fmt.Fprintf(&errors, "Error with in ruleset %s, rule %d, item index %d, expression \"%s\". Error was: %s\n", dir, rule.ID, itemIdx, item.Predicate.Val, err)
 					}
 				}
 			}

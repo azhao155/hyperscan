@@ -46,20 +46,32 @@ func TestReqScanner1(t *testing.T) {
 		{
 			ID: 100,
 			Items: []RuleItem{
-				{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c", Transformations: []Transformation{}},
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
 			},
 		},
 		{
 			ID: 200,
 			Items: []RuleItem{
-				{Targets: []string{"ARGS"}, Op: Rx, Val: "abc+", Transformations: []Transformation{}},
-				{Targets: []string{"ARGS"}, Op: Rx, Val: "xyz", Transformations: []Transformation{Lowercase}},
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc+"},
+					Transformations: []Transformation{},
+				},
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "xyz"},
+					Transformations: []Transformation{Lowercase},
+				},
 			},
 		},
 		{
 			ID: 300,
 			Items: []RuleItem{
-				{Targets: []string{"REQUEST_URI_RAW"}, Op: Rx, Val: "a+bc", Transformations: []Transformation{Lowercase, RemoveWhitespace}},
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_URI_RAW"}, Op: Rx, Val: "a+bc"},
+					Transformations: []Transformation{Lowercase, RemoveWhitespace},
+				},
 			},
 		},
 	}
