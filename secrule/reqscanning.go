@@ -2,6 +2,8 @@ package secrule
 
 import (
 	pb "azwaf/proto"
+	"fmt"
+	"log"
 	"net/url"
 )
 
@@ -20,6 +22,20 @@ type RxMatch struct {
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
 	rxMatches map[rxMatchKey]RxMatch
+}
+
+// ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
+type ReqScannerFactory interface {
+	NewReqScanner(rules []Rule) (r ReqScanner, err error)
+}
+
+// NewReqScannerFactory creates a ReqScannerFactory. The ReqScanners it will create will use multi-regex engines created by the given MultiRegexEngineFactory.
+func NewReqScannerFactory(m MultiRegexEngineFactory) ReqScannerFactory {
+	return &reqScannerFactoryImpl{m}
+}
+
+type reqScannerFactoryImpl struct {
+	multiRegexEngineFactory MultiRegexEngineFactory
 }
 
 type rxMatchKey struct {
@@ -45,8 +61,8 @@ type reqScannerImpl struct {
 	backRefs     []patternRef
 }
 
-// NewReqScanner creates a secrule.ReqScanner.
-func NewReqScanner(rules []Rule, m MultiRegexEngineFactory) (r ReqScanner, err error) {
+// NewReqScanner creates a ReqScanner.
+func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err error) {
 	scanPatterns := make(map[string][]*scanGroup)
 
 	// Construct a inverted view of the rules that maps from targets to rules
@@ -84,8 +100,8 @@ func NewReqScanner(rules []Rule, m MultiRegexEngineFactory) (r ReqScanner, err e
 	backRefCurID := 0
 
 	// Construct multi regex engine instances from the scan patterns.
-	for _, scanGroups := range scanPatterns {
-		for _, scanGroup := range scanGroups {
+	for target, scanGroups := range scanPatterns {
+		for scanGroupIdx, scanGroup := range scanGroups {
 			if len(scanGroup.patterns) == 0 {
 				continue
 			}
@@ -100,9 +116,10 @@ func NewReqScanner(rules []Rule, m MultiRegexEngineFactory) (r ReqScanner, err e
 				backRefCurID++
 			}
 
-			scanGroup.rxEngine, err = m.NewMultiRegexEngine(patterns)
+			log.Printf("Building multi-regex database for target %v with transformations %v with %d patterns", target, scanGroup.transformations, len(patterns))
+			scanPatterns[target][scanGroupIdx].rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
 			if err != nil {
-				// TODO error handling
+				err = fmt.Errorf("failed to create multi-regex engine: %v", err)
 				return
 			}
 		}
@@ -161,9 +178,14 @@ func (r *reqScannerImpl) Scan(req *pb.WafHttpRequest) (results ScanResults, err 
 func (r *reqScannerImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
 	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
 	for _, sg := range r.scanPatterns[targetName] {
+		if len(sg.patterns) == 0 {
+			continue
+		}
+
 		// TODO apply transformations here
 
 		var matches []MultiRegexEngineMatch
+		log.Printf("Scanning content \"%v\" with transformations %v", content, sg.transformations)
 		matches, err = sg.rxEngine.Scan([]byte(content))
 		if err != nil {
 			return

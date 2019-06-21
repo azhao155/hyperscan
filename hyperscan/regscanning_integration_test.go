@@ -8,46 +8,18 @@ import (
 
 func TestReqScannerSimpleRules(t *testing.T) {
 	// Arrange
-	f := NewMultiRegexEngineFactory()
-	rules := []secrule.Rule{
-		{
-			ID: 100,
-			Items: []secrule.RuleItem{
-				{
-					Predicate:       secrule.RulePredicate{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "ab+c"},
-					Transformations: []secrule.Transformation{},
-				},
-			},
-		},
-		{
-			ID: 200,
-			Items: []secrule.RuleItem{
-				{
-					Predicate:       secrule.RulePredicate{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "abc+"},
-					Transformations: []secrule.Transformation{},
-				},
-				{
-					Predicate:       secrule.RulePredicate{Targets: []string{"ARGS"}, Op: secrule.Rx, Val: "xyz"},
-					Transformations: []secrule.Transformation{secrule.Lowercase},
-				},
-			},
-		},
-		{
-			ID: 300,
-			Items: []secrule.RuleItem{
-				{
-					Predicate:       secrule.RulePredicate{Targets: []string{"REQUEST_URI_RAW"}, Op: secrule.Rx, Val: "a+bc"},
-					Transformations: []secrule.Transformation{secrule.Lowercase, secrule.RemoveWhitespace},
-				},
-			},
-		},
-	}
-	req := &pb.WafHttpRequest{
-		Uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld",
-	}
+	mf := NewMultiRegexEngineFactory()
+	rf := secrule.NewReqScannerFactory(mf)
+	rules, _ := secrule.NewRuleParser().Parse(`
+		SecRule ARGS "ab+c" "id:100"
+		SecRule ARGS "abc+" "id:200,chain"
+			SecRule ARGS "xyz" "t:lowercase"
+		SecRule REQUEST_URI_RAW "a+bc" "id:300,t:lowercase,t:removewhitespace,x"
+	`)
+	req := &pb.WafHttpRequest{Uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
 
 	// Act
-	rs, err1 := secrule.NewReqScanner(rules, f)
+	rs, err1 := rf.NewReqScanner(rules)
 	sr, err2 := rs.Scan(req)
 
 	// Assert

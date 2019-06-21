@@ -2,17 +2,16 @@ package hyperscan
 
 import (
 	"azwaf/secrule"
+	"fmt"
 	"regexp"
 
 	hs "github.com/flier/gohs/hyperscan"
 )
 
-// EngineFactory implements the multiRegexEngineFactory interface.
-type EngineFactory struct {
+type engineFactoryImpl struct {
 }
 
-// Engine implements the multiRegexEngine interface.
-type Engine struct {
+type engineImpl struct {
 	// Hyperscan's compiled database of regexes.
 	db hs.BlockDatabase
 
@@ -23,14 +22,14 @@ type Engine struct {
 	goregexes map[int]*regexp.Regexp // TODO could this have been just a list rather than map?
 }
 
-// NewMultiRegexEngineFactory creates a secrule.MultiRegexEngineFactory.
+// NewMultiRegexEngineFactory creates a MultiRegexEngineFactory which will create Hyperscan based MultiRegexEngines.
 func NewMultiRegexEngineFactory() secrule.MultiRegexEngineFactory {
-	return &EngineFactory{}
+	return &engineFactoryImpl{}
 }
 
-// NewMultiRegexEngine creates a secrule.MultiRegexEngine that uses Hyperscan in prefilter mode for the initial scan, and then uses Go regexp to re-validate matches and extract strings.
-func (f *EngineFactory) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern) (engine secrule.MultiRegexEngine, err error) {
-	h := &Engine{}
+// NewMultiRegexEngine creates a MultiRegexEngine that uses Hyperscan in prefilter mode for the initial scan, and then uses Go regexp to re-validate matches and extract strings.
+func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern) (engine secrule.MultiRegexEngine, err error) {
+	h := &engineImpl{}
 
 	patterns := []*hs.Pattern{}
 	for _, m := range mm {
@@ -47,12 +46,14 @@ func (f *EngineFactory) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern
 	// Build the Hyperscan database
 	h.db, err = hs.NewBlockDatabase(patterns...)
 	if err != nil {
+		err = fmt.Errorf("failed to compile Hyperscan database with %d patterns: %v", len(patterns), err)
 		return
 	}
 
 	h.scratch, err = hs.NewScratch(h.db)
 	if err != nil {
 		h.Close()
+		err = fmt.Errorf("failed to create Hyperscan scratch space: %v", err)
 		return
 	}
 
@@ -65,6 +66,7 @@ func (f *EngineFactory) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern
 		var r *regexp.Regexp
 		r, err = regexp.Compile(e)
 		if err != nil {
+			err = fmt.Errorf("failed to compile Go regexp pattern %v. Error was: %v", e, err)
 			h.Close()
 			return
 		}
@@ -77,7 +79,7 @@ func (f *EngineFactory) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern
 }
 
 // Scan scans the given input for all expressions that this engine was initialized with.
-func (h *Engine) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch, err error) {
+func (h *engineImpl) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch, err error) {
 	// Use Hyperscan to find the potential matches
 	potentialMatches := []int{}
 	handler := func(id uint, from, to uint64, flags uint, context interface{}) error {
@@ -85,6 +87,9 @@ func (h *Engine) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch, er
 		return nil
 	}
 	err = h.db.Scan(input, h.scratch, handler, nil)
+	if err != nil {
+		err = fmt.Errorf("failed to invoke Hyperscan: %v", err)
+	}
 
 	matches = []secrule.MultiRegexEngineMatch{}
 
@@ -109,7 +114,7 @@ func (h *Engine) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch, er
 }
 
 // Close frees up unmanaged resources. The engine will be unusable after this.
-func (h *Engine) Close() {
+func (h *engineImpl) Close() {
 	if h.db != nil {
 		h.db.Close()
 		h.db = nil

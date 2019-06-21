@@ -12,10 +12,21 @@ type Engine interface {
 }
 
 type engineImpl struct {
-	siteName string
+	rules      []Rule
+	reqScanner ReqScanner
 }
 
 func (s *engineImpl) EvalRequest(req *pb.WafHttpRequest) bool {
-	log.Print("SecRule engine got EvalRequest for " + s.siteName + " with URI " + req.Uri)
+	log.Print("SecRule engine got EvalRequest for with URI " + req.Uri)
+	scanResults, err := s.reqScanner.Scan(req)
+	if err != nil {
+		log.Printf("Error while scanning request: %v", err)
+		return false
+	}
+
+	for key, match := range scanResults.rxMatches {
+		log.Printf("rxMatch. RuleID: %d. Target: %v. Data: \"%v\".", key.ruleID, key.target, string(match.Data))
+	}
+
 	return true
 }

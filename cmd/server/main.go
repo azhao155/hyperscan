@@ -3,6 +3,7 @@ package main
 import (
 	"azwaf/config"
 	"azwaf/grpc"
+	"azwaf/hyperscan"
 	"azwaf/secrule"
 	"azwaf/waf"
 
@@ -17,22 +18,28 @@ func main() {
 		{
 			"Sites": [
 				{
-					"Name": "site1"
-				},
-				{
-					"Name": "site2"
+					"Name": "site1",
+					"RuleSet": "OWASP CRS 3.0"
 				}
 			]
 		}
 	`), c)
 
 	// Depedency injection composition root
-	sref := secrule.NewEngineFactory()
-	w := waf.NewServer(c, sref)
+	p := secrule.NewRuleParser()
+	rl := secrule.NewCrsRuleLoader(p)
+	mref := hyperscan.NewMultiRegexEngineFactory()
+	rsf := secrule.NewReqScannerFactory(mref)
+	sref := secrule.NewEngineFactory(rl, rsf)
+	w, err := waf.NewServer(c, sref)
+	if err != nil {
+		log.Fatalf("Error: %v", err)
+	}
+
 	s := grpc.NewServer(w)
 
 	log.Print("Starting WAF server")
 	if err := s.Serve(); err != nil {
-		log.Fatalf("%v", err.Error())
+		log.Fatalf("%v", err)
 	}
 }

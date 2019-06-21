@@ -7,5 +7,6 @@ type Main struct {
 
 // Site is a site-specific configuration.
 type Site struct {
-	Name string
+	Name    string
+	RuleSet string
 }
