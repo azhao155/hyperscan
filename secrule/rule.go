@@ -36,6 +36,7 @@ const (
 	Eq
 	Ge
 	Gt
+	Le
 	Lt
 	Pm
 	Pmf

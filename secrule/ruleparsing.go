@@ -55,6 +55,7 @@ var operatorsMap = map[string]Operator{
 	"@eq":                   Eq,
 	"@ge":                   Ge,
 	"@gt":                   Gt,
+	"@le":                   Le,
 	"@lt":                   Lt,
 	"@pm":                   Pm,
 	"@pmf":                  Pmf,
@@ -143,12 +144,8 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 	if err != nil {
 		return
 	}
-	switch ru.Predicate.Op {
-	case DetectSQLi:
-		ru.Predicate.OpE = &detectSQLiOperator{}
-	case DetectXSS:
-		ru.Predicate.OpE = &detectXSSOperator{}
-	}
+
+	ru.Predicate.OpFunc = toOperatorFunc(ru.Predicate.Op)
 
 	_, s = r.findConsume(argSpaceRegex, s)
 

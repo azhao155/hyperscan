@@ -4,7 +4,7 @@ package secrule
 type RulePredicate struct {
 	Targets []string
 	Op      Operator
-	OpE     operatorEvaluator
+	OpFunc  operatorFunc
 	Neg     bool
 	Val     string
 }
@@ -12,7 +12,7 @@ type RulePredicate struct {
 //example to show usage - subject to change as other components get written
 func (rp *RulePredicate) eval(content map[string]string) (bool, string, error) {
 	for _, target := range rp.Targets {
-		result, output, err := rp.OpE.eval(content[target], rp.Val)
+		result, output, err := rp.OpFunc(content[target], rp.Val)
 		if err != nil {
 			return result, "", err
 		}
