@@ -7,6 +7,11 @@ import proto "github.com/golang/protobuf/proto"
 import fmt "fmt"
 import math "math"
 
+import (
+	context "golang.org/x/net/context"
+	grpc "google.golang.org/grpc"
+)
+
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
 var _ = fmt.Errorf
@@ -19,68 +24,21 @@ var _ = math.Inf
 const _ = proto.ProtoPackageIsVersion2 // please upgrade the proto package
 
 //
-// This is an example service which we will be using as a place holder till we
-// light up a service on AzWaf.
-type Service struct {
-	ServiceConfigId      string   `protobuf:"bytes,1,opt,name=serviceConfigId,proto3" json:"serviceConfigId,omitempty"`
-	Config               *Config  `protobuf:"bytes,2,opt,name=config,proto3" json:"config,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *Service) Reset()         { *m = Service{} }
-func (m *Service) String() string { return proto.CompactTextString(m) }
-func (*Service) ProtoMessage()    {}
-func (*Service) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_9c2fd8123f61c022, []int{0}
-}
-func (m *Service) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Service.Unmarshal(m, b)
-}
-func (m *Service) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Service.Marshal(b, m, deterministic)
-}
-func (dst *Service) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Service.Merge(dst, src)
-}
-func (m *Service) XXX_Size() int {
-	return xxx_messageInfo_Service.Size(m)
-}
-func (m *Service) XXX_DiscardUnknown() {
-	xxx_messageInfo_Service.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Service proto.InternalMessageInfo
-
-func (m *Service) GetServiceConfigId() string {
-	if m != nil {
-		return m.ServiceConfigId
-	}
-	return ""
-}
-
-func (m *Service) GetConfig() *Config {
-	if m != nil {
-		return m.Config
-	}
-	return nil
-}
-
-//
 // A representation of AzWaf configuration.
 type WAFConfig struct {
-	ServiceConfig        []*Service `protobuf:"bytes,1,rep,name=serviceConfig,proto3" json:"serviceConfig,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
-	XXX_unrecognized     []byte     `json:"-"`
-	XXX_sizecache        int32      `json:"-"`
+	SecRuleConfigs       []*SecRuleConfig      `protobuf:"bytes,1,rep,name=secRuleConfigs,proto3" json:"secRuleConfigs,omitempty"`
+	GeoDBConfigs         []*GeoDBConfig        `protobuf:"bytes,2,rep,name=geoDBConfigs,proto3" json:"geoDBConfigs,omitempty"`
+	IpReputationConfigs  []*IPReputationConfig `protobuf:"bytes,3,rep,name=ipReputationConfigs,proto3" json:"ipReputationConfigs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
 func (m *WAFConfig) Reset()         { *m = WAFConfig{} }
 func (m *WAFConfig) String() string { return proto.CompactTextString(m) }
 func (*WAFConfig) ProtoMessage()    {}
 func (*WAFConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_9c2fd8123f61c022, []int{1}
+	return fileDescriptor_config_42d36da6f7e562ff, []int{0}
 }
 func (m *WAFConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WAFConfig.Unmarshal(m, b)
@@ -100,193 +58,30 @@ func (m *WAFConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_WAFConfig proto.InternalMessageInfo
 
-func (m *WAFConfig) GetServiceConfig() []*Service {
+func (m *WAFConfig) GetSecRuleConfigs() []*SecRuleConfig {
 	if m != nil {
-		return m.ServiceConfig
+		return m.SecRuleConfigs
 	}
 	return nil
 }
 
-type Config struct {
-	// Types that are valid to be assigned to Message:
-	//	*Config_SecRuleConfig
-	//	*Config_GeoDbConfig
-	//	*Config_IpReputationConfig
-	Message              isConfig_Message `protobuf_oneof:"message"`
-	XXX_NoUnkeyedLiteral struct{}         `json:"-"`
-	XXX_unrecognized     []byte           `json:"-"`
-	XXX_sizecache        int32            `json:"-"`
-}
-
-func (m *Config) Reset()         { *m = Config{} }
-func (m *Config) String() string { return proto.CompactTextString(m) }
-func (*Config) ProtoMessage()    {}
-func (*Config) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_9c2fd8123f61c022, []int{2}
-}
-func (m *Config) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_Config.Unmarshal(m, b)
-}
-func (m *Config) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_Config.Marshal(b, m, deterministic)
-}
-func (dst *Config) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_Config.Merge(dst, src)
-}
-func (m *Config) XXX_Size() int {
-	return xxx_messageInfo_Config.Size(m)
-}
-func (m *Config) XXX_DiscardUnknown() {
-	xxx_messageInfo_Config.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_Config proto.InternalMessageInfo
-
-type isConfig_Message interface {
-	isConfig_Message()
-}
-
-type Config_SecRuleConfig struct {
-	SecRuleConfig *SecRuleConfig `protobuf:"bytes,1,opt,name=secRuleConfig,proto3,oneof"`
-}
-
-type Config_GeoDbConfig struct {
-	GeoDbConfig *GeoDbConfig `protobuf:"bytes,2,opt,name=geoDbConfig,proto3,oneof"`
-}
-
-type Config_IpReputationConfig struct {
-	IpReputationConfig *IPReputationConfig `protobuf:"bytes,3,opt,name=ipReputationConfig,proto3,oneof"`
-}
-
-func (*Config_SecRuleConfig) isConfig_Message() {}
-
-func (*Config_GeoDbConfig) isConfig_Message() {}
-
-func (*Config_IpReputationConfig) isConfig_Message() {}
-
-func (m *Config) GetMessage() isConfig_Message {
+func (m *WAFConfig) GetGeoDBConfigs() []*GeoDBConfig {
 	if m != nil {
-		return m.Message
+		return m.GeoDBConfigs
 	}
 	return nil
 }
 
-func (m *Config) GetSecRuleConfig() *SecRuleConfig {
-	if x, ok := m.GetMessage().(*Config_SecRuleConfig); ok {
-		return x.SecRuleConfig
+func (m *WAFConfig) GetIpReputationConfigs() []*IPReputationConfig {
+	if m != nil {
+		return m.IpReputationConfigs
 	}
 	return nil
-}
-
-func (m *Config) GetGeoDbConfig() *GeoDbConfig {
-	if x, ok := m.GetMessage().(*Config_GeoDbConfig); ok {
-		return x.GeoDbConfig
-	}
-	return nil
-}
-
-func (m *Config) GetIpReputationConfig() *IPReputationConfig {
-	if x, ok := m.GetMessage().(*Config_IpReputationConfig); ok {
-		return x.IpReputationConfig
-	}
-	return nil
-}
-
-// XXX_OneofFuncs is for the internal use of the proto package.
-func (*Config) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
-	return _Config_OneofMarshaler, _Config_OneofUnmarshaler, _Config_OneofSizer, []interface{}{
-		(*Config_SecRuleConfig)(nil),
-		(*Config_GeoDbConfig)(nil),
-		(*Config_IpReputationConfig)(nil),
-	}
-}
-
-func _Config_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
-	m := msg.(*Config)
-	// message
-	switch x := m.Message.(type) {
-	case *Config_SecRuleConfig:
-		b.EncodeVarint(1<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.SecRuleConfig); err != nil {
-			return err
-		}
-	case *Config_GeoDbConfig:
-		b.EncodeVarint(2<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.GeoDbConfig); err != nil {
-			return err
-		}
-	case *Config_IpReputationConfig:
-		b.EncodeVarint(3<<3 | proto.WireBytes)
-		if err := b.EncodeMessage(x.IpReputationConfig); err != nil {
-			return err
-		}
-	case nil:
-	default:
-		return fmt.Errorf("Config.Message has unexpected type %T", x)
-	}
-	return nil
-}
-
-func _Config_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
-	m := msg.(*Config)
-	switch tag {
-	case 1: // message.secRuleConfig
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(SecRuleConfig)
-		err := b.DecodeMessage(msg)
-		m.Message = &Config_SecRuleConfig{msg}
-		return true, err
-	case 2: // message.geoDbConfig
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(GeoDbConfig)
-		err := b.DecodeMessage(msg)
-		m.Message = &Config_GeoDbConfig{msg}
-		return true, err
-	case 3: // message.ipReputationConfig
-		if wire != proto.WireBytes {
-			return true, proto.ErrInternalBadWireType
-		}
-		msg := new(IPReputationConfig)
-		err := b.DecodeMessage(msg)
-		m.Message = &Config_IpReputationConfig{msg}
-		return true, err
-	default:
-		return false, nil
-	}
-}
-
-func _Config_OneofSizer(msg proto.Message) (n int) {
-	m := msg.(*Config)
-	// message
-	switch x := m.Message.(type) {
-	case *Config_SecRuleConfig:
-		s := proto.Size(x.SecRuleConfig)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Config_GeoDbConfig:
-		s := proto.Size(x.GeoDbConfig)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case *Config_IpReputationConfig:
-		s := proto.Size(x.IpReputationConfig)
-		n += 1 // tag and wire
-		n += proto.SizeVarint(uint64(s))
-		n += s
-	case nil:
-	default:
-		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
-	}
-	return n
 }
 
 type SecRuleConfig struct {
-	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Enabled              bool     `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -296,7 +91,7 @@ func (m *SecRuleConfig) Reset()         { *m = SecRuleConfig{} }
 func (m *SecRuleConfig) String() string { return proto.CompactTextString(m) }
 func (*SecRuleConfig) ProtoMessage()    {}
 func (*SecRuleConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_9c2fd8123f61c022, []int{3}
+	return fileDescriptor_config_42d36da6f7e562ff, []int{1}
 }
 func (m *SecRuleConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SecRuleConfig.Unmarshal(m, b)
@@ -316,6 +111,13 @@ func (m *SecRuleConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SecRuleConfig proto.InternalMessageInfo
 
+func (m *SecRuleConfig) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
 func (m *SecRuleConfig) GetEnabled() bool {
 	if m != nil {
 		return m.Enabled
@@ -323,38 +125,46 @@ func (m *SecRuleConfig) GetEnabled() bool {
 	return false
 }
 
-type GeoDbConfig struct {
-	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+type GeoDBConfig struct {
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Enabled              bool     `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *GeoDbConfig) Reset()         { *m = GeoDbConfig{} }
-func (m *GeoDbConfig) String() string { return proto.CompactTextString(m) }
-func (*GeoDbConfig) ProtoMessage()    {}
-func (*GeoDbConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_9c2fd8123f61c022, []int{4}
+func (m *GeoDBConfig) Reset()         { *m = GeoDBConfig{} }
+func (m *GeoDBConfig) String() string { return proto.CompactTextString(m) }
+func (*GeoDBConfig) ProtoMessage()    {}
+func (*GeoDBConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_42d36da6f7e562ff, []int{2}
 }
-func (m *GeoDbConfig) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_GeoDbConfig.Unmarshal(m, b)
+func (m *GeoDBConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_GeoDBConfig.Unmarshal(m, b)
 }
-func (m *GeoDbConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_GeoDbConfig.Marshal(b, m, deterministic)
+func (m *GeoDBConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_GeoDBConfig.Marshal(b, m, deterministic)
 }
-func (dst *GeoDbConfig) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_GeoDbConfig.Merge(dst, src)
+func (dst *GeoDBConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_GeoDBConfig.Merge(dst, src)
 }
-func (m *GeoDbConfig) XXX_Size() int {
-	return xxx_messageInfo_GeoDbConfig.Size(m)
+func (m *GeoDBConfig) XXX_Size() int {
+	return xxx_messageInfo_GeoDBConfig.Size(m)
 }
-func (m *GeoDbConfig) XXX_DiscardUnknown() {
-	xxx_messageInfo_GeoDbConfig.DiscardUnknown(m)
+func (m *GeoDBConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_GeoDBConfig.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_GeoDbConfig proto.InternalMessageInfo
+var xxx_messageInfo_GeoDBConfig proto.InternalMessageInfo
 
-func (m *GeoDbConfig) GetEnabled() bool {
+func (m *GeoDBConfig) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
+func (m *GeoDBConfig) GetEnabled() bool {
 	if m != nil {
 		return m.Enabled
 	}
@@ -362,7 +172,8 @@ func (m *GeoDbConfig) GetEnabled() bool {
 }
 
 type IPReputationConfig struct {
-	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Enabled              bool     `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -372,7 +183,7 @@ func (m *IPReputationConfig) Reset()         { *m = IPReputationConfig{} }
 func (m *IPReputationConfig) String() string { return proto.CompactTextString(m) }
 func (*IPReputationConfig) ProtoMessage()    {}
 func (*IPReputationConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_config_9c2fd8123f61c022, []int{5}
+	return fileDescriptor_config_42d36da6f7e562ff, []int{3}
 }
 func (m *IPReputationConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IPReputationConfig.Unmarshal(m, b)
@@ -392,6 +203,13 @@ func (m *IPReputationConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_IPReputationConfig proto.InternalMessageInfo
 
+func (m *IPReputationConfig) GetId() string {
+	if m != nil {
+		return m.Id
+	}
+	return ""
+}
+
 func (m *IPReputationConfig) GetEnabled() bool {
 	if m != nil {
 		return m.Enabled
@@ -399,34 +217,135 @@ func (m *IPReputationConfig) GetEnabled() bool {
 	return false
 }
 
-func init() {
-	proto.RegisterType((*Service)(nil), "wafservice.Service")
-	proto.RegisterType((*WAFConfig)(nil), "wafservice.WAFConfig")
-	proto.RegisterType((*Config)(nil), "wafservice.Config")
-	proto.RegisterType((*SecRuleConfig)(nil), "wafservice.SecRuleConfig")
-	proto.RegisterType((*GeoDbConfig)(nil), "wafservice.GeoDbConfig")
-	proto.RegisterType((*IPReputationConfig)(nil), "wafservice.IPReputationConfig")
+type PutConfigResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func init() { proto.RegisterFile("config.proto", fileDescriptor_config_9c2fd8123f61c022) }
+func (m *PutConfigResponse) Reset()         { *m = PutConfigResponse{} }
+func (m *PutConfigResponse) String() string { return proto.CompactTextString(m) }
+func (*PutConfigResponse) ProtoMessage()    {}
+func (*PutConfigResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_config_42d36da6f7e562ff, []int{4}
+}
+func (m *PutConfigResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PutConfigResponse.Unmarshal(m, b)
+}
+func (m *PutConfigResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PutConfigResponse.Marshal(b, m, deterministic)
+}
+func (dst *PutConfigResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PutConfigResponse.Merge(dst, src)
+}
+func (m *PutConfigResponse) XXX_Size() int {
+	return xxx_messageInfo_PutConfigResponse.Size(m)
+}
+func (m *PutConfigResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_PutConfigResponse.DiscardUnknown(m)
+}
 
-var fileDescriptor_config_9c2fd8123f61c022 = []byte{
-	// 270 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x7c, 0x92, 0x41, 0x4f, 0x83, 0x30,
-	0x14, 0xc7, 0xa9, 0x4b, 0x40, 0x1e, 0x2e, 0x26, 0xcf, 0x83, 0x78, 0x31, 0xa4, 0x17, 0xd1, 0x03,
-	0x87, 0x79, 0x32, 0x9e, 0xe6, 0xcc, 0x64, 0xb7, 0xe5, 0x79, 0xf0, 0x68, 0x00, 0x3b, 0x42, 0x32,
-	0x29, 0x19, 0x4c, 0x3f, 0xb1, 0xdf, 0xc3, 0x8c, 0xd6, 0xd0, 0x4e, 0xdd, 0xad, 0x7d, 0xfd, 0xfd,
-	0x7f, 0xf9, 0x37, 0x2d, 0x9c, 0x14, 0xb2, 0x5e, 0x55, 0x65, 0xd2, 0x6c, 0x64, 0x27, 0x11, 0x3e,
-	0xb3, 0x55, 0x2b, 0x36, 0x1f, 0x55, 0x21, 0xf8, 0x2b, 0x78, 0xcf, 0x6a, 0x89, 0x31, 0x9c, 0xea,
-	0xe9, 0xac, 0xa7, 0x17, 0x6f, 0x21, 0x8b, 0x58, 0xec, 0xd3, 0xfe, 0x18, 0x6f, 0xc0, 0x55, 0xc2,
-	0xf0, 0x28, 0x62, 0x71, 0x30, 0xc1, 0x64, 0x30, 0x26, 0x8a, 0x22, 0x4d, 0xf0, 0x39, 0xf8, 0x2f,
-	0xd3, 0xb9, 0x1a, 0xe2, 0x1d, 0x8c, 0x2d, 0x57, 0xc8, 0xa2, 0x51, 0x1c, 0x4c, 0xce, 0xcc, 0xbc,
-	0xae, 0x43, 0x36, 0xc9, 0xbf, 0x18, 0xb8, 0xda, 0x32, 0xdd, 0x59, 0x0a, 0xda, 0xae, 0x07, 0xcb,
-	0xae, 0xc5, 0x85, 0x6d, 0x31, 0x80, 0xd4, 0x21, 0x3b, 0x81, 0xf7, 0x10, 0x94, 0x42, 0x3e, 0xe6,
-	0x33, 0xf3, 0x1a, 0xe7, 0xa6, 0xe0, 0x69, 0x38, 0x4e, 0x1d, 0x32, 0x69, 0x5c, 0x02, 0x56, 0x0d,
-	0x89, 0x66, 0xdb, 0x65, 0x5d, 0x25, 0x6b, 0xed, 0x18, 0xf5, 0x8e, 0x4b, 0xd3, 0xb1, 0x58, 0xee,
-	0x53, 0xa9, 0x43, 0x7f, 0x64, 0x1f, 0x7c, 0xf0, 0xde, 0x45, 0xdb, 0x66, 0xa5, 0xe0, 0xd7, 0x30,
-	0xb6, 0xba, 0x63, 0x08, 0x9e, 0xa8, 0xb3, 0x7c, 0x2d, 0xd4, 0x73, 0x1c, 0xd3, 0xcf, 0x96, 0x5f,
-	0x41, 0x60, 0xb4, 0x3c, 0x00, 0x26, 0x80, 0xbf, 0xab, 0xfc, 0xcf, 0xe7, 0x6e, 0xff, 0x4f, 0x6e,
-	0xbf, 0x03, 0x00, 0x00, 0xff, 0xff, 0x83, 0xd2, 0x6f, 0x35, 0x37, 0x02, 0x00, 0x00,
+var xxx_messageInfo_PutConfigResponse proto.InternalMessageInfo
+
+func init() {
+	proto.RegisterType((*WAFConfig)(nil), "wafservice.WAFConfig")
+	proto.RegisterType((*SecRuleConfig)(nil), "wafservice.SecRuleConfig")
+	proto.RegisterType((*GeoDBConfig)(nil), "wafservice.GeoDBConfig")
+	proto.RegisterType((*IPReputationConfig)(nil), "wafservice.IPReputationConfig")
+	proto.RegisterType((*PutConfigResponse)(nil), "wafservice.PutConfigResponse")
+}
+
+// Reference imports to suppress errors if they are not otherwise used.
+var _ context.Context
+var _ grpc.ClientConn
+
+// This is a compile-time assertion to ensure that this generated file
+// is compatible with the grpc package it is being compiled against.
+const _ = grpc.SupportPackageIsVersion4
+
+// ConfigServiceClient is the client API for ConfigService service.
+//
+// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
+type ConfigServiceClient interface {
+	PutConfig(ctx context.Context, in *WAFConfig, opts ...grpc.CallOption) (*PutConfigResponse, error)
+}
+
+type configServiceClient struct {
+	cc *grpc.ClientConn
+}
+
+func NewConfigServiceClient(cc *grpc.ClientConn) ConfigServiceClient {
+	return &configServiceClient{cc}
+}
+
+func (c *configServiceClient) PutConfig(ctx context.Context, in *WAFConfig, opts ...grpc.CallOption) (*PutConfigResponse, error) {
+	out := new(PutConfigResponse)
+	err := c.cc.Invoke(ctx, "/wafservice.ConfigService/PutConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// ConfigServiceServer is the server API for ConfigService service.
+type ConfigServiceServer interface {
+	PutConfig(context.Context, *WAFConfig) (*PutConfigResponse, error)
+}
+
+func RegisterConfigServiceServer(s *grpc.Server, srv ConfigServiceServer) {
+	s.RegisterService(&_ConfigService_serviceDesc, srv)
+}
+
+func _ConfigService_PutConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WAFConfig)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ConfigServiceServer).PutConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/wafservice.ConfigService/PutConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ConfigServiceServer).PutConfig(ctx, req.(*WAFConfig))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+var _ConfigService_serviceDesc = grpc.ServiceDesc{
+	ServiceName: "wafservice.ConfigService",
+	HandlerType: (*ConfigServiceServer)(nil),
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "PutConfig",
+			Handler:    _ConfigService_PutConfig_Handler,
+		},
+	},
+	Streams:  []grpc.StreamDesc{},
+	Metadata: "config.proto",
+}
+
+func init() { proto.RegisterFile("config.proto", fileDescriptor_config_42d36da6f7e562ff) }
+
+var fileDescriptor_config_42d36da6f7e562ff = []byte{
+	// 258 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0xe2, 0x49, 0xce, 0xcf, 0x4b,
+	0xcb, 0x4c, 0xd7, 0x2b, 0x28, 0xca, 0x2f, 0xc9, 0x17, 0xe2, 0x2a, 0x4f, 0x4c, 0x2b, 0x4e, 0x2d,
+	0x2a, 0xcb, 0x4c, 0x4e, 0x55, 0xba, 0xcb, 0xc8, 0xc5, 0x19, 0xee, 0xe8, 0xe6, 0x0c, 0x96, 0x17,
+	0x72, 0xe4, 0xe2, 0x2b, 0x4e, 0x4d, 0x0e, 0x2a, 0xcd, 0x49, 0x85, 0x08, 0x14, 0x4b, 0x30, 0x2a,
+	0x30, 0x6b, 0x70, 0x1b, 0x49, 0xea, 0x21, 0xb4, 0xe8, 0x05, 0x23, 0xab, 0x08, 0x42, 0xd3, 0x20,
+	0x64, 0xcd, 0xc5, 0x93, 0x9e, 0x9a, 0xef, 0xe2, 0x04, 0x33, 0x80, 0x09, 0x6c, 0x80, 0x38, 0xb2,
+	0x01, 0xee, 0x08, 0xf9, 0x20, 0x14, 0xc5, 0x42, 0x01, 0x5c, 0xc2, 0x99, 0x05, 0x41, 0xa9, 0x05,
+	0xa5, 0x25, 0x89, 0x25, 0x99, 0xf9, 0x79, 0x30, 0x33, 0x98, 0xc1, 0x66, 0xc8, 0x21, 0x9b, 0xe1,
+	0x19, 0x80, 0xae, 0x2c, 0x08, 0x9b, 0x56, 0x25, 0x4b, 0x2e, 0x5e, 0x14, 0xf7, 0x0a, 0xf1, 0x71,
+	0x31, 0x65, 0xa6, 0x48, 0x30, 0x2a, 0x30, 0x6a, 0x70, 0x06, 0x31, 0x65, 0xa6, 0x08, 0x49, 0x70,
+	0xb1, 0xa7, 0xe6, 0x25, 0x26, 0xe5, 0xa4, 0xa6, 0x48, 0x30, 0x29, 0x30, 0x6a, 0x70, 0x04, 0xc1,
+	0xb8, 0x4a, 0xe6, 0x5c, 0xdc, 0x48, 0x2e, 0x25, 0x41, 0xa3, 0x1d, 0x97, 0x10, 0xa6, 0xf3, 0x48,
+	0xd0, 0x2f, 0xcc, 0x25, 0x18, 0x50, 0x5a, 0x02, 0xf5, 0x55, 0x6a, 0x71, 0x41, 0x7e, 0x5e, 0x71,
+	0xaa, 0x51, 0x08, 0x17, 0x2f, 0x44, 0x24, 0x18, 0x12, 0x02, 0x42, 0xce, 0x5c, 0x9c, 0x70, 0x55,
+	0x42, 0xa2, 0xc8, 0x61, 0x03, 0x8f, 0x4f, 0x29, 0x59, 0x64, 0x61, 0x0c, 0x33, 0x95, 0x18, 0x92,
+	0xd8, 0xc0, 0x29, 0xc2, 0x18, 0x10, 0x00, 0x00, 0xff, 0xff, 0x04, 0x9e, 0xfe, 0xa0, 0x21, 0x02,
+	0x00, 0x00,
 }

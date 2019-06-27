@@ -6,28 +6,33 @@ package wafservice;
  * This is an example service which we will be using as a place holder till we
  * light up a service on AzWaf.
  */
-message Service {
-  string serviceConfigId = 1;
-  Config config = 2;
+service ConfigService {
+    rpc PutConfig (WAFConfig) returns (PutConfigResponse) {}
 }
 
 /*
  * A representation of AzWaf configuration.
  */
 message WAFConfig {
-  repeated Service serviceConfig = 1;
+  repeated SecRuleConfig secRuleConfigs = 1;
+  repeated GeoDBConfig geoDBConfigs = 2;
+  repeated IPReputationConfig ipReputationConfigs = 3;
 }
 
-message Config {
-  oneof message {
-    SecRuleConfig secRuleConfig = 1;
-    GeoDbConfig geoDbConfig = 2;
-    IPReputationConfig ipReputationConfig = 3;
-  }
+message SecRuleConfig { 
+  string id = 1;
+  bool enabled = 2; 
 }
 
-message SecRuleConfig { bool enabled = 1; }
+message GeoDBConfig { 
+  string id = 1;
+  bool enabled = 2; 
+}
 
-message GeoDbConfig { bool enabled = 1; }
+message IPReputationConfig { 
+  string id = 1;
+  bool enabled = 2; 
+}
 
-message IPReputationConfig { bool enabled = 1; }
+message PutConfigResponse { 
+}
