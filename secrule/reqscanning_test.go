@@ -1,7 +1,7 @@
 package secrule
 
 import (
-	pb "azwaf/proto"
+	"azwaf/waf"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func TestReqScanner1(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
-	req := &pb.WafHttpRequest{Uri: "/hello.php?arg1=aaaaaaabccc"}
+	req := &mockWafHTTPRequest{}
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
@@ -57,3 +57,10 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Unexpected match found")
 	}
 }
+
+type mockWafHTTPRequest struct{}
+
+func (r *mockWafHTTPRequest) Method() string            { return "GET" }
+func (r *mockWafHTTPRequest) URI() string               { return "/hello.php?arg1=aaaaaaabccc" }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
+func (r *mockWafHTTPRequest) Body() []byte              { return nil }

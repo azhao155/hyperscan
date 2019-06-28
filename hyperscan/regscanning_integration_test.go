@@ -1,8 +1,8 @@
 package hyperscan
 
 import (
-	pb "azwaf/proto"
 	"azwaf/secrule"
+	"azwaf/waf"
 	"testing"
 )
 
@@ -16,7 +16,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 			SecRule ARGS "xyz" "t:lowercase"
 		SecRule REQUEST_URI_RAW "a+bc" "id:300,t:lowercase,t:removewhitespace,x"
 	`)
-	req := &pb.WafHttpRequest{Uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
+	req := &mockWafHTTPRequest{}
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
@@ -63,3 +63,10 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Unexpected match found")
 	}
 }
+
+type mockWafHTTPRequest struct{}
+
+func (r *mockWafHTTPRequest) Method() string            { return "GET" }
+func (r *mockWafHTTPRequest) URI() string               { return "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld" }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
+func (r *mockWafHTTPRequest) Body() []byte              { return nil }

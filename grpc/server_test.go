@@ -2,18 +2,9 @@ package grpc
 
 import (
 	pb "azwaf/proto"
-
+	"azwaf/waf"
 	"testing"
 )
-
-type mockWafServer struct {
-	evalRequestCalled int
-}
-
-func (m *mockWafServer) EvalRequest(req *pb.WafHttpRequest) (*pb.WafDecision, error) {
-	m.evalRequestCalled++
-	return &pb.WafDecision{Allow: true}, nil
-}
 
 func TestGrpcServerEvalRequest(t *testing.T) {
 	// Arrange
@@ -28,4 +19,13 @@ func TestGrpcServerEvalRequest(t *testing.T) {
 	if mw.evalRequestCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockWafServer.EvalRequest")
 	}
+}
+
+type mockWafServer struct {
+	evalRequestCalled int
+}
+
+func (m *mockWafServer) EvalRequest(req waf.HTTPRequest) (bool, error) {
+	m.evalRequestCalled++
+	return true, nil
 }

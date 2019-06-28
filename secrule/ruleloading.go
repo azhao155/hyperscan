@@ -1,6 +1,7 @@
 package secrule
 
 import (
+	"azwaf/waf"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,7 +13,7 @@ import (
 
 // RuleLoader obtains rules for a given rule set.
 type RuleLoader interface {
-	Rules(r RuleSetID) (rules []Rule, err error)
+	Rules(r waf.RuleSetID) (rules []Rule, err error)
 }
 
 type crsRuleLoader struct {
@@ -24,7 +25,7 @@ func NewCrsRuleLoader(parser RuleParser) RuleLoader {
 	return &crsRuleLoader{parser}
 }
 
-var ruleSetPathsMap = map[RuleSetID][]string{
+var ruleSetPathsMap = map[waf.RuleSetID][]string{
 	"OWASP CRS 3.0": {
 		"crs3.0/crs-setup.appgw.conf",
 		"crs3.0/rules/REQUEST-901-INITIALIZATION.conf",
@@ -49,7 +50,7 @@ var ruleSetPathsMap = map[RuleSetID][]string{
 }
 
 // GetRules loads and parses CRS files from disk.
-func (c *crsRuleLoader) Rules(ruleSetID RuleSetID) (rules []Rule, err error) {
+func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error) {
 	paths, ok := ruleSetPathsMap[ruleSetID]
 	if !ok {
 		err = fmt.Errorf("unsupported ruleset: %s", ruleSetID)

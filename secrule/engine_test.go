@@ -1,8 +1,6 @@
 package secrule
 
 import (
-	pb "azwaf/proto"
-
 	"testing"
 )
 
@@ -16,7 +14,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	req := &pb.WafHttpRequest{Uri: "/hello.php?arg1=aaaaaaabccc"}
+	req := &mockWafHTTPRequest{}
 
 	// Act
 	r := e.EvalRequest(req)

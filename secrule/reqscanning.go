@@ -1,7 +1,7 @@
 package secrule
 
 import (
-	pb "azwaf/proto"
+	"azwaf/waf"
 	"fmt"
 	"log"
 	"net/url"
@@ -9,7 +9,7 @@ import (
 
 // ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
 type ReqScanner interface {
-	Scan(req *pb.WafHttpRequest) (results ScanResults, err error)
+	Scan(req waf.HTTPRequest) (results ScanResults, err error)
 }
 
 // RxMatch represents a regex match found while scanning.
@@ -133,17 +133,17 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 	return
 }
 
-func (r *reqScannerImpl) Scan(req *pb.WafHttpRequest) (results ScanResults, err error) {
+func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results ScanResults, err error) {
 	results.rxMatches = make(map[rxMatchKey]RxMatch)
 
-	r.scanTarget("REQUEST_URI_RAW", req.Uri, &results)
+	r.scanTarget("REQUEST_URI_RAW", req.URI(), &results)
 	if err != nil {
 		// TODO handle scan error
 		return
 	}
 
 	var uriParsed *url.URL
-	uriParsed, err = url.ParseRequestURI(req.Uri)
+	uriParsed, err = url.ParseRequestURI(req.URI())
 	if err != nil {
 		// TODO handle parse error
 		return

@@ -1,12 +1,14 @@
 package secrule
 
+import "azwaf/waf"
+
 func newMockRuleLoader() RuleLoader {
 	return &mockRuleLoader{}
 }
 
 type mockRuleLoader struct{}
 
-func (m *mockRuleLoader) Rules(r RuleSetID) (rules []Rule, err error) {
+func (m *mockRuleLoader) Rules(r waf.RuleSetID) (rules []Rule, err error) {
 	rules = []Rule{
 		{
 			ID: 100,

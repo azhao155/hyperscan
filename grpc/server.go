@@ -26,8 +26,14 @@ func NewServer(ws waf.Server) Server {
 	return &serverImpl{ws}
 }
 
-func (s *serverImpl) EvalRequest(ctx context.Context, in *pb.WafHttpRequest) (*pb.WafDecision, error) {
-	return s.ws.EvalRequest(in)
+func (s *serverImpl) EvalRequest(ctx context.Context, in *pb.WafHttpRequest) (d *pb.WafDecision, err error) {
+	allow, err := s.ws.EvalRequest(&wafHTTPRequestPbWrapper{pb: in})
+	if err != nil {
+		return
+	}
+
+	d = &pb.WafDecision{Allow: allow}
+	return
 }
 
 func (s *serverImpl) Serve() error {

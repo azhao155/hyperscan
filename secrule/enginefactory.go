@@ -1,17 +1,12 @@
 package secrule
 
-import "fmt"
+import (
+	"azwaf/waf"
+	"fmt"
+)
 
-// RuleSetID identifies which rule set to initialize the engine with.
-type RuleSetID string
-
-// EngineFactory creates a secrule.Engine. This makes mocking possible when testing.
-type EngineFactory interface {
-	NewEngine(r RuleSetID) (Engine, error)
-}
-
-// NewEngineFactory creates a secrule.EngineFactory.
-func NewEngineFactory(rl RuleLoader, rsf ReqScannerFactory) EngineFactory {
+// NewEngineFactory creates a factory that can create SecRule engines.
+func NewEngineFactory(rl RuleLoader, rsf ReqScannerFactory) waf.SecRuleEngineFactory {
 	return &engineFactoryImpl{rl, rsf}
 }
 
@@ -20,7 +15,7 @@ type engineFactoryImpl struct {
 	reqScannerFactory ReqScannerFactory
 }
 
-func (f *engineFactoryImpl) NewEngine(ruleSetID RuleSetID) (engine Engine, err error) {
+func (f *engineFactoryImpl) NewEngine(ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
 	rules, err := f.ruleLoader.Rules(ruleSetID)
 	if err != nil {
 		err = fmt.Errorf("failed to load ruleset %v: %v", ruleSetID, err)

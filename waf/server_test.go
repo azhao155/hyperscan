@@ -2,8 +2,6 @@ package waf
 
 import (
 	"azwaf/config"
-	pb "azwaf/proto"
-	"azwaf/secrule"
 
 	"testing"
 )
@@ -17,7 +15,7 @@ func TestWafServerEvalRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
-	req := &pb.WafHttpRequest{Uri: "/hello.php?arg1=aaaaaaabccc"}
+	req := &mockWafHTTPRequest{}
 
 	// Act
 	s.EvalRequest(req)
@@ -36,7 +34,7 @@ type mockSecRuleEngine struct {
 	evalRequestCalled int
 }
 
-func (m *mockSecRuleEngine) EvalRequest(req *pb.WafHttpRequest) bool {
+func (m *mockSecRuleEngine) EvalRequest(req HTTPRequest) bool {
 	m.evalRequestCalled++
 	return true
 }
@@ -46,8 +44,15 @@ type mockSecRuleEngineFactory struct {
 	newEngineCalled int
 }
 
-func (m *mockSecRuleEngineFactory) NewEngine(r secrule.RuleSetID) (engine secrule.Engine, err error) {
+func (m *mockSecRuleEngineFactory) NewEngine(r RuleSetID) (engine SecRuleEngine, err error) {
 	m.newEngineCalled++
 	engine = m.msre
 	return
 }
+
+type mockWafHTTPRequest struct{}
+
+func (r *mockWafHTTPRequest) Method() string        { return "GET" }
+func (r *mockWafHTTPRequest) URI() string           { return "/hello.php?arg1=aaaaaaabccc" }
+func (r *mockWafHTTPRequest) Headers() []HeaderPair { return nil }
+func (r *mockWafHTTPRequest) Body() []byte          { return nil }
