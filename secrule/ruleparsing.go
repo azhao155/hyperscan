@@ -133,7 +133,7 @@ func (r *ruleParserImpl) Parse(input string) (rules []Rule, err error) {
 func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (err error) {
 	ru := &RuleItem{}
 
-	ru.Predicate.Targets, s, err = r.parseTargets(s)
+	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = r.parseTargets(s)
 	if err != nil {
 		return
 	}
@@ -212,7 +212,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 }
 
 // Parse a SecRule targets field (aka. variables field).
-func (r *ruleParserImpl) parseTargets(s string) (targets []string, rest string, err error) {
+func (r *ruleParserImpl) parseTargets(s string) (targets []string, exceptTargets []string, rest string, err error) {
 	s, rest = r.nextArg(s)
 
 	for {
@@ -223,7 +223,11 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []string, rest string, 
 			return
 		}
 
-		targets = append(targets, target)
+		if target[0] == '!' {
+			exceptTargets = append(exceptTargets, target[1:])
+		} else {
+			targets = append(targets, target)
+		}
 
 		_, s = r.findConsume(argSpaceRegex, s)
 		if len(s) == 0 {

@@ -331,7 +331,75 @@ func TestSecRuleTargets(t *testing.T) {
 	}
 
 	if b.Len() > 0 {
-		t.Fatalf("%s", b.String())
+		t.Fatalf("\n%s", b.String())
+	}
+}
+
+func TestSecRuleTargetExclusions(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	type testcase struct {
+		input                 string
+		expectedTargets       []string
+		expectedExceptTargets []string
+	}
+	tests := []testcase{
+		{`ARGS|!ARGS:aaa`, []string{`ARGS`}, []string{`ARGS:aaa`}},
+		{`!ARGS:aaa|ARGS`, []string{`ARGS`}, []string{`ARGS:aaa`}},
+		{`ARGS|!ARGS:aaa|ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}, []string{`ARGS:aaa`}},
+		{`ARGS|!ARGS:/aaa./`, []string{`ARGS`}, []string{`ARGS:/aaa./`}},
+		{`ARGS|!ARGS:/aaa./|ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}, []string{`ARGS:/aaa./`}},
+	}
+
+	// Act and assert
+	var b strings.Builder
+	for _, test := range tests {
+		rr, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
+
+		if err != nil {
+			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
+			continue
+		}
+
+		n := len(rr)
+		if n != 1 {
+			fmt.Fprintf(&b, "Wrong rules count: %d. Tested input: %s\n", n, test.input)
+			continue
+		}
+
+		n = len(rr[0].Items)
+		if n != 1 {
+			fmt.Fprintf(&b, "Wrong rule items count in rule 0: %d. Tested input: %s\n", n, test.input)
+			continue
+		}
+
+		n = len(rr[0].Items[0].Predicate.Targets)
+		if n != len(test.expectedTargets) {
+			fmt.Fprintf(&b, "Wrong targets count: %d. Tested input: %s\n", n, test.input)
+			continue
+		}
+
+		for i, val := range test.expectedTargets {
+			if rr[0].Items[0].Predicate.Targets[i] != val {
+				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", rr[0].Items[0].Predicate.Targets[i], test.input)
+			}
+		}
+
+		n = len(rr[0].Items[0].Predicate.ExceptTargets)
+		if n != len(test.expectedExceptTargets) {
+			fmt.Fprintf(&b, "Wrong target exclusions count: %d. Tested input: %s\n", n, test.input)
+			continue
+		}
+
+		for i, val := range test.expectedExceptTargets {
+			if rr[0].Items[0].Predicate.ExceptTargets[i] != val {
+				fmt.Fprintf(&b, "Wrong target exclusion: %s. Tested input: %s\n", rr[0].Items[0].Predicate.ExceptTargets[i], test.input)
+			}
+		}
+	}
+
+	if b.Len() > 0 {
+		t.Fatalf("\n%s", b.String())
 	}
 }
 
@@ -401,7 +469,7 @@ func TestSecRuleOperators(t *testing.T) {
 	}
 
 	if b.Len() > 0 {
-		t.Fatalf("%s", b.String())
+		t.Fatalf("\n%s", b.String())
 	}
 }
 
@@ -465,7 +533,7 @@ func TestSecRuleRawActions(t *testing.T) {
 	}
 
 	if b.Len() > 0 {
-		t.Fatalf("%s", b.String())
+		t.Fatalf("\n%s", b.String())
 	}
 }
 
@@ -560,13 +628,23 @@ func TestRule942320(t *testing.T) {
 		t.Fatalf("Unexpected Msg. Actual: %s. Expected: %s.", r.Msg, expectedMsg)
 	}
 
-	expectedTargets := []string{`REQUEST_COOKIES`, `!REQUEST_COOKIES:/__utm/`, `REQUEST_COOKIES_NAMES`, `ARGS_NAMES`, `ARGS`, `XML:/*`}
+	expectedTargets := []string{`REQUEST_COOKIES`, `REQUEST_COOKIES_NAMES`, `ARGS_NAMES`, `ARGS`, `XML:/*`}
 	if len(r.Predicate.Targets) != len(expectedTargets) {
 		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Predicate.Targets), len(expectedTargets))
 	}
 	for i := range expectedTargets {
 		if r.Predicate.Targets[i] != expectedTargets[i] {
 			t.Fatalf("Unexpected target. Actual: %s. Expected: %s.", r.Predicate.Targets[i], expectedTargets[i])
+		}
+	}
+
+	expectedExceptTargets := []string{`REQUEST_COOKIES:/__utm/`}
+	if len(r.Predicate.ExceptTargets) != len(expectedExceptTargets) {
+		t.Fatalf("Unexpected except-targets count. Actual: %d. Expected: %d.", len(r.Predicate.ExceptTargets), len(expectedExceptTargets))
+	}
+	for i := range expectedExceptTargets {
+		if r.Predicate.ExceptTargets[i] != expectedExceptTargets[i] {
+			t.Fatalf("Unexpected except-targets. Actual: %s. Expected: %s.", r.Predicate.ExceptTargets[i], expectedExceptTargets[i])
 		}
 	}
 

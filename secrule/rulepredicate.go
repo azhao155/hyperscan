@@ -2,11 +2,12 @@ package secrule
 
 // RulePredicate that determines the action to be taken
 type RulePredicate struct {
-	Targets []string
-	Op      Operator
-	OpFunc  operatorFunc
-	Neg     bool
-	Val     string
+	Targets       []string
+	ExceptTargets []string // ExceptTargets are the targets that are exempt/excluded from being matched.
+	Op            Operator
+	OpFunc        operatorFunc
+	Neg           bool
+	Val           string
 }
 
 //example to show usage - subject to change as other components get written
