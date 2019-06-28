@@ -245,60 +245,48 @@ func TestSecRuleTargets(t *testing.T) {
 	// Arrange
 	p := NewRuleParser()
 	type testcase struct {
-		input       string
-		expected    []string
-		expectedErr string
+		input    string
+		expected []string
 	}
 	tests := []testcase{
-		{`ARGS|ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{`ARGS,ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{`ARGS:/helloworld/`, []string{`ARGS:/helloworld/`}, ``},
-		{`ARGS|ARGS:/helloworld/|ARGS_NAMES`, []string{`ARGS`, `ARGS:/helloworld/`, `ARGS_NAMES`}, ``},
-		{`ARGS,ARGS:/helloworld/,ARGS_NAMES`, []string{`ARGS`, `ARGS:/helloworld/`, `ARGS_NAMES`}, ``},
-		{`ARGS|REQUEST_COOKIES:/S?SESS[a-f0-9]+/|ARGS_NAMES`, []string{`ARGS`, `REQUEST_COOKIES:/S?SESS[a-f0-9]+/`, `ARGS_NAMES`}, ``},
-		{`REQUEST_HEADERS:X.Filename`, []string{`REQUEST_HEADERS:X.Filename`}, ``},
-		{`"ARGS|ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{`"ARGS,ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{`"ARGS:'helloworld'"`, []string{`ARGS:'helloworld'`}, ``},
-		{`"ARGS:'hello world'"`, []string{`ARGS:'hello world'`}, ``},
-		{`"ARGS:'hello \"world'"`, []string{`ARGS:'hello "world'`}, ``},
-		{`"ARGS:'hello \\'world'"`, []string{`ARGS:'hello \'world'`}, ``},
-		{`"ARGS|ARGS:'helloworld'|ARGS_NAMES"`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}, ``},
-		{`"ARGS,ARGS:'helloworld',ARGS_NAMES"`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}, ``},
-		{`"REQUEST_HEADERS:X.Filename"`, []string{`REQUEST_HEADERS:X.Filename`}, ``},
-		{`'ARGS|ARGS_NAMES'`, []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{`'ARGS:\'helloworld\''`, []string{`ARGS:'helloworld'`}, ``},
-		{`'ARGS:\'hello world\''`, []string{`ARGS:'hello world'`}, ``},
-		{`'ARGS:\'hello "world\''`, []string{`ARGS:'hello "world'`}, ``},
-		{`'ARGS:\'hello \\\'world\''`, []string{`ARGS:'hello \'world'`}, ``},
-		{`'ARGS|ARGS:\'helloworld\'|ARGS_NAMES'`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}, ``},
-		{`XML:/abc|ARGS`, []string{`XML:/abc`, `ARGS`}, ``},
-		{`XML:/abc,ARGS`, []string{`XML:/abc`, `ARGS`}, ``},
-		{`XML:/*|ARGS`, []string{`XML:/*`, `ARGS`}, ``},
-		{`XML:/*,ARGS`, []string{`XML:/*`, `ARGS`}, ``},
-		{`'REQUEST_HEADERS:X.Filename'`, []string{`REQUEST_HEADERS:X.Filename`}, ``},
-		{`ARGS:list[select]|ARGS_NAMES`, []string{`ARGS:list[select]`, `ARGS_NAMES`}, ``},
-		{`ARGS:'list[select]'|ARGS_NAMES`, []string{`ARGS:'list[select]'`, `ARGS_NAMES`}, ``},
-		{`ARGS:/abc[0-9]/|ARGS_NAMES`, []string{`ARGS:/abc[0-9]/`, `ARGS_NAMES`}, ``},
-		{`"ARGS| ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{"\"ARGS| \\\nARGS_NAMES\"", []string{`ARGS`, `ARGS_NAMES`}, ``},
-		{`|`, nil, `Parse error in SecRule on line 1: Unable to parse targets`},
+		{`ARGS|ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}},
+		{`ARGS,ARGS_NAMES`, []string{`ARGS`, `ARGS_NAMES`}},
+		{`ARGS:/helloworld/`, []string{`ARGS:/helloworld/`}},
+		{`ARGS|ARGS:/helloworld/|ARGS_NAMES`, []string{`ARGS`, `ARGS:/helloworld/`, `ARGS_NAMES`}},
+		{`ARGS,ARGS:/helloworld/,ARGS_NAMES`, []string{`ARGS`, `ARGS:/helloworld/`, `ARGS_NAMES`}},
+		{`ARGS|REQUEST_COOKIES:/S?SESS[a-f0-9]+/|ARGS_NAMES`, []string{`ARGS`, `REQUEST_COOKIES:/S?SESS[a-f0-9]+/`, `ARGS_NAMES`}},
+		{`REQUEST_HEADERS:X.Filename`, []string{`REQUEST_HEADERS:X.Filename`}},
+		{`"ARGS|ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}},
+		{`"ARGS,ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}},
+		{`"ARGS:'helloworld'"`, []string{`ARGS:'helloworld'`}},
+		{`"ARGS:'hello world'"`, []string{`ARGS:'hello world'`}},
+		{`"ARGS:'hello \"world'"`, []string{`ARGS:'hello "world'`}},
+		{`"ARGS:'hello \\'world'"`, []string{`ARGS:'hello \'world'`}},
+		{`"ARGS|ARGS:'helloworld'|ARGS_NAMES"`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}},
+		{`"ARGS,ARGS:'helloworld',ARGS_NAMES"`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}},
+		{`"REQUEST_HEADERS:X.Filename"`, []string{`REQUEST_HEADERS:X.Filename`}},
+		{`'ARGS|ARGS_NAMES'`, []string{`ARGS`, `ARGS_NAMES`}},
+		{`'ARGS:\'helloworld\''`, []string{`ARGS:'helloworld'`}},
+		{`'ARGS:\'hello world\''`, []string{`ARGS:'hello world'`}},
+		{`'ARGS:\'hello "world\''`, []string{`ARGS:'hello "world'`}},
+		{`'ARGS:\'hello \\\'world\''`, []string{`ARGS:'hello \'world'`}},
+		{`'ARGS|ARGS:\'helloworld\'|ARGS_NAMES'`, []string{`ARGS`, `ARGS:'helloworld'`, `ARGS_NAMES`}},
+		{`XML:/abc|ARGS`, []string{`XML:/abc`, `ARGS`}},
+		{`XML:/abc,ARGS`, []string{`XML:/abc`, `ARGS`}},
+		{`XML:/*|ARGS`, []string{`XML:/*`, `ARGS`}},
+		{`XML:/*,ARGS`, []string{`XML:/*`, `ARGS`}},
+		{`'REQUEST_HEADERS:X.Filename'`, []string{`REQUEST_HEADERS:X.Filename`}},
+		{`ARGS:list[select]|ARGS_NAMES`, []string{`ARGS:list[select]`, `ARGS_NAMES`}},
+		{`ARGS:'list[select]'|ARGS_NAMES`, []string{`ARGS:'list[select]'`, `ARGS_NAMES`}},
+		{`ARGS:/abc[0-9]/|ARGS_NAMES`, []string{`ARGS:/abc[0-9]/`, `ARGS_NAMES`}},
+		{`"ARGS| ARGS_NAMES"`, []string{`ARGS`, `ARGS_NAMES`}},
+		{"\"ARGS| \\\nARGS_NAMES\"", []string{`ARGS`, `ARGS_NAMES`}},
 	}
 
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
 		rr, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
-
-		if test.expectedErr != "" {
-			if err == nil {
-				t.Fatalf("Expected error, but err was nil")
-			} else if err.Error() != test.expectedErr {
-				fmt.Fprintf(&b, "Error message was not as expected. Expected: %s. Got: %s", test.expectedErr, err)
-			}
-
-			continue
-		}
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -400,6 +388,34 @@ func TestSecRuleTargetExclusions(t *testing.T) {
 
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
+	}
+}
+
+func TestSecRuleTargetErrors(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	type testcase struct {
+		input       string
+		expectedErr string
+	}
+	tests := []testcase{
+		{`|`, `Parse error in SecRule on line 1: Unable to parse targets`},
+	}
+
+	// Act and assert
+	var b strings.Builder
+	for _, test := range tests {
+		_, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
+
+		if err == nil {
+			t.Fatalf("Expected error, but err was nil")
+		} else if err.Error() != test.expectedErr {
+			fmt.Fprintf(&b, "Error message was not as expected. Expected: %s. Got: %s", test.expectedErr, err)
+		}
+	}
+
+	if b.Len() > 0 {
+		t.Fatalf("%s", b.String())
 	}
 }
 
