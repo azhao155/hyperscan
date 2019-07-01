@@ -24,3 +24,9 @@ type Config interface {
 	GeoDBConfigs() []GeoDBConfig
 	IPReputationConfigs() []IPReputationConfig
 }
+
+// ConfigConverter convert Config to/from JSON string
+type ConfigConverter interface {
+	SerializeToJSON(Config) (string, error)
+	DeSerializeFromJSON(string) (Config, error)
+}

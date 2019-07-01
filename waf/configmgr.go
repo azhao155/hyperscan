@@ -18,14 +18,16 @@ type ConfigMgr interface {
 type configMgrImpl struct {
 	curVersion int
 	fileSystem ConfigFileSystem
+	converter  ConfigConverter
 	mux        sync.Mutex
 }
 
 // NewConfigMgr create a configuration manager instance.
-func NewConfigMgr(fileSystem ConfigFileSystem) (ConfigMgr, map[int]Config, error) {
+func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (ConfigMgr, map[int]Config, error) {
 	c := &configMgrImpl{}
 
 	c.fileSystem = fileSystem
+	c.converter = converter
 
 	m, err := c.restoreConfig()
 	if err != nil {
@@ -40,7 +42,7 @@ func (c *configMgrImpl) PutConfig(config Config) (int, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	str, err := SerializeToJSON(config)
+	str, err := c.converter.SerializeToJSON(config)
 	if err != nil {
 		return -1, err
 	}
@@ -84,7 +86,7 @@ func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
 			return m, fmt.Errorf("Read config file version  %v has error: %v", f, err)
 		}
 
-		wafConfig, err := DeSerializeFromJSON(str)
+		wafConfig, err := c.converter.DeSerializeFromJSON(str)
 		if err != nil {
 			return m, fmt.Errorf("Decode config file version  %v has error: %v", f, err)
 		}

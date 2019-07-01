@@ -1,7 +1,8 @@
-package waf
+package grpc
 
 import (
 	pb "azwaf/proto"
+	waf "azwaf/waf"
 	"fmt"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -24,32 +25,34 @@ func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
 
 type configPbWrapper struct{ pb *pb.WAFConfig }
 
-func (c *configPbWrapper) SecRuleConfigs() []SecRuleConfig {
-	ss := make([]SecRuleConfig, 0)
+func (c *configPbWrapper) SecRuleConfigs() []waf.SecRuleConfig {
+	ss := make([]waf.SecRuleConfig, 0)
 	for _, p := range c.pb.SecRuleConfigs {
 		ss = append(ss, &secRuleConfigImpl{pb: p})
 	}
 	return ss
 }
 
-func (c *configPbWrapper) GeoDBConfigs() []GeoDBConfig {
-	ss := make([]GeoDBConfig, 0)
+func (c *configPbWrapper) GeoDBConfigs() []waf.GeoDBConfig {
+	ss := make([]waf.GeoDBConfig, 0)
 	for _, p := range c.pb.GeoDBConfigs {
 		ss = append(ss, &geoDbConfigImpl{pb: p})
 	}
 	return ss
 }
 
-func (c *configPbWrapper) IPReputationConfigs() []IPReputationConfig {
-	ss := make([]IPReputationConfig, 0)
+func (c *configPbWrapper) IPReputationConfigs() []waf.IPReputationConfig {
+	ss := make([]waf.IPReputationConfig, 0)
 	for _, p := range c.pb.IpReputationConfigs {
 		ss = append(ss, &ipReputationConfigImpl{pb: p})
 	}
 	return ss
 }
 
+type configConverterImpl struct{}
+
 // SerializeToJSON serializes a WAFConfig to a JSON string. Only works if the WAFConfig is a configPbWrapper wrapping a protobuf.
-func SerializeToJSON(c Config) (json string, err error) {
+func (*configConverterImpl) SerializeToJSON(c waf.Config) (json string, err error) {
 	wci, ok := c.(*configPbWrapper)
 	if !ok {
 		err = fmt.Errorf("Failed convert given WAFConfig to a serializable protobuf backed type")
@@ -61,7 +64,7 @@ func SerializeToJSON(c Config) (json string, err error) {
 }
 
 // DeSerializeFromJSON converts JSON to a WAF config object
-func DeSerializeFromJSON(str string) (c Config, err error) {
+func (*configConverterImpl) DeSerializeFromJSON(str string) (c waf.Config, err error) {
 	var pb pb.WAFConfig
 	err = jsonpb.UnmarshalString(str, &pb)
 	if err != nil {

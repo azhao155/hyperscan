@@ -35,4 +35,5 @@ message IPReputationConfig {
 }
 
 message PutConfigResponse { 
+  int64 version = 1;
 }

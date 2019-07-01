@@ -1,4 +1,4 @@
-package waf
+package grpc
 
 import (
 	pb "azwaf/proto"
@@ -22,9 +22,10 @@ var wafConfigs = pb.WAFConfig{
 
 func TestConfigsConversion(t *testing.T) {
 	config1 := configPbWrapper{pb: &wafConfigs}
-	str, _ := SerializeToJSON(&config1)
+	cc := configConverterImpl{}
+	str, _ := cc.SerializeToJSON(&config1)
 
-	config2, _ := DeSerializeFromJSON(str)
+	config2, _ := cc.DeSerializeFromJSON(str)
 
 	secRules := config2.SecRuleConfigs()
 
