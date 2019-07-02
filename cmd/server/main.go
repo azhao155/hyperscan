@@ -31,6 +31,8 @@ func main() {
 	mref := hyperscan.NewMultiRegexEngineFactory()
 	rsf := secrule.NewReqScannerFactory(mref)
 	sref := secrule.NewEngineFactory(rl, rsf)
+
+	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	w, err := waf.NewServer(c, sref)
 	if err != nil {
 		log.Fatalf("Error: %v", err)

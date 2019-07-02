@@ -36,6 +36,12 @@ func (s *serverImpl) EvalRequest(ctx context.Context, in *pb.WafHttpRequest) (d 
 	return
 }
 
+func (s *serverImpl) PutConfig(ctx context.Context, in *pb.WAFConfig) (d *pb.PutConfigResponse, err error) {
+	// TODO implement logic between config mgr and server mgr
+	d = &pb.PutConfigResponse{Version: 0}
+	return
+}
+
 func (s *serverImpl) Serve() error {
 	lis, err := net.Listen("tcp", ":37291")
 	if err != nil {
