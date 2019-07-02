@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -58,9 +59,8 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error)
 	}
 
 	crsRulesPath := getCrsRulesPath()
-
-	for _, path := range paths {
-		fullPath := filepath.Join(crsRulesPath, path)
+	for _, crsFile := range paths {
+		fullPath := filepath.Join(crsRulesPath, crsFile)
 		var bb []byte
 		bb, err = ioutil.ReadFile(fullPath)
 		if err != nil {
@@ -69,7 +69,10 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error)
 		}
 
 		var rr []Rule
-		rr, err = c.parser.Parse(string(bb))
+		phraseHandler := func(fileName string) ([]string, error) {
+			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
+		}
+		rr, err = c.parser.Parse(string(bb), phraseHandler)
 		if err != nil {
 			err = fmt.Errorf("Got unexpected error while loading rule file %s. Error: %s", fullPath, err)
 			return
@@ -115,4 +118,24 @@ func getCrsRulesPath() string {
 	}
 
 	return dir
+}
+
+type phraseFunc func(string) ([]string, error)
+
+func loadPhraseFile(fullPath string) (phrases []string, err error) {
+	var bb []byte
+	bb, err = ioutil.ReadFile(fullPath)
+	if err != nil {
+		err = fmt.Errorf("Failed to load phrase file %s. Error: %s", fullPath, err)
+		return
+	}
+
+	s := string(bb)
+	raw := strings.Split(s, "\n")
+	for _, p := range raw {
+		if p != "" && !strings.HasPrefix(p, "#") {
+			phrases = append(phrases, p)
+		}
+	}
+	return
 }

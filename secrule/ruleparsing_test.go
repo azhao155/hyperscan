@@ -17,7 +17,7 @@ func TestTwoRules(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if err != nil {
@@ -54,7 +54,7 @@ func TestInvalidStatement(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if err == nil {
@@ -84,7 +84,7 @@ func TestCommentedRuleWithDanglingArg(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if err != nil {
@@ -105,7 +105,7 @@ func TestMissingId(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if len(rr) != 0 {
@@ -130,7 +130,7 @@ func TestSecRuleTrailingArg(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if len(rr) != 0 {
@@ -157,7 +157,7 @@ func TestMissingChain(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if len(rr) != 1 {
@@ -186,7 +186,7 @@ func TestChaining(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if err != nil {
@@ -223,7 +223,7 @@ func TestNoActions(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules)
+	rr, err := p.Parse(rules, nil)
 
 	// Assert
 	if err != nil {
@@ -286,7 +286,7 @@ func TestSecRuleTargets(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
+		rr, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -342,7 +342,7 @@ func TestSecRuleTargetExclusions(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
+		rr, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -405,7 +405,7 @@ func TestSecRuleTargetErrors(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		_, err := p.Parse("SecRule " + test.input + ` "<script>" "id:'950902'"`)
+		_, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil)
 
 		if err == nil {
 			t.Fatalf("Expected error, but err was nil")
@@ -449,7 +449,7 @@ func TestSecRuleOperators(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule ARGS " + test.input + ` "id:'950902'"`)
+		rr, err := p.Parse("SecRule ARGS "+test.input+` "id:'950902'"`, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -514,7 +514,7 @@ func TestSecRuleRawActions(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule ARGS helloworld " + test.input)
+		rr, err := p.Parse("SecRule ARGS helloworld "+test.input, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -561,7 +561,7 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule)
+	rr, err := p.Parse(rule, nil)
 
 	// Assert
 	if err != nil {
@@ -620,7 +620,7 @@ func TestRule942320(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule)
+	rr, err := p.Parse(rule, nil)
 
 	// Assert
 	if err != nil {
@@ -741,7 +741,7 @@ func TestRule901001(t *testing.T) {
     `
 
 	// Act
-	rr, err := p.Parse(rule)
+	rr, err := p.Parse(rule, nil)
 
 	// Assert
 	if err != nil {
@@ -810,5 +810,22 @@ func TestRule901001(t *testing.T) {
 	expectedTransformations := []Transformation{URLDecodeUni}
 	if len(r.Transformations) != 0 {
 		t.Fatalf("Unexpected transformations count. Actual: %d. Expected: %d.", len(r.Transformations), len(expectedTransformations))
+	}
+}
+
+func TestPhraseFunc(t *testing.T) {
+	callbackArg := ""
+	p := NewRuleParser()
+	_, err := p.Parse(`SecRule ARGS "@pmf test.data" "deny,msg:'SQL Injection Attack',id:'950901'"`, func(f string) ([]string, error) {
+		callbackArg = f
+		return []string{}, nil
+	})
+
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if callbackArg != "test.data" {
+		t.Fatalf("...")
 	}
 }

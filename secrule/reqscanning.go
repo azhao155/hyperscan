@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/url"
+	"regexp"
 )
 
 // ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
@@ -87,7 +88,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 				}
 
 				switch curRuleItem.Predicate.Op {
-				case Rx:
+				case Rx, Pmf, PmFromFile:
 					p := patternRef{curRule, curRuleItem, curRuleItemIdx}
 					curScanGroup.patterns = append(curScanGroup.patterns, p)
 				}
@@ -111,9 +112,11 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 				// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
 				backRefs = append(backRefs, p)
 
-				patterns = append(patterns, MultiRegexEnginePattern{backRefCurID, p.ruleItem.Predicate.Val})
-
-				backRefCurID++
+				exprs := getRxExprs(p.ruleItem)
+				for _, e := range exprs {
+					patterns = append(patterns, MultiRegexEnginePattern{backRefCurID, e})
+					backRefCurID++
+				}
 			}
 
 			log.Printf("Building multi-regex database for target %v with transformations %v with %d patterns", target, scanGroup.transformations, len(patterns))
@@ -131,6 +134,20 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 	}
 
 	return
+}
+
+func getRxExprs(ruleItem *RuleItem) []string {
+	switch ruleItem.Predicate.Op {
+	case Rx:
+		return []string{ruleItem.Predicate.Val}
+	case Pmf, PmFromFile:
+		var phrases []string
+		for _, p := range ruleItem.PmPhrases {
+			phrases = append(phrases, regexp.QuoteMeta(p))
+		}
+		return phrases
+	}
+	return nil
 }
 
 func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results ScanResults, err error) {

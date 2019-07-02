@@ -13,6 +13,7 @@ type RuleItem struct {
 	RawActions      []RawAction
 	Actions         []actionHandler
 	Transformations []Transformation
+	PmPhrases       []string
 }
 
 // RawAction is a key-value pair in the "actions"-block of a SecRule.

@@ -9,7 +9,7 @@ import (
 
 // RuleParser parses SecRule language files.
 type RuleParser interface {
-	Parse(input string) (rules []Rule, err error)
+	Parse(input string, pf phraseFunc) (rules []Rule, err error)
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
@@ -82,7 +82,7 @@ func NewRuleParser() RuleParser {
 }
 
 // Parse a ruleset.
-func (r *ruleParserImpl) Parse(input string) (rules []Rule, err error) {
+func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (rules []Rule, err error) {
 	rules = []Rule{}
 	curRule := &Rule{}
 	rest := input
@@ -105,7 +105,7 @@ func (r *ruleParserImpl) Parse(input string) (rules []Rule, err error) {
 
 		switch statementName {
 		case "SecRule":
-			err = r.parseSecRule(rest, &curRule, &rules)
+			err = r.parseSecRule(rest, &curRule, &rules, pf)
 			if err != nil {
 				err = fmt.Errorf("Parse error in SecRule on line %d: %s", lineNumber, err)
 				return
@@ -130,7 +130,7 @@ func (r *ruleParserImpl) Parse(input string) (rules []Rule, err error) {
 }
 
 // Parse a single rule.
-func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (err error) {
+func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule, pf phraseFunc) (err error) {
 	ru := &RuleItem{}
 
 	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = r.parseTargets(s)
@@ -146,6 +146,19 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule) (
 	}
 
 	ru.Predicate.OpFunc = toOperatorFunc(ru.Predicate.Op)
+
+	switch ru.Predicate.Op {
+	case Pmf, PmFromFile:
+		if pf == nil {
+			err = fmt.Errorf("Rules contained @pmf but no loader callback was given")
+			return
+		}
+
+		ru.PmPhrases, err = pf(ru.Predicate.Val)
+		if err != nil {
+			return
+		}
+	}
 
 	_, s = r.findConsume(argSpaceRegex, s)
 

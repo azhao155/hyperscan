@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -143,12 +144,16 @@ func parseAndCompareRuleCounts(t *testing.T, testrulefiles []testrulefile) {
 	dir := filepath.Join(filepath.Dir(filename), "rulesetfiles/")
 
 	for _, trf := range testrulefiles {
-		b, err := ioutil.ReadFile(filepath.Join(dir, trf.filename))
+		fullPath := filepath.Join(dir, trf.filename)
+		b, err := ioutil.ReadFile(fullPath)
 		if err != nil {
 			t.Fatalf("Failed to load rule file: %s", err)
 		}
 
-		rr, err := p.Parse(string(b))
+		phraseHandler := func(fileName string) ([]string, error) {
+			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
+		}
+		rr, err := p.Parse(string(b), phraseHandler)
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", trf.filename, err)

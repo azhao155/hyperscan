@@ -58,6 +58,42 @@ func TestReqScanner1(t *testing.T) {
 	}
 }
 
+func TestGetExprsRx(t *testing.T) {
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Rx, Val: "abc+"}}
+	ee := getRxExprs(r1)
+	if ee == nil {
+		t.Fatalf("Expressions should not be nil")
+	}
+
+	if len(ee) != 1 {
+		t.Fatalf("Unexpected expression count %d", len(ee))
+	}
+
+	if ee[0] != "abc+" {
+		t.Fatalf("Invalid expression %s", ee[0])
+	}
+}
+
+func TestGetExprsPmf(t *testing.T) {
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Pmf}, PmPhrases: []string{"abc", "def"}}
+	ee := getRxExprs(r1)
+	if ee == nil {
+		t.Fatalf("Expressions should not be nil")
+	}
+
+	if len(ee) != 2 {
+		t.Fatalf("Unexpected expression count %d", len(ee))
+	}
+
+	if ee[0] != "abc" {
+		t.Fatalf("Invalid expression %s", ee[0])
+	}
+
+	if ee[1] != "def" {
+		t.Fatalf("Invalid expression %s", ee[1])
+	}
+}
+
 type mockWafHTTPRequest struct{}
 
 func (r *mockWafHTTPRequest) Method() string            { return "GET" }

@@ -4,6 +4,7 @@ import (
 	"azwaf/secrule"
 	"fmt"
 	"io/ioutil"
+	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -46,7 +47,11 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 			t.Fatalf("Failed to load rule file: %s", err)
 		}
 
-		rr, err := p.Parse(string(b))
+		phraseHandler := func(fileName string) ([]string, error) {
+			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
+		}
+
+		rr, err := p.Parse(string(b), phraseHandler)
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", fullPath, err)
@@ -90,4 +95,22 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 	if errors.Len() > 0 {
 		t.Fatalf("\n%s", errors.String())
 	}
+}
+
+func loadPhraseFile(fullPath string) (phrases []string, err error) {
+	var bb []byte
+	bb, err = ioutil.ReadFile(fullPath)
+	if err != nil {
+		err = fmt.Errorf("Failed to load phrase file %s. Error: %s", fullPath, err)
+		return
+	}
+
+	s := string(bb)
+	raw := strings.Split(s, "\n")
+	for _, p := range raw {
+		if p != "" && !strings.HasPrefix(p, "#") {
+			phrases = append(phrases, p)
+		}
+	}
+	return
 }
