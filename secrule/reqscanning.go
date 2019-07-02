@@ -111,11 +111,10 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 
 			patterns := []MultiRegexEnginePattern{}
 			for _, p := range scanGroup.patterns {
-				// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
-				backRefs = append(backRefs, p)
-
 				exprs := getRxExprs(p.ruleItem)
 				for _, e := range exprs {
+					// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
+					backRefs = append(backRefs, p)
 					patterns = append(patterns, MultiRegexEnginePattern{backRefCurID, e})
 					backRefCurID++
 				}
