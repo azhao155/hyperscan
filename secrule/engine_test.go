@@ -14,7 +14,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	req := &mockWafHTTPRequest{}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
 
 	// Act
 	r := e.EvalRequest(req)

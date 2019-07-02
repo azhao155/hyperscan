@@ -3,9 +3,11 @@ package secrule
 import (
 	"azwaf/waf"
 	"fmt"
+	"html"
 	"log"
 	"net/url"
 	"regexp"
+	"strings"
 )
 
 // ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
@@ -199,11 +201,12 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 			continue
 		}
 
-		// TODO apply transformations here
+		contentTransformed := applyTransformations(content, sg.transformations)
 
 		var matches []MultiRegexEngineMatch
 		log.Printf("Scanning content \"%v\" with transformations %v", content, sg.transformations)
-		matches, err = sg.rxEngine.Scan([]byte(content))
+		// TODO should content be []byte rather than string? Hyperscan takes []byte, and also there are transformation like Utf8toUnicode, URLDecodeUni we need to take into account.
+		matches, err = sg.rxEngine.Scan([]byte(contentTransformed))
 		if err != nil {
 			return
 		}
@@ -224,6 +227,57 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 	}
 
 	return
+}
+
+var whitespaceReplacer = strings.NewReplacer(" ", "", "\t", "", "\n", "", "\v", "", "\f", "", "\r", "")
+
+func applyTransformations(s string, tt []Transformation) string {
+	orig := s
+	for _, t := range tt {
+		// TODO implement all transformations
+		switch t {
+		case CmdLine:
+		case CompressWhitespace:
+		case CSSDecode:
+		case HexEncode:
+		case HTMLEntityDecode:
+			if strings.Contains(s, "&") {
+				s = html.UnescapeString(s)
+				// TODO ensure this aligns with the intended htmlEntityDecode functionality of SecRule-lang: https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)#htmlEntityDecode
+				// TODO read https://golang.org/pkg/html/#UnescapeString closely. We need to think about if the unicode behaviour here is correct for SecRule-lang.
+			}
+		case JsDecode:
+		case Length:
+			// TODO is this really used? Isn't @ for this? Should we use the type-system to keep this as int here?
+			s = string(len(s))
+		case Lowercase:
+			s = strings.ToLower(s)
+		case None:
+			s = orig
+		case NormalisePath:
+		case NormalisePathWin:
+		case NormalizePath:
+		case NormalizePathWin:
+		case RemoveComments:
+		case RemoveNulls:
+		case RemoveWhitespace:
+			if strings.ContainsAny(s, " \t\n\v\f\r") {
+				s = whitespaceReplacer.Replace(s)
+			}
+		case ReplaceComments:
+		case Sha1:
+		case URLDecode, URLDecodeUni:
+			tmp, err := url.PathUnescape(s)
+			if err != nil {
+				// TODO handle transformation error
+				continue
+			}
+			s = tmp
+		case Utf8toUnicode:
+		}
+	}
+
+	return s
 }
 
 // GetRxResultsFor returns any results for regex matches that were done during the request scanning.

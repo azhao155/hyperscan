@@ -27,6 +27,9 @@ func NewCrsRuleLoader(parser RuleParser) RuleLoader {
 }
 
 var ruleSetPathsMap = map[waf.RuleSetID][]string{
+	"testruleset": {
+		"testruleset/testruleset.conf",
+	},
 	"OWASP CRS 3.0": {
 		"crs3.0/crs-setup.appgw.conf",
 		"crs3.0/rules/REQUEST-901-INITIALIZATION.conf",
