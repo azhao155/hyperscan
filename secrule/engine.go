@@ -6,8 +6,9 @@ import (
 )
 
 type engineImpl struct {
-	rules      []Rule
-	reqScanner ReqScanner
+	rules         []Rule
+	reqScanner    ReqScanner
+	ruleEvaluator RuleEvaluator
 }
 
 func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
@@ -22,5 +23,10 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		log.Printf("rxMatch. RuleID: %d. Target: %v. Data: \"%v\".", key.ruleID, key.target, string(match.Data))
 	}
 
+	err = s.ruleEvaluator.Process(s.rules, scanResults)
+	if err != nil {
+		log.Printf("Error while evaluating request: %v", err)
+		return false
+	}
 	return true
 }

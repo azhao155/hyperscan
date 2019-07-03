@@ -30,7 +30,8 @@ func main() {
 	rl := secrule.NewCrsRuleLoader(p)
 	mref := hyperscan.NewMultiRegexEngineFactory()
 	rsf := secrule.NewReqScannerFactory(mref)
-	sref := secrule.NewEngineFactory(rl, rsf)
+	ref := secrule.NewRuleEvaluatorFactory()
+	sref := secrule.NewEngineFactory(rl, rsf, ref)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	w, err := waf.NewServer(c, sref)
