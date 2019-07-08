@@ -185,6 +185,8 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule, p
 			}
 		case "chain":
 			hasChainAction = true
+		case "deny":
+			ru.Actions = append(ru.Actions, newDenyAction())
 		case "msg":
 			ru.Msg = a.Val
 		case "t":
@@ -195,7 +197,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule, p
 				return
 			}
 		case "setvar":
-			sv, err := NewSetvarAction(a.Val)
+			sv, err := newSetVarAction(a.Val)
 			if err != nil {
 				return err
 			}

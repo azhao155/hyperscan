@@ -2,7 +2,7 @@ package secrule
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(rules []Rule, scanResults ScanResults) (err error)
+	Process(rules []Rule, scanResults ScanResults) (allow bool, statusCode int, err error)
 }
 
 type ruleEvaluatorImpl struct {
@@ -30,7 +30,7 @@ func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluato
 	return
 }
 
-func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults ScanResults) (err error) {
+func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults ScanResults) (bool, int, error) {
 	for curRuleIdx := range rules {
 		rule := rules[curRuleIdx]
 		for curRuleItemIdx := range rules[curRuleIdx].Items {
@@ -48,11 +48,15 @@ func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults ScanResults) (err e
 			if matchFound {
 				for actionIdx := range ruleItem.Actions {
 					// TODO: Handle chaining correctly
-					ruleItem.Actions[actionIdx].Execute(r.perRequestEnv)
+					ar := ruleItem.Actions[actionIdx].execute(r.perRequestEnv)
+					// Not letting action related events affect the WAF decision as of now.
+					if ruleItem.Actions[actionIdx].isDisruptive() {
+						return ar.allow, ar.statusCode, nil
+					}
 				}
 			}
 
 		}
 	}
-	return nil
+	return true, 200, nil
 }

@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// SetvarAction captures the CRS setvar action
-type SetvarAction struct {
+// setVarAction captures the CRS setvar action
+type setVarAction struct {
 	//TODO: potential optimization, variable and value could be stored as a list of objects (especially in case of macros)
 	variable        string
 	operator        setvarActionOperator
@@ -20,8 +20,7 @@ type SetvarAction struct {
 var parameterRegex = regexp.MustCompile(`!?(?P<variable>[^=]+)(?P<operator>=[+-]?)?(?P<value>.+)?`)
 var variableRegex = regexp.MustCompile(`%{(?P<variable>[^}]+)}`)
 
-// NewSetvarAction creates a secrule.SetVarAction.
-func NewSetvarAction(parameter string) (*SetvarAction, error) {
+func newSetVarAction(parameter string) (*setVarAction, error) {
 	matches := parameterRegex.FindStringSubmatch(parameter)
 	if matches == nil {
 		return nil, fmt.Errorf("Unsupported parameter:%s for setvar operation", parameter)
@@ -50,7 +49,7 @@ func NewSetvarAction(parameter string) (*SetvarAction, error) {
 	varMacroMatches := variableRegex.FindAllStringSubmatch(result["variable"], -1)
 	valMacroMatches := variableRegex.FindAllStringSubmatch(result["value"], -1)
 
-	return &(SetvarAction{
+	return &(setVarAction{
 		variable:        result["variable"],
 		operator:        op,
 		value:           result["value"],
@@ -58,18 +57,26 @@ func NewSetvarAction(parameter string) (*SetvarAction, error) {
 		valMacroMatches: valMacroMatches}), nil
 }
 
-// Execute performs the setvar action
-func (sv SetvarAction) Execute(perRequestEnv envMap) error {
+func (sv setVarAction) isDisruptive() bool {
+	return false
+}
+
+// execute performs the setvar action
+func (sv setVarAction) execute(perRequestEnv envMap) (ar *actionResult) {
+	ar = newActionResult()
+
 	// Eval variable
 	variable, err := expandVars(sv.variable, perRequestEnv, sv.varMacroMatches)
 	if err != nil {
-		return err
+		ar.err = err
+		return
 	}
 
 	// Eval value
 	value, err := expandVars(sv.value, perRequestEnv, sv.valMacroMatches)
 	if err != nil {
-		return err
+		ar.err = err
+		return
 	}
 
 	// Eval operator
@@ -78,15 +85,17 @@ func (sv SetvarAction) Execute(perRequestEnv envMap) error {
 		perRequestEnv.set(variable, &stringObject{Value: value})
 	case increment, decrement:
 		if err := performNumericalOperation(variable, sv.operator, value, perRequestEnv); err != nil {
-			return err
+			ar.err = err
+			return
 		}
 	case deleteVar:
 		perRequestEnv.delete(variable)
 	default:
-		return fmt.Errorf("Unsupported operator:%d for setvar operation", sv.operator)
+		ar.err = fmt.Errorf("Unsupported operator:%d for setvar operation", sv.operator)
+		return
 	}
 
-	return nil
+	return
 }
 
 // Substitute variable placeholders of the type %{variable_name} with actual values

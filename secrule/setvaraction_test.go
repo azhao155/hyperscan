@@ -4,7 +4,7 @@ import "testing"
 
 func TestNewSetvarActionDefaultAssignment(t *testing.T) {
 	param := "ip.reput_block_flag"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -24,7 +24,7 @@ func TestNewSetvarActionDefaultAssignment(t *testing.T) {
 
 func TestNewSetvarActionNumericAssignment(t *testing.T) {
 	param := "ip.reput_block_flag=1"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -42,7 +42,7 @@ func TestNewSetvarActionNumericAssignment(t *testing.T) {
 	}
 
 	param = "tx.php_injection_score=+%{tx.critical_anomaly_score}"
-	sv, err = NewSetvarAction(param)
+	sv, err = newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -62,7 +62,7 @@ func TestNewSetvarActionNumericAssignment(t *testing.T) {
 
 func TestNewSetvarActionStringAssignment(t *testing.T) {
 	param := "tx.sqli_select_statement=%{tx.sqli_select_statement} %{matched_var}"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -82,7 +82,7 @@ func TestNewSetvarActionStringAssignment(t *testing.T) {
 
 func TestNewSetvarActionDeletion(t *testing.T) {
 	param := "!ip.reput_block_flag"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -98,14 +98,14 @@ func TestNewSetvarActionDeletion(t *testing.T) {
 
 func TestSetvarActionExecuteAssignment(t *testing.T) {
 	param := "ip.reput_block_flag=1"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	perReqState := newEnvMap()
-	if err := sv.Execute(perReqState); err != nil {
-		t.Fatalf("Unexpected error during execute %s", err)
+	if ar := sv.execute(perReqState); ar.err != nil {
+		t.Fatalf("Unexpected error during execute %s", ar.err)
 	}
 
 	val, ok := perReqState.get("ip.reput_block_flag")
@@ -120,7 +120,7 @@ func TestSetvarActionExecuteAssignment(t *testing.T) {
 
 func TestSetvarActionExecuteIncrement(t *testing.T) {
 	param := "ip.reput_block_flag=+1"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -128,8 +128,8 @@ func TestSetvarActionExecuteIncrement(t *testing.T) {
 	perReqState := newEnvMap()
 	perReqState.set("ip.reput_block_flag", &stringObject{Value: "1"})
 
-	if err := sv.Execute(perReqState); err != nil {
-		t.Fatalf("Unexpected error during execute %s", err)
+	if ar := sv.execute(perReqState); ar.err != nil {
+		t.Fatalf("Unexpected error during execute %s", ar.err)
 	}
 
 	val, ok := perReqState.get("ip.reput_block_flag")
@@ -149,7 +149,7 @@ func TestSetvarActionExecuteIncrement(t *testing.T) {
 
 func TestSetvarActionExecuteDecrement(t *testing.T) {
 	param := "ip.reput_block_flag=-1"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -158,8 +158,8 @@ func TestSetvarActionExecuteDecrement(t *testing.T) {
 	v := &stringObject{Value: "5"}
 	perReqState.set("ip.reput_block_flag", v)
 
-	if err := sv.Execute(perReqState); err != nil {
-		t.Fatalf("Unexpected error during execute %s", err)
+	if ar := sv.execute(perReqState); ar.err != nil {
+		t.Fatalf("Unexpected error during execute %s", ar.err)
 	}
 
 	val, ok := perReqState.get("ip.reput_block_flag")
@@ -178,7 +178,7 @@ func TestSetvarActionExecuteDecrement(t *testing.T) {
 
 func TestSetvarActionExecuteDelete(t *testing.T) {
 	param := "!ip.reput_block_flag"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -186,8 +186,8 @@ func TestSetvarActionExecuteDelete(t *testing.T) {
 	perReqState := newEnvMap()
 	perReqState.set("ip.reput_block_flag", &stringObject{Value: "5"})
 
-	if err := sv.Execute(perReqState); err != nil {
-		t.Fatalf("Unexpected error during execute %s", err)
+	if ar := sv.execute(perReqState); ar.err != nil {
+		t.Fatalf("Unexpected error during execute %s", ar.err)
 	}
 
 	if _, ok := perReqState.get("ip.reput_block_flag"); ok {
@@ -198,7 +198,7 @@ func TestSetvarActionExecuteDelete(t *testing.T) {
 
 func TestSetvarActionExecuteExpandVars(t *testing.T) {
 	param := "tx.anomaly_score=+%{tx.critical_anomaly_score}"
-	sv, err := NewSetvarAction(param)
+	sv, err := newSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -207,8 +207,8 @@ func TestSetvarActionExecuteExpandVars(t *testing.T) {
 	perReqState.set("tx.anomaly_score", &stringObject{Value: "15"})
 	perReqState.set("tx.critical_anomaly_score", &stringObject{Value: "5"})
 
-	if err := sv.Execute(perReqState); err != nil {
-		t.Fatalf("Unexpected error during execute %s", err)
+	if ar := sv.execute(perReqState); ar.err != nil {
+		t.Fatalf("Unexpected error during execute %s", ar.err)
 	}
 
 	val, ok := perReqState.get("tx.anomaly_score")

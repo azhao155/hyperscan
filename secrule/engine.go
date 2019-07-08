@@ -23,10 +23,17 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		log.Printf("rxMatch. RuleID: %d. Target: %v. Data: \"%v\".", key.ruleID, key.target, string(match.Data))
 	}
 
-	err = s.ruleEvaluator.Process(s.rules, scanResults)
+	allow, statusCode, err := s.ruleEvaluator.Process(s.rules, scanResults)
 	if err != nil {
 		log.Printf("Error while evaluating request: %v", err)
 		return false
 	}
+
+	//TODO: return status code
+	if !allow {
+		log.Printf("Rejecting request with status code %d", statusCode)
+		return false
+	}
+
 	return true
 }
