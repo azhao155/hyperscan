@@ -39,9 +39,14 @@ func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults ScanResults) (bool,
 			matchFound := false
 
 			for _, target := range ruleItem.Predicate.Targets {
-				_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
-				if ok && ruleItem.Predicate.Op == Rx {
-					matchFound = true
+				switch ruleItem.Predicate.Op {
+				case Rx, Pmf, PmFromFile:
+					_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
+					if ok {
+						matchFound = true
+					}
+				case Eq, Ge, Gt, Le, Lt:
+					matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)
 				}
 			}
 

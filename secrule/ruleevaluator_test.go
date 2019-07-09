@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestRuleEvaluatorNonDisruptive(t *testing.T) {
+func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	sv, _ := newSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Rule{
 		{
@@ -35,7 +35,7 @@ func TestRuleEvaluatorNonDisruptive(t *testing.T) {
 	assert.Equal(200, code)
 }
 
-func TestRuleEvaluatorDisruptive(t *testing.T) {
+func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	sv, _ := newSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Rule{
 		{
@@ -62,5 +62,35 @@ func TestRuleEvaluatorDisruptive(t *testing.T) {
 	pass, code, err := re.Process(rules, sr)
 	assert.Nil(err)
 	assert.False(pass)
+	assert.Equal(403, code)
+}
+
+func TestRuleEvaluatorNumericalOperator(t *testing.T) {
+	assert := assert.New(t)
+	rules := []Rule{
+		{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"TX:ANOMALY_SCORE"}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}", OpFunc: toOperatorFunc(Ge)},
+					Transformations: []Transformation{None},
+					Actions:         []actionHandler{newDenyAction()},
+				},
+			},
+		},
+	}
+
+	p := &rules[0].Items[0].Predicate
+	p.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(p.Val, -1)
+
+	ref := NewRuleEvaluatorFactory()
+	em := newEnvMap()
+	em.set("tx.anomaly_score", &integerObject{Value: 10})
+	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
+	re := ref.NewRuleEvaluator(em)
+
+	allow, code, err := re.Process(rules, ScanResults{})
+	assert.Nil(err)
+	assert.False(allow)
 	assert.Equal(403, code)
 }

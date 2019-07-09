@@ -20,6 +20,7 @@ var nonQuotedStringRegex = regexp.MustCompile(`^[^ \t]+`)
 var argSpaceRegex = regexp.MustCompile(`(?s)^([ \t]|\\\n)+`)
 var operatorRegex = regexp.MustCompile(`^@\w+`)
 var actionRegex = regexp.MustCompile(`^(\w+:('(\\.|[^'\\])+'|[^,]+))|\w+`)
+var variableMacroRegex = regexp.MustCompile(`%{(?P<variable>[^}]+)}`)
 
 var transformationsMap = map[string]Transformation{
 	"cmdline":            CmdLine,
@@ -160,6 +161,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule, p
 		}
 	}
 
+	ru.Predicate.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(ru.Predicate.Val, -1)
 	_, s = r.findConsume(argSpaceRegex, s)
 
 	ru.RawActions, s, err = r.parseRawActions(s)

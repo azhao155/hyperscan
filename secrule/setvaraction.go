@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 )
 
 // setVarAction captures the CRS setvar action
@@ -18,7 +17,6 @@ type setVarAction struct {
 }
 
 var parameterRegex = regexp.MustCompile(`!?(?P<variable>[^=]+)(?P<operator>=[+-]?)?(?P<value>.+)?`)
-var variableRegex = regexp.MustCompile(`%{(?P<variable>[^}]+)}`)
 
 func newSetVarAction(parameter string) (*setVarAction, error) {
 	matches := parameterRegex.FindStringSubmatch(parameter)
@@ -46,8 +44,8 @@ func newSetVarAction(parameter string) (*setVarAction, error) {
 		return nil, err
 	}
 
-	varMacroMatches := variableRegex.FindAllStringSubmatch(result["variable"], -1)
-	valMacroMatches := variableRegex.FindAllStringSubmatch(result["value"], -1)
+	varMacroMatches := variableMacroRegex.FindAllStringSubmatch(result["variable"], -1)
+	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(result["value"], -1)
 
 	return &(setVarAction{
 		variable:        result["variable"],
@@ -66,14 +64,14 @@ func (sv setVarAction) execute(perRequestEnv envMap) (ar *actionResult) {
 	ar = newActionResult()
 
 	// Eval variable
-	variable, err := expandVars(sv.variable, perRequestEnv, sv.varMacroMatches)
+	variable, err := expandMacros(sv.variable, perRequestEnv, sv.varMacroMatches)
 	if err != nil {
 		ar.err = err
 		return
 	}
 
 	// Eval value
-	value, err := expandVars(sv.value, perRequestEnv, sv.valMacroMatches)
+	value, err := expandMacros(sv.value, perRequestEnv, sv.valMacroMatches)
 	if err != nil {
 		ar.err = err
 		return
@@ -96,22 +94,6 @@ func (sv setVarAction) execute(perRequestEnv envMap) (ar *actionResult) {
 	}
 
 	return
-}
-
-// Substitute variable placeholders of the type %{variable_name} with actual values
-func expandVars(s string, perRequestEnv envMap, matches [][]string) (string, error) {
-
-	// Replace placeholders
-	for i := 0; i < len(matches); i++ {
-		newVal, ok := perRequestEnv.get(matches[i][1])
-		if !ok {
-			return "", fmt.Errorf("setvar: attempted use of uninitialized request state variable %s", matches[i][1])
-		}
-
-		// Replace full match with variable value
-		s = strings.Replace(s, matches[i][0], newVal.ToString(), 1)
-	}
-	return s, nil
 }
 
 func performNumericalOperation(variable string, op setvarActionOperator, value string, perRequestEnv envMap) error {
