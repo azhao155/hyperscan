@@ -1,5 +1,7 @@
 package waf
 
+import "io"
+
 // HeaderPair represents a header line in an HTTP request.
 type HeaderPair interface {
 	Key() string
@@ -11,5 +13,5 @@ type HTTPRequest interface {
 	Method() string
 	URI() string
 	Headers() []HeaderPair
-	Body() []byte
+	BodyReader() io.Reader
 }

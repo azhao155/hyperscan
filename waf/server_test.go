@@ -2,7 +2,8 @@ package waf
 
 import (
 	"azwaf/config"
-
+	"bytes"
+	"io"
 	"testing"
 )
 
@@ -55,4 +56,4 @@ type mockWafHTTPRequest struct{}
 func (r *mockWafHTTPRequest) Method() string        { return "GET" }
 func (r *mockWafHTTPRequest) URI() string           { return "/hello.php?arg1=aaaaaaabccc" }
 func (r *mockWafHTTPRequest) Headers() []HeaderPair { return nil }
-func (r *mockWafHTTPRequest) Body() []byte          { return nil }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader { return &bytes.Buffer{} }

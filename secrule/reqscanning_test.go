@@ -2,7 +2,9 @@ package secrule
 
 import (
 	"azwaf/waf"
+	"bytes"
 	"fmt"
+	"io"
 	"strings"
 	"testing"
 )
@@ -216,4 +218,4 @@ type mockWafHTTPRequest struct {
 func (r *mockWafHTTPRequest) Method() string            { return "GET" }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
-func (r *mockWafHTTPRequest) Body() []byte              { return nil }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }

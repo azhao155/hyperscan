@@ -3,6 +3,8 @@ package hyperscan
 import (
 	"azwaf/secrule"
 	"azwaf/waf"
+	"bytes"
+	"io"
 	"testing"
 )
 
@@ -100,7 +102,7 @@ type mockWafHTTPRequest struct{}
 func (r *mockWafHTTPRequest) Method() string            { return "GET" }
 func (r *mockWafHTTPRequest) URI() string               { return "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld" }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
-func (r *mockWafHTTPRequest) Body() []byte              { return nil }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }
 
 func mockPhraseFunc(fileName string) (phrases []string, err error) {
 	return []string{"abc", "def"}, nil

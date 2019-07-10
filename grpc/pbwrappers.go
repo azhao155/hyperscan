@@ -4,15 +4,17 @@ import (
 	pb "azwaf/proto"
 	"azwaf/waf"
 	"fmt"
-
 	"github.com/golang/protobuf/jsonpb"
+	"io"
 )
 
-type wafHTTPRequestPbWrapper struct{ pb *pb.WafHttpRequest }
+type wafHTTPRequestPbWrapper struct {
+	pb         *pb.HeadersAndFirstChunk
+	bodyReader *wafHTTPRequestPbWrapperBodyReader
+}
 
 func (r *wafHTTPRequestPbWrapper) Method() string { return r.pb.Method }
 func (r *wafHTTPRequestPbWrapper) URI() string    { return r.pb.Uri }
-func (r *wafHTTPRequestPbWrapper) Body() []byte   { return r.pb.Body }
 func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 	hh := make([]waf.HeaderPair, 0, len(r.pb.Headers))
 	for _, ph := range r.pb.Headers {
@@ -20,11 +22,18 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 	}
 	return hh
 }
+func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 
 type headerPairPbWrapper struct{ pb *pb.HeaderPair }
 
 func (h *headerPairPbWrapper) Key() string   { return h.pb.Key }
 func (h *headerPairPbWrapper) Value() string { return h.pb.Value }
+
+type wafHTTPRequestPbWrapperBodyReader struct {
+	readCb func(p []byte) (n int, err error)
+}
+
+func (r *wafHTTPRequestPbWrapperBodyReader) Read(p []byte) (n int, err error) { return r.readCb(p) }
 
 type secRuleConfigImpl struct{ pb *pb.SecRuleConfig }
 

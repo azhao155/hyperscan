@@ -35,7 +35,7 @@ func (m *HeaderPair) Reset()         { *m = HeaderPair{} }
 func (m *HeaderPair) String() string { return proto.CompactTextString(m) }
 func (*HeaderPair) ProtoMessage()    {}
 func (*HeaderPair) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{0}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{0}
 }
 func (m *HeaderPair) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeaderPair.Unmarshal(m, b)
@@ -70,21 +70,20 @@ func (m *HeaderPair) GetValue() string {
 }
 
 type WafHttpRequest struct {
-	Method  string        `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
-	Uri     string        `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
-	Headers []*HeaderPair `protobuf:"bytes,3,rep,name=headers,proto3" json:"headers,omitempty"`
-	// TODO Use gRPC streaming instead of a simple string type
-	Body                 []byte   `protobuf:"bytes,4,opt,name=body,proto3" json:"body,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+	// Types that are valid to be assigned to Content:
+	//	*WafHttpRequest_HeadersAndFirstChunk
+	//	*WafHttpRequest_NextBodyChunk
+	Content              isWafHttpRequest_Content `protobuf_oneof:"content"`
+	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
+	XXX_unrecognized     []byte                   `json:"-"`
+	XXX_sizecache        int32                    `json:"-"`
 }
 
 func (m *WafHttpRequest) Reset()         { *m = WafHttpRequest{} }
 func (m *WafHttpRequest) String() string { return proto.CompactTextString(m) }
 func (*WafHttpRequest) ProtoMessage()    {}
 func (*WafHttpRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{1}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{1}
 }
 func (m *WafHttpRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WafHttpRequest.Unmarshal(m, b)
@@ -104,32 +103,231 @@ func (m *WafHttpRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_WafHttpRequest proto.InternalMessageInfo
 
-func (m *WafHttpRequest) GetMethod() string {
+type isWafHttpRequest_Content interface {
+	isWafHttpRequest_Content()
+}
+
+type WafHttpRequest_HeadersAndFirstChunk struct {
+	HeadersAndFirstChunk *HeadersAndFirstChunk `protobuf:"bytes,1,opt,name=headersAndFirstChunk,proto3,oneof"`
+}
+
+type WafHttpRequest_NextBodyChunk struct {
+	NextBodyChunk *NextBodyChunk `protobuf:"bytes,2,opt,name=nextBodyChunk,proto3,oneof"`
+}
+
+func (*WafHttpRequest_HeadersAndFirstChunk) isWafHttpRequest_Content() {}
+
+func (*WafHttpRequest_NextBodyChunk) isWafHttpRequest_Content() {}
+
+func (m *WafHttpRequest) GetContent() isWafHttpRequest_Content {
+	if m != nil {
+		return m.Content
+	}
+	return nil
+}
+
+func (m *WafHttpRequest) GetHeadersAndFirstChunk() *HeadersAndFirstChunk {
+	if x, ok := m.GetContent().(*WafHttpRequest_HeadersAndFirstChunk); ok {
+		return x.HeadersAndFirstChunk
+	}
+	return nil
+}
+
+func (m *WafHttpRequest) GetNextBodyChunk() *NextBodyChunk {
+	if x, ok := m.GetContent().(*WafHttpRequest_NextBodyChunk); ok {
+		return x.NextBodyChunk
+	}
+	return nil
+}
+
+// XXX_OneofFuncs is for the internal use of the proto package.
+func (*WafHttpRequest) XXX_OneofFuncs() (func(msg proto.Message, b *proto.Buffer) error, func(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error), func(msg proto.Message) (n int), []interface{}) {
+	return _WafHttpRequest_OneofMarshaler, _WafHttpRequest_OneofUnmarshaler, _WafHttpRequest_OneofSizer, []interface{}{
+		(*WafHttpRequest_HeadersAndFirstChunk)(nil),
+		(*WafHttpRequest_NextBodyChunk)(nil),
+	}
+}
+
+func _WafHttpRequest_OneofMarshaler(msg proto.Message, b *proto.Buffer) error {
+	m := msg.(*WafHttpRequest)
+	// content
+	switch x := m.Content.(type) {
+	case *WafHttpRequest_HeadersAndFirstChunk:
+		b.EncodeVarint(1<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.HeadersAndFirstChunk); err != nil {
+			return err
+		}
+	case *WafHttpRequest_NextBodyChunk:
+		b.EncodeVarint(2<<3 | proto.WireBytes)
+		if err := b.EncodeMessage(x.NextBodyChunk); err != nil {
+			return err
+		}
+	case nil:
+	default:
+		return fmt.Errorf("WafHttpRequest.Content has unexpected type %T", x)
+	}
+	return nil
+}
+
+func _WafHttpRequest_OneofUnmarshaler(msg proto.Message, tag, wire int, b *proto.Buffer) (bool, error) {
+	m := msg.(*WafHttpRequest)
+	switch tag {
+	case 1: // content.headersAndFirstChunk
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(HeadersAndFirstChunk)
+		err := b.DecodeMessage(msg)
+		m.Content = &WafHttpRequest_HeadersAndFirstChunk{msg}
+		return true, err
+	case 2: // content.nextBodyChunk
+		if wire != proto.WireBytes {
+			return true, proto.ErrInternalBadWireType
+		}
+		msg := new(NextBodyChunk)
+		err := b.DecodeMessage(msg)
+		m.Content = &WafHttpRequest_NextBodyChunk{msg}
+		return true, err
+	default:
+		return false, nil
+	}
+}
+
+func _WafHttpRequest_OneofSizer(msg proto.Message) (n int) {
+	m := msg.(*WafHttpRequest)
+	// content
+	switch x := m.Content.(type) {
+	case *WafHttpRequest_HeadersAndFirstChunk:
+		s := proto.Size(x.HeadersAndFirstChunk)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case *WafHttpRequest_NextBodyChunk:
+		s := proto.Size(x.NextBodyChunk)
+		n += 1 // tag and wire
+		n += proto.SizeVarint(uint64(s))
+		n += s
+	case nil:
+	default:
+		panic(fmt.Sprintf("proto: unexpected type %T in oneof", x))
+	}
+	return n
+}
+
+type HeadersAndFirstChunk struct {
+	Method               string        `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
+	Uri                  string        `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
+	Headers              []*HeaderPair `protobuf:"bytes,3,rep,name=headers,proto3" json:"headers,omitempty"`
+	FirstBodyChunk       []byte        `protobuf:"bytes,4,opt,name=firstBodyChunk,proto3" json:"firstBodyChunk,omitempty"`
+	MoreBodyChunks       bool          `protobuf:"varint,5,opt,name=moreBodyChunks,proto3" json:"moreBodyChunks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
+	XXX_unrecognized     []byte        `json:"-"`
+	XXX_sizecache        int32         `json:"-"`
+}
+
+func (m *HeadersAndFirstChunk) Reset()         { *m = HeadersAndFirstChunk{} }
+func (m *HeadersAndFirstChunk) String() string { return proto.CompactTextString(m) }
+func (*HeadersAndFirstChunk) ProtoMessage()    {}
+func (*HeadersAndFirstChunk) Descriptor() ([]byte, []int) {
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{2}
+}
+func (m *HeadersAndFirstChunk) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_HeadersAndFirstChunk.Unmarshal(m, b)
+}
+func (m *HeadersAndFirstChunk) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_HeadersAndFirstChunk.Marshal(b, m, deterministic)
+}
+func (dst *HeadersAndFirstChunk) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_HeadersAndFirstChunk.Merge(dst, src)
+}
+func (m *HeadersAndFirstChunk) XXX_Size() int {
+	return xxx_messageInfo_HeadersAndFirstChunk.Size(m)
+}
+func (m *HeadersAndFirstChunk) XXX_DiscardUnknown() {
+	xxx_messageInfo_HeadersAndFirstChunk.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_HeadersAndFirstChunk proto.InternalMessageInfo
+
+func (m *HeadersAndFirstChunk) GetMethod() string {
 	if m != nil {
 		return m.Method
 	}
 	return ""
 }
 
-func (m *WafHttpRequest) GetUri() string {
+func (m *HeadersAndFirstChunk) GetUri() string {
 	if m != nil {
 		return m.Uri
 	}
 	return ""
 }
 
-func (m *WafHttpRequest) GetHeaders() []*HeaderPair {
+func (m *HeadersAndFirstChunk) GetHeaders() []*HeaderPair {
 	if m != nil {
 		return m.Headers
 	}
 	return nil
 }
 
-func (m *WafHttpRequest) GetBody() []byte {
+func (m *HeadersAndFirstChunk) GetFirstBodyChunk() []byte {
 	if m != nil {
-		return m.Body
+		return m.FirstBodyChunk
 	}
 	return nil
+}
+
+func (m *HeadersAndFirstChunk) GetMoreBodyChunks() bool {
+	if m != nil {
+		return m.MoreBodyChunks
+	}
+	return false
+}
+
+type NextBodyChunk struct {
+	BodyChunk            []byte   `protobuf:"bytes,1,opt,name=bodyChunk,proto3" json:"bodyChunk,omitempty"`
+	MoreBodyChunks       bool     `protobuf:"varint,2,opt,name=moreBodyChunks,proto3" json:"moreBodyChunks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *NextBodyChunk) Reset()         { *m = NextBodyChunk{} }
+func (m *NextBodyChunk) String() string { return proto.CompactTextString(m) }
+func (*NextBodyChunk) ProtoMessage()    {}
+func (*NextBodyChunk) Descriptor() ([]byte, []int) {
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{3}
+}
+func (m *NextBodyChunk) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_NextBodyChunk.Unmarshal(m, b)
+}
+func (m *NextBodyChunk) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_NextBodyChunk.Marshal(b, m, deterministic)
+}
+func (dst *NextBodyChunk) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_NextBodyChunk.Merge(dst, src)
+}
+func (m *NextBodyChunk) XXX_Size() int {
+	return xxx_messageInfo_NextBodyChunk.Size(m)
+}
+func (m *NextBodyChunk) XXX_DiscardUnknown() {
+	xxx_messageInfo_NextBodyChunk.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_NextBodyChunk proto.InternalMessageInfo
+
+func (m *NextBodyChunk) GetBodyChunk() []byte {
+	if m != nil {
+		return m.BodyChunk
+	}
+	return nil
+}
+
+func (m *NextBodyChunk) GetMoreBodyChunks() bool {
+	if m != nil {
+		return m.MoreBodyChunks
+	}
+	return false
 }
 
 type WafDecision struct {
@@ -143,7 +341,7 @@ func (m *WafDecision) Reset()         { *m = WafDecision{} }
 func (m *WafDecision) String() string { return proto.CompactTextString(m) }
 func (*WafDecision) ProtoMessage()    {}
 func (*WafDecision) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{2}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{4}
 }
 func (m *WafDecision) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WafDecision.Unmarshal(m, b)
@@ -183,7 +381,7 @@ func (m *WAFConfig) Reset()         { *m = WAFConfig{} }
 func (m *WAFConfig) String() string { return proto.CompactTextString(m) }
 func (*WAFConfig) ProtoMessage()    {}
 func (*WAFConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{3}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{5}
 }
 func (m *WAFConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WAFConfig.Unmarshal(m, b)
@@ -236,7 +434,7 @@ func (m *SecRuleConfig) Reset()         { *m = SecRuleConfig{} }
 func (m *SecRuleConfig) String() string { return proto.CompactTextString(m) }
 func (*SecRuleConfig) ProtoMessage()    {}
 func (*SecRuleConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{4}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{6}
 }
 func (m *SecRuleConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SecRuleConfig.Unmarshal(m, b)
@@ -282,7 +480,7 @@ func (m *GeoDBConfig) Reset()         { *m = GeoDBConfig{} }
 func (m *GeoDBConfig) String() string { return proto.CompactTextString(m) }
 func (*GeoDBConfig) ProtoMessage()    {}
 func (*GeoDBConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{5}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{7}
 }
 func (m *GeoDBConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GeoDBConfig.Unmarshal(m, b)
@@ -328,7 +526,7 @@ func (m *IPReputationConfig) Reset()         { *m = IPReputationConfig{} }
 func (m *IPReputationConfig) String() string { return proto.CompactTextString(m) }
 func (*IPReputationConfig) ProtoMessage()    {}
 func (*IPReputationConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{6}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{8}
 }
 func (m *IPReputationConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IPReputationConfig.Unmarshal(m, b)
@@ -373,7 +571,7 @@ func (m *PutConfigResponse) Reset()         { *m = PutConfigResponse{} }
 func (m *PutConfigResponse) String() string { return proto.CompactTextString(m) }
 func (*PutConfigResponse) ProtoMessage()    {}
 func (*PutConfigResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_dbcbac74d78700a8, []int{7}
+	return fileDescriptor_waf_e1c1430d2b9bf1ea, []int{9}
 }
 func (m *PutConfigResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutConfigResponse.Unmarshal(m, b)
@@ -403,6 +601,8 @@ func (m *PutConfigResponse) GetVersion() int64 {
 func init() {
 	proto.RegisterType((*HeaderPair)(nil), "wafservice.HeaderPair")
 	proto.RegisterType((*WafHttpRequest)(nil), "wafservice.WafHttpRequest")
+	proto.RegisterType((*HeadersAndFirstChunk)(nil), "wafservice.HeadersAndFirstChunk")
+	proto.RegisterType((*NextBodyChunk)(nil), "wafservice.NextBodyChunk")
 	proto.RegisterType((*WafDecision)(nil), "wafservice.WafDecision")
 	proto.RegisterType((*WAFConfig)(nil), "wafservice.WAFConfig")
 	proto.RegisterType((*SecRuleConfig)(nil), "wafservice.SecRuleConfig")
@@ -423,7 +623,7 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type WafServiceClient interface {
-	EvalRequest(ctx context.Context, in *WafHttpRequest, opts ...grpc.CallOption) (*WafDecision, error)
+	EvalRequest(ctx context.Context, opts ...grpc.CallOption) (WafService_EvalRequestClient, error)
 	PutConfig(ctx context.Context, in *WAFConfig, opts ...grpc.CallOption) (*PutConfigResponse, error)
 }
 
@@ -435,13 +635,38 @@ func NewWafServiceClient(cc *grpc.ClientConn) WafServiceClient {
 	return &wafServiceClient{cc}
 }
 
-func (c *wafServiceClient) EvalRequest(ctx context.Context, in *WafHttpRequest, opts ...grpc.CallOption) (*WafDecision, error) {
-	out := new(WafDecision)
-	err := c.cc.Invoke(ctx, "/wafservice.WafService/EvalRequest", in, out, opts...)
+func (c *wafServiceClient) EvalRequest(ctx context.Context, opts ...grpc.CallOption) (WafService_EvalRequestClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_WafService_serviceDesc.Streams[0], "/wafservice.WafService/EvalRequest", opts...)
 	if err != nil {
 		return nil, err
 	}
-	return out, nil
+	x := &wafServiceEvalRequestClient{stream}
+	return x, nil
+}
+
+type WafService_EvalRequestClient interface {
+	Send(*WafHttpRequest) error
+	CloseAndRecv() (*WafDecision, error)
+	grpc.ClientStream
+}
+
+type wafServiceEvalRequestClient struct {
+	grpc.ClientStream
+}
+
+func (x *wafServiceEvalRequestClient) Send(m *WafHttpRequest) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *wafServiceEvalRequestClient) CloseAndRecv() (*WafDecision, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(WafDecision)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func (c *wafServiceClient) PutConfig(ctx context.Context, in *WAFConfig, opts ...grpc.CallOption) (*PutConfigResponse, error) {
@@ -455,7 +680,7 @@ func (c *wafServiceClient) PutConfig(ctx context.Context, in *WAFConfig, opts ..
 
 // WafServiceServer is the server API for WafService service.
 type WafServiceServer interface {
-	EvalRequest(context.Context, *WafHttpRequest) (*WafDecision, error)
+	EvalRequest(WafService_EvalRequestServer) error
 	PutConfig(context.Context, *WAFConfig) (*PutConfigResponse, error)
 }
 
@@ -463,22 +688,30 @@ func RegisterWafServiceServer(s *grpc.Server, srv WafServiceServer) {
 	s.RegisterService(&_WafService_serviceDesc, srv)
 }
 
-func _WafService_EvalRequest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WafHttpRequest)
-	if err := dec(in); err != nil {
+func _WafService_EvalRequest_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(WafServiceServer).EvalRequest(&wafServiceEvalRequestServer{stream})
+}
+
+type WafService_EvalRequestServer interface {
+	SendAndClose(*WafDecision) error
+	Recv() (*WafHttpRequest, error)
+	grpc.ServerStream
+}
+
+type wafServiceEvalRequestServer struct {
+	grpc.ServerStream
+}
+
+func (x *wafServiceEvalRequestServer) SendAndClose(m *WafDecision) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *wafServiceEvalRequestServer) Recv() (*WafHttpRequest, error) {
+	m := new(WafHttpRequest)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
 		return nil, err
 	}
-	if interceptor == nil {
-		return srv.(WafServiceServer).EvalRequest(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/wafservice.WafService/EvalRequest",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(WafServiceServer).EvalRequest(ctx, req.(*WafHttpRequest))
-	}
-	return interceptor(ctx, in, info, handler)
+	return m, nil
 }
 
 func _WafService_PutConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -504,47 +737,55 @@ var _WafService_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*WafServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "EvalRequest",
-			Handler:    _WafService_EvalRequest_Handler,
-		},
-		{
 			MethodName: "PutConfig",
 			Handler:    _WafService_PutConfig_Handler,
 		},
 	},
-	Streams:  []grpc.StreamDesc{},
+	Streams: []grpc.StreamDesc{
+		{
+			StreamName:    "EvalRequest",
+			Handler:       _WafService_EvalRequest_Handler,
+			ClientStreams: true,
+		},
+	},
 	Metadata: "waf.proto",
 }
 
-func init() { proto.RegisterFile("waf.proto", fileDescriptor_waf_dbcbac74d78700a8) }
+func init() { proto.RegisterFile("waf.proto", fileDescriptor_waf_e1c1430d2b9bf1ea) }
 
-var fileDescriptor_waf_dbcbac74d78700a8 = []byte{
-	// 418 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x53, 0xc1, 0x6e, 0xd3, 0x40,
-	0x10, 0xad, 0x93, 0xd2, 0x36, 0xe3, 0x12, 0xc1, 0x00, 0xad, 0x89, 0x04, 0x8a, 0x96, 0x4b, 0x2e,
-	0x44, 0xa8, 0x20, 0x21, 0x84, 0x84, 0x54, 0x1a, 0xa0, 0xdc, 0xac, 0xed, 0xc1, 0xe7, 0x4d, 0x3c,
-	0x6e, 0x57, 0x18, 0xaf, 0xf1, 0xae, 0x1d, 0xf5, 0xc6, 0x5f, 0xf0, 0x75, 0xfc, 0x0b, 0xf2, 0xda,
-	0x4b, 0xec, 0xb4, 0x97, 0xdc, 0x66, 0x66, 0xdf, 0x7b, 0xf3, 0x3c, 0x33, 0x86, 0xd1, 0x5a, 0x24,
-	0xf3, 0xbc, 0x50, 0x46, 0x21, 0xac, 0x45, 0xa2, 0xa9, 0xa8, 0xe4, 0x8a, 0xd8, 0x3b, 0x80, 0x4b,
-	0x12, 0x31, 0x15, 0xa1, 0x90, 0x05, 0x3e, 0x82, 0xe1, 0x0f, 0xba, 0x0d, 0xbc, 0xa9, 0x37, 0x1b,
-	0xf1, 0x3a, 0xc4, 0xa7, 0xf0, 0xa0, 0x12, 0x69, 0x49, 0xc1, 0xc0, 0xd6, 0x9a, 0x84, 0xfd, 0xf6,
-	0x60, 0x1c, 0x89, 0xe4, 0xd2, 0x98, 0x9c, 0xd3, 0xaf, 0x92, 0xb4, 0xc1, 0x13, 0x38, 0xf8, 0x49,
-	0xe6, 0x46, 0xc5, 0x2d, 0xbb, 0xcd, 0x6a, 0xc9, 0xb2, 0x90, 0x2d, 0xbd, 0x0e, 0xf1, 0x0d, 0x1c,
-	0xde, 0xd8, 0x96, 0x3a, 0x18, 0x4e, 0x87, 0x33, 0xff, 0xec, 0x64, 0xbe, 0x31, 0x34, 0xdf, 0xb8,
-	0xe1, 0x0e, 0x86, 0x08, 0xfb, 0x4b, 0x15, 0xdf, 0x06, 0xfb, 0x53, 0x6f, 0x76, 0xcc, 0x6d, 0xcc,
-	0x5e, 0x81, 0x1f, 0x89, 0x64, 0x41, 0x2b, 0xa9, 0xa5, 0xca, 0x6a, 0x9f, 0x22, 0x4d, 0xd5, 0xda,
-	0x76, 0x3f, 0xe2, 0x4d, 0xc2, 0xfe, 0x7a, 0x30, 0x8a, 0xce, 0xbf, 0x5e, 0xa8, 0x2c, 0x91, 0xd7,
-	0x78, 0x0e, 0x63, 0x4d, 0x2b, 0x5e, 0xa6, 0xd4, 0x14, 0x74, 0xe0, 0xd9, 0xfe, 0xcf, 0xbb, 0xfd,
-	0xaf, 0xba, 0x08, 0xbe, 0x45, 0xc0, 0x8f, 0x70, 0x7c, 0x4d, 0x6a, 0xf1, 0xd9, 0x09, 0x0c, 0xac,
-	0xc0, 0x69, 0x57, 0xe0, 0xdb, 0xe6, 0x9d, 0xf7, 0xc0, 0x18, 0xc2, 0x13, 0x99, 0x73, 0xca, 0x4b,
-	0x23, 0x8c, 0x54, 0x99, 0xd3, 0x68, 0x86, 0xf0, 0xb2, 0xab, 0xf1, 0x3d, 0xdc, 0x86, 0xf1, 0xfb,
-	0xa8, 0xec, 0x03, 0x3c, 0xec, 0xf9, 0xc5, 0x31, 0x0c, 0xa4, 0xdb, 0xc0, 0x40, 0xc6, 0x18, 0xc0,
-	0x21, 0x65, 0x62, 0x99, 0x52, 0x6c, 0x37, 0x70, 0xc4, 0x5d, 0xca, 0xde, 0x83, 0xdf, 0x71, 0xba,
-	0x03, 0xf1, 0x13, 0xe0, 0x5d, 0x7b, 0x3b, 0xf0, 0x5f, 0xc3, 0xe3, 0xb0, 0x34, 0xed, 0x57, 0x91,
-	0xce, 0x55, 0xa6, 0xa9, 0x86, 0x57, 0x54, 0xd4, 0x9b, 0xb4, 0x1a, 0x43, 0xee, 0xd2, 0xb3, 0x3f,
-	0x1e, 0x40, 0x24, 0x92, 0xab, 0x66, 0x32, 0xb8, 0x00, 0xff, 0x4b, 0x25, 0x52, 0x77, 0x75, 0x93,
-	0xee, 0xd4, 0xfa, 0x17, 0x39, 0x39, 0xdd, 0x7a, 0x73, 0xb7, 0xc2, 0xf6, 0xf0, 0x02, 0x46, 0xff,
-	0x3d, 0xe0, 0xb3, 0x1e, 0xce, 0x5d, 0xcb, 0xe4, 0x45, 0xb7, 0x7c, 0xc7, 0x31, 0xdb, 0x5b, 0x1e,
-	0xd8, 0xbf, 0xe9, 0xed, 0xbf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x1b, 0xec, 0x98, 0xf4, 0x5a, 0x03,
-	0x00, 0x00,
+var fileDescriptor_waf_e1c1430d2b9bf1ea = []byte{
+	// 527 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x94, 0xdd, 0x8e, 0xd2, 0x40,
+	0x14, 0xc7, 0x99, 0xe2, 0x7e, 0xf4, 0xb0, 0x10, 0x1d, 0x71, 0xb7, 0x12, 0x35, 0xa4, 0x26, 0x86,
+	0x1b, 0x89, 0x41, 0x13, 0x63, 0x4c, 0x4c, 0x80, 0x15, 0xf1, 0xc6, 0x90, 0xd9, 0x28, 0xd7, 0x03,
+	0x3d, 0x5d, 0x26, 0xdb, 0xed, 0x60, 0x3b, 0x05, 0xf7, 0x51, 0x7c, 0x11, 0x1f, 0xc0, 0xf7, 0xf0,
+	0x5d, 0x4c, 0xa7, 0x2d, 0xb4, 0xa5, 0x37, 0x7b, 0xd7, 0xf3, 0xef, 0xff, 0xfc, 0xe6, 0x7c, 0x4c,
+	0x0b, 0xe6, 0x96, 0xbb, 0xfd, 0x75, 0x20, 0x95, 0xa4, 0xb0, 0xe5, 0x6e, 0x88, 0xc1, 0x46, 0x2c,
+	0xd1, 0x7e, 0x07, 0x30, 0x45, 0xee, 0x60, 0x30, 0xe3, 0x22, 0xa0, 0x0f, 0xa1, 0x7e, 0x83, 0x77,
+	0x16, 0xe9, 0x92, 0x9e, 0xc9, 0xe2, 0x47, 0xda, 0x86, 0xa3, 0x0d, 0xf7, 0x22, 0xb4, 0x0c, 0xad,
+	0x25, 0x81, 0xfd, 0x87, 0x40, 0x6b, 0xce, 0xdd, 0xa9, 0x52, 0x6b, 0x86, 0x3f, 0x23, 0x0c, 0x15,
+	0xfd, 0x01, 0xed, 0x95, 0x06, 0x85, 0x43, 0xdf, 0x99, 0x88, 0x20, 0x54, 0xe3, 0x55, 0xe4, 0xdf,
+	0x68, 0x56, 0x63, 0xd0, 0xed, 0xef, 0xcf, 0xec, 0x4f, 0x2b, 0x7c, 0xd3, 0x1a, 0xab, 0xcc, 0xa7,
+	0x43, 0x68, 0xfa, 0xf8, 0x4b, 0x8d, 0xa4, 0x73, 0x97, 0x00, 0x0d, 0x0d, 0x7c, 0x9a, 0x07, 0x7e,
+	0xcb, 0x1b, 0xa6, 0x35, 0x56, 0xcc, 0x18, 0x99, 0x70, 0xb2, 0x94, 0xbe, 0x42, 0x5f, 0xd9, 0x7f,
+	0x09, 0xb4, 0xab, 0x8e, 0xa7, 0xe7, 0x70, 0x7c, 0x8b, 0x6a, 0x25, 0x9d, 0xb4, 0xf9, 0x34, 0x8a,
+	0x27, 0x12, 0x05, 0x22, 0xed, 0x3e, 0x7e, 0xa4, 0x6f, 0xe0, 0x24, 0x2d, 0xd4, 0xaa, 0x77, 0xeb,
+	0xbd, 0xc6, 0xe0, 0xfc, 0xb0, 0xb7, 0x78, 0x98, 0x2c, 0xb3, 0xd1, 0x57, 0xd0, 0x72, 0xe3, 0x93,
+	0xf6, 0x3d, 0x3c, 0xe8, 0x92, 0xde, 0x19, 0x2b, 0xa9, 0xb1, 0xef, 0x56, 0x06, 0xb8, 0x13, 0x42,
+	0xeb, 0xa8, 0x4b, 0x7a, 0xa7, 0xac, 0xa4, 0xda, 0xdf, 0xa1, 0x59, 0xe8, 0x98, 0x3e, 0x03, 0x73,
+	0xb1, 0x63, 0x13, 0xcd, 0xde, 0x0b, 0x15, 0x58, 0xa3, 0x12, 0xfb, 0x12, 0x1a, 0x73, 0xee, 0x5e,
+	0xe2, 0x52, 0x84, 0x42, 0xfa, 0xf1, 0xe6, 0xb9, 0xe7, 0xc9, 0xad, 0x06, 0x9e, 0xb2, 0x24, 0xb0,
+	0xff, 0x11, 0x30, 0xe7, 0xc3, 0xc9, 0x58, 0xfa, 0xae, 0xb8, 0xa6, 0x43, 0x68, 0x85, 0xb8, 0x64,
+	0x91, 0x87, 0x89, 0x10, 0x5a, 0x44, 0x8f, 0xa4, 0xb0, 0x9d, 0xab, 0xbc, 0x83, 0x95, 0x12, 0xe8,
+	0x47, 0x38, 0xbb, 0x46, 0x79, 0x39, 0xca, 0x00, 0x86, 0x06, 0x5c, 0xe4, 0x01, 0x5f, 0xf6, 0xef,
+	0x59, 0xc1, 0x4c, 0x67, 0xf0, 0x58, 0xac, 0x19, 0xae, 0x23, 0xc5, 0x95, 0x90, 0x7e, 0xc6, 0x48,
+	0xf6, 0xf2, 0x22, 0xcf, 0xf8, 0x3a, 0x2b, 0xdb, 0x58, 0x55, 0xaa, 0xfd, 0x01, 0x9a, 0x85, 0x7a,
+	0x69, 0x0b, 0x0c, 0x91, 0x5d, 0x0a, 0x43, 0x38, 0xd4, 0x82, 0x13, 0xf4, 0xf9, 0xc2, 0x43, 0x27,
+	0x1d, 0x63, 0x16, 0xda, 0xef, 0xa1, 0x91, 0xab, 0xf4, 0x1e, 0x89, 0x9f, 0x80, 0x1e, 0x96, 0x77,
+	0x8f, 0xfc, 0xd7, 0xf0, 0x68, 0x16, 0xa9, 0xb4, 0x2b, 0x0c, 0xd7, 0xd2, 0x0f, 0x31, 0xb6, 0x6f,
+	0x30, 0x88, 0x37, 0xa9, 0x19, 0x75, 0x96, 0x85, 0x83, 0xdf, 0x04, 0x60, 0xce, 0xdd, 0xab, 0x64,
+	0x32, 0x74, 0x02, 0x8d, 0xcf, 0x1b, 0xee, 0x65, 0xdf, 0x71, 0x27, 0x3f, 0xb5, 0xe2, 0x37, 0xde,
+	0xb9, 0x28, 0xbd, 0xcb, 0xee, 0x8a, 0x5d, 0xeb, 0x11, 0x3a, 0x06, 0x73, 0x57, 0x05, 0x7d, 0x52,
+	0x70, 0x66, 0xf7, 0xa5, 0xf3, 0x3c, 0x2f, 0x1f, 0xd4, 0x6c, 0xd7, 0x16, 0xc7, 0xfa, 0x0f, 0xf5,
+	0xf6, 0x7f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0a, 0x45, 0x97, 0xac, 0xae, 0x04, 0x00, 0x00,
 }

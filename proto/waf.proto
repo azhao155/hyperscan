@@ -3,7 +3,7 @@ syntax = "proto3";
 package wafservice;
 
 service WafService {
-  rpc EvalRequest (WafHttpRequest) returns (WafDecision) {}
+  rpc EvalRequest (stream WafHttpRequest) returns (WafDecision) {}
   rpc PutConfig (WAFConfig) returns (PutConfigResponse) {}
 }
 
@@ -13,21 +13,29 @@ message HeaderPair {
 }
 
 message WafHttpRequest {
+    oneof content {
+        HeadersAndFirstChunk headersAndFirstChunk = 1;
+        NextBodyChunk nextBodyChunk = 2;
+    }
+}
+
+message HeadersAndFirstChunk {
   string method = 1;
   string uri = 2;
   repeated HeaderPair headers = 3;
-
-  // TODO Use gRPC streaming instead of a simple string type
-  bytes body = 4;
+  bytes firstBodyChunk = 4;
+  bool moreBodyChunks = 5;
 }
+
+message NextBodyChunk {
+  bytes bodyChunk = 1;
+  bool moreBodyChunks = 2;
+}
+
 
 message WafDecision {
   bool allow = 1;
 }
-
-/*
- * A representation of AzWaf configuration.
- */
 
 message WAFConfig {
   repeated SecRuleConfig secRuleConfigs = 1;

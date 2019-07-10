@@ -4,6 +4,7 @@ import (
 	"azwaf/waf"
 	"fmt"
 	"html"
+	"io"
 	"log"
 	"net/url"
 	"regexp"
@@ -188,6 +189,27 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results ScanResults, err err
 				return
 			}
 		}
+	}
+
+	bodyReader := req.BodyReader()
+	bb := make([]byte, 61440)
+	totalBodyLength := 0
+	for {
+		// TODO hook in body parsers here
+		var n int
+		n, err = bodyReader.Read(bb)
+		totalBodyLength += n
+		if err == io.EOF {
+			err = nil
+			break
+		}
+		if err != nil {
+			// TODO body read handle error
+			return
+		}
+	}
+	if totalBodyLength > 0 {
+		log.Printf("Received %v bytes body", totalBodyLength)
 	}
 
 	return
