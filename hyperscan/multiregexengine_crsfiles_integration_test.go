@@ -13,7 +13,7 @@ import (
 
 func TestAllCrsReqRulesIndividually(t *testing.T) {
 	// Arrange
-	f := NewMultiRegexEngineFactory()
+	f := NewMultiRegexEngineFactory(nil)
 	p := secrule.NewRuleParser()
 	// TODO Add more rulesets when they become supported
 	files := []string{

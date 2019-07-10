@@ -3,12 +3,12 @@ package hyperscan
 import (
 	"azwaf/secrule"
 	"fmt"
-	"regexp"
-
 	hs "github.com/flier/gohs/hyperscan"
+	"regexp"
 )
 
 type engineFactoryImpl struct {
+	dbCache DbCache
 }
 
 type engineImpl struct {
@@ -22,9 +22,9 @@ type engineImpl struct {
 	goregexes map[int]*regexp.Regexp // TODO could this have been just a list rather than map?
 }
 
-// NewMultiRegexEngineFactory creates a MultiRegexEngineFactory which will create Hyperscan based MultiRegexEngines.
-func NewMultiRegexEngineFactory() secrule.MultiRegexEngineFactory {
-	return &engineFactoryImpl{}
+// NewMultiRegexEngineFactory creates a MultiRegexEngineFactory which will create Hyperscan based MultiRegexEngines. DbCache is used to speed up initializing databases that was previously already built. This can be nil if you do not want to use a cache.
+func NewMultiRegexEngineFactory(dbCache DbCache) secrule.MultiRegexEngineFactory {
+	return &engineFactoryImpl{dbCache: dbCache}
 }
 
 // NewMultiRegexEngine creates a MultiRegexEngine that uses Hyperscan in prefilter mode for the initial scan, and then uses Go regexp to re-validate matches and extract strings.
@@ -43,11 +43,24 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 		patterns = append(patterns, p)
 	}
 
-	// Build the Hyperscan database
-	h.db, err = hs.NewBlockDatabase(patterns...)
-	if err != nil {
-		err = fmt.Errorf("failed to compile Hyperscan database with %d patterns: %v", len(patterns), err)
-		return
+	// Try to load precompiled database from cache.
+	var cacheID string
+	if f.dbCache != nil {
+		cacheID = f.dbCache.cacheID(patterns)
+		h.db = f.dbCache.loadFromCache(cacheID)
+	}
+
+	// Build the Hyperscan database if cache miss.
+	if h.db == nil {
+		h.db, err = hs.NewBlockDatabase(patterns...)
+		if err != nil {
+			err = fmt.Errorf("failed to compile Hyperscan database with %d patterns: %v", len(patterns), err)
+			return
+		}
+
+		if f.dbCache != nil {
+			f.dbCache.saveToCache(cacheID, h.db)
+		}
 	}
 
 	h.scratch, err = hs.NewScratch(h.db)

@@ -10,7 +10,7 @@ import (
 
 func TestReqScannerSimpleRules(t *testing.T) {
 	// Arrange
-	mf := NewMultiRegexEngineFactory()
+	mf := NewMultiRegexEngineFactory(nil)
 	rf := secrule.NewReqScannerFactory(mf)
 	rules, _ := secrule.NewRuleParser().Parse(`
 		SecRule ARGS "ab+c" "id:100"
@@ -69,7 +69,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 
 func TestReqScannerPmfRule(t *testing.T) {
 	// Arrange
-	mf := NewMultiRegexEngineFactory()
+	mf := NewMultiRegexEngineFactory(nil)
 	rf := secrule.NewReqScannerFactory(mf)
 	rules, _ := secrule.NewRuleParser().Parse(`
 		SecRule REQUEST_URI_RAW "@pmf test.data" "id:100"

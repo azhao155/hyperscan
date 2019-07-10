@@ -2,8 +2,48 @@ package hyperscan
 
 import (
 	"azwaf/secrule"
+	hs "github.com/flier/gohs/hyperscan"
 	"testing"
 )
+
+func TestHyperscanStandalone(t *testing.T) {
+	// Arrange
+	patterns := []*hs.Pattern{}
+	p := hs.NewPattern("abc+", 0)
+	p.Id = 100
+	p.Flags = hs.SingleMatch | hs.PrefilterMode
+	patterns = append(patterns, p)
+	db, err := hs.NewBlockDatabase(patterns...)
+	if err != nil {
+		t.Fatalf("got unexpected error: %s", err)
+	}
+	scratch, err := hs.NewScratch(db)
+	if err != nil {
+		db.Close()
+		t.Fatalf("failed to create Hyperscan scratch space: %v", err)
+	}
+
+	// Act
+	found := false
+	handler := func(id uint, from, to uint64, flags uint, context interface{}) error {
+		if id == 100 {
+			found = true
+		}
+		return nil
+	}
+	err = db.Scan([]byte("abcccc"), scratch, handler, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("got unexpected error: %s", err)
+	}
+
+	if !found {
+		t.Fatalf("Hyperscan DB did not work")
+	}
+
+	db.Close()
+}
 
 func TestHyperscanSimple(t *testing.T) {
 	// Arrange
@@ -14,7 +54,7 @@ func TestHyperscanSimple(t *testing.T) {
 	}
 
 	// Act
-	f := NewMultiRegexEngineFactory()
+	f := NewMultiRegexEngineFactory(nil)
 	m, err := f.NewMultiRegexEngine(patterns)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -46,7 +86,7 @@ func TestHyperscanSimple(t *testing.T) {
 
 func TestHyperscanSimpleTwoScans(t *testing.T) {
 	// Arrange
-	f := NewMultiRegexEngineFactory()
+	f := NewMultiRegexEngineFactory(nil)
 	e, err := f.NewMultiRegexEngine([]secrule.MultiRegexEnginePattern{
 		{ID: 1, Expr: "ab+"},
 		{ID: 2, Expr: "ac+"},
@@ -111,7 +151,7 @@ func TestExpressionWithPCREPossessiveQuantifier(t *testing.T) {
 	}
 
 	// Act
-	f := NewMultiRegexEngineFactory()
+	f := NewMultiRegexEngineFactory(nil)
 	m, err := f.NewMultiRegexEngine(patterns)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)

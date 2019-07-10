@@ -8,6 +8,7 @@ import (
 	"log"
 	"net/url"
 	"regexp"
+	"time"
 	"strings"
 )
 
@@ -58,15 +59,17 @@ type scanGroup struct {
 	transformations []Transformation
 	patterns        []patternRef
 	rxEngine        MultiRegexEngine
+	backRefs     []patternRef
 }
 
 type reqScannerImpl struct {
 	scanPatterns map[string][]*scanGroup
-	backRefs     []patternRef
 }
 
 // NewReqScanner creates a ReqScanner.
 func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err error) {
+	startTime := time.Now()
+
 	scanPatterns := make(map[string][]*scanGroup)
 
 	// Construct a inverted view of the rules that maps from targets to rules
@@ -99,9 +102,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 		}
 	}
 
-	// When the multi regex engine finds a match, it gives us a single ID. BackRefs gets us from the ID to the actual rule.
-	backRefs := []patternRef{}
-	backRefCurID := 0
+
 
 	// Construct multi regex engine instances from the scan patterns.
 	for target, scanGroups := range scanPatterns {
@@ -109,6 +110,10 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 			if len(scanGroup.patterns) == 0 {
 				continue
 			}
+
+			// When the multi regex engine finds a match, it gives us a single ID. BackRefs gets us from the ID to the actual rule.
+			backRefs := []patternRef{}
+			backRefCurID := 0
 
 			patterns := []MultiRegexEnginePattern{}
 			for _, p := range scanGroup.patterns {
@@ -121,7 +126,9 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 				}
 			}
 
-			log.Printf("Building multi-regex database for target %v with transformations %v with %d patterns", target, scanGroup.transformations, len(patterns))
+			scanPatterns[target][scanGroupIdx].backRefs = backRefs
+
+			log.Printf("Initialzing multi-regex database for target %v with transformations %v with %d patterns", target, scanGroup.transformations, len(patterns))
 			scanPatterns[target][scanGroupIdx].rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
 			if err != nil {
 				err = fmt.Errorf("failed to create multi-regex engine: %v", err)
@@ -132,8 +139,9 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 
 	r = &reqScannerImpl{
 		scanPatterns: scanPatterns,
-		backRefs:     backRefs,
 	}
+
+	log.Printf("Initialized scan targets in %v", time.Since(startTime))
 
 	return
 }
@@ -233,7 +241,7 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		}
 
 		for _, m := range matches {
-			p := r.backRefs[m.ID]
+			p := sg.backRefs[m.ID]
 
 			// Store the match for fast retrieval in the eval phase
 			key := rxMatchKey{p.rule.ID, p.ruleItemIdx, targetName}

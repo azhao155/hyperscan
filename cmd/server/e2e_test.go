@@ -13,7 +13,9 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	// Arrange
 	p := secrule.NewRuleParser()
 	rl := secrule.NewCrsRuleLoader(p)
-	mref := hyperscan.NewMultiRegexEngineFactory()
+	hsfs := hyperscan.NewCacheFileSystem()
+	hscache := hyperscan.NewDbCache(hsfs)
+	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	ref := secrule.NewRuleEvaluatorFactory()
 	ef := secrule.NewEngineFactory(rl, rsf, ref)

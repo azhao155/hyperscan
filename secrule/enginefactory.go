@@ -3,6 +3,7 @@ package secrule
 import (
 	"azwaf/waf"
 	"fmt"
+	"log"
 )
 
 // NewEngineFactory creates a factory that can create SecRule engines.
@@ -17,6 +18,7 @@ type engineFactoryImpl struct {
 }
 
 func (f *engineFactoryImpl) NewEngine(ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
+	log.Printf("Loading rules for ruleset %v", ruleSetID)
 	rules, err := f.ruleLoader.Rules(ruleSetID)
 	if err != nil {
 		err = fmt.Errorf("failed to load ruleset %v: %v", ruleSetID, err)
