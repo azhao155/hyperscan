@@ -11,19 +11,19 @@ const Path = ""
 
 // ConfigMgr is the top level configuration management interface to AzWaf.
 type ConfigMgr interface {
-	PutConfig(c Config) (int, error)
+	PutConfig(c Config) (int64, error)
 	DisposeConfig(int) error
 }
 
 type configMgrImpl struct {
-	curVersion int
+	curVersion int64
 	fileSystem ConfigFileSystem
 	converter  ConfigConverter
 	mux        sync.Mutex
 }
 
 // NewConfigMgr create a configuration manager instance.
-func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (ConfigMgr, map[int]Config, error) {
+func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (ConfigMgr, map[int64]Config, error) {
 	c := &configMgrImpl{}
 
 	c.fileSystem = fileSystem
@@ -38,7 +38,7 @@ func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (Confi
 }
 
 // PutConfig writes the config protobuf into disk.
-func (c *configMgrImpl) PutConfig(config Config) (int, error) {
+func (c *configMgrImpl) PutConfig(config Config) (int64, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
@@ -47,7 +47,7 @@ func (c *configMgrImpl) PutConfig(config Config) (int, error) {
 		return -1, err
 	}
 
-	err = c.fileSystem.WriteFile(Path+strconv.Itoa(c.curVersion), str)
+	err = c.fileSystem.WriteFile(Path+strconv.FormatInt(c.curVersion, 10), str)
 	if err != nil {
 		return -1, err
 	}
@@ -69,12 +69,12 @@ func (c *configMgrImpl) DisposeConfig(version int) error {
 	return nil
 }
 
-func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
+func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	c.curVersion = 0
-	m := make(map[int]Config)
+	m := make(map[int64]Config)
 	files, err := c.fileSystem.ReadDir(Path)
 	if err != nil {
 		return m, err
@@ -86,13 +86,12 @@ func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
 			return m, fmt.Errorf("Read config file version  %v has error: %v", f, err)
 		}
 
-		wafConfig, err := c.converter.DeSerializeFromJSON(str)
+		wafConfig, err := c.converter.DeserializeFromJSON(str)
 		if err != nil {
 			return m, fmt.Errorf("Decode config file version  %v has error: %v", f, err)
 		}
 
-		// string to int convert should success here
-		v, err := strconv.Atoi(f)
+		v, err := strconv.ParseInt(f, 10, 64)
 		if err != nil {
 			return m, fmt.Errorf("Processing file %v has error: %v", f, err)
 		}
@@ -104,7 +103,7 @@ func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
 	return m, nil
 }
 
-func max(x, y int) int {
+func max(x, y int64) int64 {
 	if x < y {
 		return y
 	}

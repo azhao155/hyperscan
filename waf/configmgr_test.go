@@ -11,6 +11,8 @@ func (c *mockSecRuleConfig) ID() string { return "SecRuleConfig1" }
 
 func (c *mockSecRuleConfig) Enabled() bool { return false }
 
+func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
+
 type mockGeoDBConfig struct{}
 
 func (c *mockGeoDBConfig) ID() string { return "GeoDbConfig1" }
@@ -31,7 +33,7 @@ func (c *mockConfigConverter) SerializeToJSON(Config) (string, error) {
 	return "random", nil
 }
 
-func (c *mockConfigConverter) DeSerializeFromJSON(str string) (Config, error) {
+func (c *mockConfigConverter) DeserializeFromJSON(str string) (Config, error) {
 	if str == "random" {
 		return &mockConfig{}, nil
 	}

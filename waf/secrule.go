@@ -2,7 +2,7 @@ package waf
 
 // SecRuleEngineFactory creates SecRuleEngines. This makes mocking possible when testing.
 type SecRuleEngineFactory interface {
-	NewEngine(r RuleSetID) (SecRuleEngine, error)
+	NewEngine(c SecRuleConfig) (SecRuleEngine, error)
 }
 
 // SecRuleEngine is compatible with a subset of the ModSecurity SecRule language.

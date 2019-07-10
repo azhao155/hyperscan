@@ -4,6 +4,7 @@ package waf
 type SecRuleConfig interface {
 	ID() string
 	Enabled() bool
+	RuleSetID() string
 }
 
 // GeoDBConfig is GeoDB Engine config
@@ -28,5 +29,5 @@ type Config interface {
 // ConfigConverter convert Config to/from JSON string
 type ConfigConverter interface {
 	SerializeToJSON(Config) (string, error)
-	DeSerializeFromJSON(string) (Config, error)
+	DeserializeFromJSON(string) (Config, error)
 }

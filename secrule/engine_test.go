@@ -11,7 +11,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	rl := newMockRuleLoader()
 	ref := NewRuleEvaluatorFactory()
 	ef := NewEngineFactory(rl, rsf, ref)
-	e, err := ef.NewEngine("some ruleset")
+	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -25,3 +25,9 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 		t.Fatalf("EvalRequest did not return true")
 	}
 }
+
+type mockSecRuleConfig struct{}
+
+func (c *mockSecRuleConfig) ID() string        { return "SecRuleConfig1" }
+func (c *mockSecRuleConfig) Enabled() bool     { return false }
+func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }

@@ -19,11 +19,12 @@ type Server interface {
 
 type serverImpl struct {
 	ws waf.Server
+	cm waf.ConfigMgr
 }
 
 // NewServer creates a new AzWaf gRPC server.
-func NewServer(ws waf.Server) Server {
-	return &serverImpl{ws}
+func NewServer(ws waf.Server, cm waf.ConfigMgr) Server {
+	return &serverImpl{ws: ws, cm: cm}
 }
 
 func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
@@ -126,8 +127,20 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 }
 
 func (s *serverImpl) PutConfig(ctx context.Context, in *pb.WAFConfig) (d *pb.PutConfigResponse, err error) {
-	// TODO implement logic between config mgr and server mgr
-	d = &pb.PutConfigResponse{Version: 0}
+	var version int64
+	config := &configPbWrapper{pb: in}
+
+	version, err = s.cm.PutConfig(config)
+	if err != nil {
+		return
+	}
+
+	err = s.ws.PutConfig(config, version)
+	if err != nil {
+		return
+	}
+
+	d = &pb.PutConfigResponse{Version: version}
 	return
 }
 

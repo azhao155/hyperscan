@@ -4,16 +4,18 @@ import (
 	pb "azwaf/proto"
 	"azwaf/waf"
 	"bytes"
-	"google.golang.org/grpc"
 	"io"
 	"strings"
 	"testing"
+
+	"google.golang.org/grpc"
 )
 
 func TestGrpcServerEvalRequestSimple(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -55,7 +57,8 @@ func TestGrpcServerEvalRequestSimple(t *testing.T) {
 func TestGrpcServerEvalRequestBodyInFirstMsg(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -99,7 +102,8 @@ func TestGrpcServerEvalRequestBodyInFirstMsg(t *testing.T) {
 func TestGrpcServerEvalRequestStreamingBody(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -152,7 +156,8 @@ func TestGrpcServerEvalRequestStreamingBody(t *testing.T) {
 func TestGrpcServerEvalRequestStreamingBodyManyChunks(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -212,7 +217,8 @@ func TestGrpcServerEvalRequestStreamingBodyManyChunks(t *testing.T) {
 func TestGrpcServerEvalRequestStreamingBodyLyingLastChunk(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -263,7 +269,8 @@ func TestGrpcServerEvalRequestStreamingBodySmallBuffer(t *testing.T) {
 	mw := &mockWafServer{
 		bodyReadBufSize: 10,
 	}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -314,7 +321,8 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation1(t *testing.T) {
 	mw := &mockWafServer{
 		bodyReadBufSize: 10,
 	}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -358,7 +366,8 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation2(t *testing.T) {
 	mw := &mockWafServer{
 		bodyReadBufSize: 10,
 	}
-	s := &serverImpl{mw}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -391,8 +400,34 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation2(t *testing.T) {
 	}
 }
 
+func TestGrpcServerPutConfig(t *testing.T) {
+	// Arrange
+	mw := &mockWafServer{}
+	mc := &mockConfigMgr{}
+	s := &serverImpl{ws: mw, cm: mc}
+	config := &pb.WAFConfig{}
+
+	// Act
+	s.PutConfig(nil, config)
+
+	// Assert
+	if mw.putConfigCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockWafServer.PutConfig")
+	}
+
+	if mw.versionSet != 0 {
+		t.Fatalf("Unexpected version set to mockWafServer.PutConfig")
+	}
+
+	if mc.putConfigCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockConfigMgr.PutConfig")
+	}
+}
+
 type mockWafServer struct {
 	evalRequestCalled int
+	putConfigCalled   int
+	versionSet        int64
 	receivedBody      strings.Builder
 	receivedBodyErr   error
 	bodyReadBufSize   int
@@ -438,5 +473,24 @@ func (m *mockWafServiceEvalRequestServer) Recv() (req *pb.WafHttpRequest, err er
 }
 
 func (m *mockWafServiceEvalRequestServer) SendAndClose(*pb.WafDecision) error {
+	return nil
+}
+
+func (m *mockWafServer) PutConfig(c waf.Config, v int64) error {
+	m.putConfigCalled++
+	m.versionSet = v
+	return nil
+}
+
+type mockConfigMgr struct {
+	putConfigCalled int64
+}
+
+func (m *mockConfigMgr) PutConfig(c waf.Config) (int64, error) {
+	m.putConfigCalled++
+	return m.putConfigCalled - 1, nil
+}
+
+func (m *mockConfigMgr) DisposeConfig(int) error {
 	return nil
 }

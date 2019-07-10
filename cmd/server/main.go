@@ -1,31 +1,32 @@
 package main
 
 import (
-	"azwaf/config"
 	"azwaf/grpc"
 	"azwaf/hyperscan"
 	"azwaf/secrule"
 	"azwaf/waf"
-	"encoding/json"
+
 	log "github.com/sirupsen/logrus"
 )
 
+type mockSecRuleConfig struct{}
+
+func (c *mockSecRuleConfig) ID() string        { return "SecRuleConfig1" }
+func (c *mockSecRuleConfig) Enabled() bool     { return false }
+func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
+
+type mockConfig struct{}
+
+func (c *mockConfig) SecRuleConfigs() []waf.SecRuleConfig {return []waf.SecRuleConfig{&mockSecRuleConfig{}}}
+
+func (c *mockConfig) GeoDBConfigs() []waf.GeoDBConfig { return []waf.GeoDBConfig{} }
+
+func (c *mockConfig) IPReputationConfigs() []waf.IPReputationConfig { return []waf.IPReputationConfig{} }
+
 func main() {
+
 	//log.SetLevel(log.TraceLevel)
 	log.SetLevel(log.InfoLevel)
-
-	// TODO Implement real config loading.
-	c := &config.Main{}
-	json.Unmarshal([]byte(`
-		{
-			"Sites": [
-				{
-					"Name": "site1",
-					"RuleSet": "OWASP CRS 3.0"
-				}
-			]
-		}
-	`), c)
 
 	// Depedency injection composition root
 	p := secrule.NewRuleParser()
@@ -38,12 +39,21 @@ func main() {
 	sref := secrule.NewEngineFactory(rl, rsf, ref)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
-	w, err := waf.NewServer(c, sref)
+	cm, _, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
 	if err != nil {
-		log.Fatalf("Error: %v", err)
+		log.Fatalf("error while creating config manager: %v", err)
 	}
 
-	s := grpc.NewServer(w)
+	// TODO Implement real config loading.
+	c := make(map[int64]waf.Config)
+	c[0] = &mockConfig{}
+
+	w, err := waf.NewServer(c, sref)
+	if err != nil {
+		log.Fatalf("error while creating service manager: %v", err)
+	}
+
+	s := grpc.NewServer(w, cm)
 
 	log.Print("Starting WAF server")
 	if err := s.Serve(); err != nil {

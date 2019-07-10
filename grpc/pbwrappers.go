@@ -24,6 +24,10 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 }
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 
+// TODO once protobuf has version and config id, need to be implemented
+func (r *wafHTTPRequestPbWrapper) SecRuleID() string { return "SecRuleConfig1" }
+func (r *wafHTTPRequestPbWrapper) Version() int64    { return 0 }
+
 type headerPairPbWrapper struct{ pb *pb.HeaderPair }
 
 func (h *headerPairPbWrapper) Key() string   { return h.pb.Key }
@@ -37,8 +41,9 @@ func (r *wafHTTPRequestPbWrapperBodyReader) Read(p []byte) (n int, err error) { 
 
 type secRuleConfigImpl struct{ pb *pb.SecRuleConfig }
 
-func (c *secRuleConfigImpl) ID() string    { return c.pb.Id }
-func (c *secRuleConfigImpl) Enabled() bool { return c.pb.Enabled }
+func (c *secRuleConfigImpl) ID() string        { return c.pb.Id }
+func (c *secRuleConfigImpl) Enabled() bool     { return c.pb.Enabled }
+func (c *secRuleConfigImpl) RuleSetID() string { return c.pb.RuleSetId }
 
 type geoDbConfigImpl struct{ pb *pb.GeoDBConfig }
 
@@ -76,10 +81,11 @@ func (c *configPbWrapper) IPReputationConfigs() []waf.IPReputationConfig {
 	return ss
 }
 
-type configConverterImpl struct{}
+// ConfigConverterImpl implement config SerializeToJSON/DeSerializeFromJSON.
+type ConfigConverterImpl struct{}
 
 // SerializeToJSON serializes a WAFConfig to a JSON string. Only works if the WAFConfig is a configPbWrapper wrapping a protobuf.
-func (*configConverterImpl) SerializeToJSON(c waf.Config) (json string, err error) {
+func (*ConfigConverterImpl) SerializeToJSON(c waf.Config) (json string, err error) {
 	wci, ok := c.(*configPbWrapper)
 	if !ok {
 		err = fmt.Errorf("Failed convert given WAFConfig to a serializable protobuf backed type")
@@ -90,8 +96,8 @@ func (*configConverterImpl) SerializeToJSON(c waf.Config) (json string, err erro
 	return
 }
 
-// DeSerializeFromJSON converts JSON to a WAF config object
-func (*configConverterImpl) DeSerializeFromJSON(str string) (c waf.Config, err error) {
+// DeserializeFromJSON converts JSON to a WAF config object
+func (*ConfigConverterImpl) DeserializeFromJSON(str string) (c waf.Config, err error) {
 	var pb pb.WAFConfig
 	err = jsonpb.UnmarshalString(str, &pb)
 	if err != nil {

@@ -17,7 +17,8 @@ type engineFactoryImpl struct {
 	ruleEvaluatorFactory RuleEvaluatorFactory
 }
 
-func (f *engineFactoryImpl) NewEngine(ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
+func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecRuleEngine, err error) {
+	ruleSetID := waf.RuleSetID(config.RuleSetID())
 	log.WithFields(log.Fields{"ruleSet": ruleSetID}).Info("Loading rules")
 
 	rules, err := f.ruleLoader.Rules(ruleSetID)

@@ -22,10 +22,10 @@ var wafConfigs = pb.WAFConfig{
 
 func TestConfigsConversion(t *testing.T) {
 	config1 := configPbWrapper{pb: &wafConfigs}
-	cc := configConverterImpl{}
+	cc := ConfigConverterImpl{}
 	str, _ := cc.SerializeToJSON(&config1)
 
-	config2, _ := cc.DeSerializeFromJSON(str)
+	config2, _ := cc.DeserializeFromJSON(str)
 
 	secRules := config2.SecRuleConfigs()
 
