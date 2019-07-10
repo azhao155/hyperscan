@@ -42,3 +42,17 @@ func TestEnvMapGet(t *testing.T) {
 		t.Fatalf("Unexpected value for key k")
 	}
 }
+
+func TestEnvMapHasKey(t *testing.T) {
+	m := newEnvMap()
+	v := &stringObject{Value: "v"}
+	m.set("k", v)
+
+	if ok := m.hasKey("k"); !ok {
+		t.Fatalf("Key k not found in map")
+	}
+
+	if ok := m.hasKey("K"); !ok {
+		t.Fatalf("Key K not found in map")
+	}
+}

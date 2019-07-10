@@ -26,6 +26,17 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (bool, string, error) {
 
 		//TODO: Support more variables
 		variable := ""
+		if strings.HasPrefix(target, "&TX") {
+			// Variable counting
+			variable = "0"
+			if strings.Contains(target, ":") {
+				key := strings.Replace(target, ":", ".", 1)
+				if perRequestEnv.hasKey(key[1:]) {
+					variable = "1"
+				}
+			}
+		}
+
 		if isCollection(target) {
 			key := strings.Replace(target, ":", ".", 1)
 
