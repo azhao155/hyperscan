@@ -39,9 +39,6 @@ func NewServer(c *config.Main, sref SecRuleEngineFactory) (server Server, err er
 func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	// TODO Decide which site this request belongs to.
 	site := "site1"
-
-	s.secRuleEngines[site].EvalRequest(req)
-
-	allow = true
+	allow = s.secRuleEngines[site].EvalRequest(req)
 	return
 }

@@ -2,19 +2,23 @@ package secrule
 
 import (
 	"azwaf/waf"
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
 	"fmt"
-	"html"
 	"io"
 	"log"
+	"mime"
+	"mime/multipart"
 	"net/url"
 	"regexp"
-	"time"
 	"strings"
+	"time"
 )
 
 // ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
 type ReqScanner interface {
-	Scan(req waf.HTTPRequest) (results ScanResults, err error)
+	Scan(req waf.HTTPRequest) (results *ScanResults, err error)
 }
 
 // RxMatch represents a regex match found while scanning.
@@ -59,7 +63,7 @@ type scanGroup struct {
 	transformations []Transformation
 	patterns        []patternRef
 	rxEngine        MultiRegexEngine
-	backRefs     []patternRef
+	backRefs        []patternRef
 }
 
 type reqScannerImpl struct {
@@ -101,8 +105,6 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 			}
 		}
 	}
-
-
 
 	// Construct multi regex engine instances from the scan patterns.
 	for target, scanGroups := range scanPatterns {
@@ -146,84 +148,76 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 	return
 }
 
-func getRxExprs(ruleItem *RuleItem) []string {
-	switch ruleItem.Predicate.Op {
-	case Rx:
-		return []string{ruleItem.Predicate.Val}
-	case Pmf, PmFromFile:
-		var phrases []string
-		for _, p := range ruleItem.PmPhrases {
-			phrases = append(phrases, regexp.QuoteMeta(p))
-		}
-		return phrases
+func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err error) {
+	results = &ScanResults{
+		rxMatches: make(map[rxMatchKey]RxMatch),
 	}
-	return nil
-}
 
-func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results ScanResults, err error) {
-	results.rxMatches = make(map[rxMatchKey]RxMatch)
-
-	r.scanTarget("REQUEST_URI_RAW", req.URI(), &results)
+	log.Printf("Scanning URI")
+	err = r.scanURI(req.URI(), results)
 	if err != nil {
-		// TODO handle scan error
 		return
 	}
 
-	var uriParsed *url.URL
-	uriParsed, err = url.ParseRequestURI(req.URI())
+	log.Printf("Scanning headers")
+	contentType, err := r.scanHeaders(req.Headers(), results)
 	if err != nil {
-		// TODO handle parse error
 		return
-	}
-
-	var qvals url.Values
-	qvals, err = url.ParseQuery(uriParsed.RawQuery)
-	if err != nil {
-		// TODO handle parse error
-		return
-	}
-
-	for k, vv := range qvals {
-		r.scanTarget("ARGS_NAMES", k, &results)
-		if err != nil {
-			// TODO handle scan error
-			return
-		}
-
-		for _, v := range vv {
-			r.scanTarget("ARGS", v, &results)
-			if err != nil {
-				// TODO handle scan error
-				return
-			}
-		}
 	}
 
 	bodyReader := req.BodyReader()
-	bb := make([]byte, 61440)
-	totalBodyLength := 0
-	for {
-		// TODO hook in body parsers here
-		var n int
-		n, err = bodyReader.Read(bb)
-		totalBodyLength += n
-		if err == io.EOF {
-			err = nil
-			break
-		}
+
+	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
+	mediatype, mediaTypeParams, _ := mime.ParseMediaType(contentType)
+	switch mediatype {
+	case "multipart/form-data":
+		log.Printf("Using multipart parser")
+		err = r.scanMultipartBody(bodyReader, mediaTypeParams, results)
 		if err != nil {
-			// TODO body read handle error
+			err = fmt.Errorf("multipart body scanning error: %v", err)
 			return
 		}
-	}
-	if totalBodyLength > 0 {
-		log.Printf("Received %v bytes body", totalBodyLength)
+
+	case "application/x-www-form-urlencoded":
+		log.Printf("Using urlencoded parser")
+		err = r.scanUrlencodedBody(bodyReader, results)
+		if err != nil {
+			err = fmt.Errorf("urlencoded body scanning error: %v", err)
+			return
+		}
+
+	case "text/xml":
+		log.Printf("Using XML parser")
+		err = r.scanXMLBody(bodyReader, results)
+		if err != nil {
+			err = fmt.Errorf("XML body scanning error: %v", err)
+			return
+		}
+
+	case "application/json":
+		// TODO also use for text/json? ModSec currently doesn't...
+		// TODO also use for application/javascript JSONP? ModSec currently doesn't...
+		log.Printf("Using JSON parser")
+		err = r.scanJSONBody(bodyReader, results)
+		if err != nil {
+			err = fmt.Errorf("JSON body scanning error: %v", err)
+			return
+		}
+
 	}
 
 	return
 }
 
+// GetRxResultsFor returns any results for regex matches that were done during the request scanning.
+func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string) (m RxMatch, ok bool) {
+	m, ok = r.rxMatches[rxMatchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
+	return
+}
+
 func (r *reqScannerImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
+	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
+
 	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
 	for _, sg := range r.scanPatterns[targetName] {
 		if len(sg.patterns) == 0 {
@@ -233,8 +227,6 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		contentTransformed := applyTransformations(content, sg.transformations)
 
 		var matches []MultiRegexEngineMatch
-		log.Printf("Scanning content \"%v\" with transformations %v", content, sg.transformations)
-		// TODO should content be []byte rather than string? Hyperscan takes []byte, and also there are transformation like Utf8toUnicode, URLDecodeUni we need to take into account.
 		matches, err = sg.rxEngine.Scan([]byte(contentTransformed))
 		if err != nil {
 			return
@@ -258,73 +250,220 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 	return
 }
 
-var whitespaceReplacer = strings.NewReplacer(" ", "", "\t", "", "\n", "", "\v", "", "\f", "", "\r", "")
+func getRxExprs(ruleItem *RuleItem) []string {
+	switch ruleItem.Predicate.Op {
+	case Rx:
+		return []string{ruleItem.Predicate.Val}
+	case Pmf, PmFromFile:
+		var phrases []string
+		for _, p := range ruleItem.PmPhrases {
+			phrases = append(phrases, regexp.QuoteMeta(p))
+		}
+		return phrases
+	}
+	return nil
+}
 
-func applyTransformations(s string, tt []Transformation) string {
-	orig := s
-	for _, t := range tt {
-		// TODO implement all transformations
-		switch t {
-		case CmdLine:
-		case CompressWhitespace:
-		case CSSDecode:
-		case HexEncode:
-		case HTMLEntityDecode:
-			if strings.Contains(s, "&") {
-				s = html.UnescapeString(s)
-				// TODO ensure this aligns with the intended htmlEntityDecode functionality of SecRule-lang: https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)#htmlEntityDecode
-				// TODO read https://golang.org/pkg/html/#UnescapeString closely. We need to think about if the unicode behaviour here is correct for SecRule-lang.
-			}
-		case JsDecode:
-		case Length:
-			// TODO is this really used? Isn't @ for this? Should we use the type-system to keep this as int here?
-			s = string(len(s))
-		case Lowercase:
-			s = strings.ToLower(s)
-		case None:
-			s = orig
-		case NormalisePath:
-		case NormalisePathWin:
-		case NormalizePath:
-		case NormalizePathWin:
-		case RemoveComments:
-		case RemoveNulls:
-		case RemoveWhitespace:
-			if strings.ContainsAny(s, " \t\n\v\f\r") {
-				s = whitespaceReplacer.Replace(s)
-			}
-		case ReplaceComments:
-		case Sha1:
-		case URLDecode, URLDecodeUni:
-			tmp, err := url.PathUnescape(s)
-			if err != nil {
-				// TODO handle transformation error
-				continue
-			}
-			s = tmp
-		case Utf8toUnicode:
+func (r *reqScannerImpl) scanHeaders(headers []waf.HeaderPair, results *ScanResults) (contentType string, err error) {
+	for _, h := range headers {
+		k := h.Key()
+		v := h.Value()
+
+		if strings.ToLower(h.Key()) == "content-type" {
+			contentType = h.Value()
+		}
+
+		r.scanTarget("REQUEST_HEADERS", v, results)
+		if err != nil {
+			return
+		}
+
+		r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
+		if err != nil {
+			return
 		}
 	}
 
-	return s
-}
-
-// GetRxResultsFor returns any results for regex matches that were done during the request scanning.
-func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string) (m RxMatch, ok bool) {
-	m, ok = r.rxMatches[rxMatchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
 	return
 }
 
-func transformationListEquals(a []Transformation, b []Transformation) bool {
-	if len(a) != len(b) {
-		return false
+func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
+	r.scanTarget("REQUEST_URI_RAW", URI, results)
+	if err != nil {
+		return
 	}
 
-	for i := 0; i < len(a); i++ {
-		if a[i] != b[i] {
-			return false
+	var uriParsed *url.URL
+	uriParsed, err = url.ParseRequestURI(URI)
+	if err != nil {
+		return
+	}
+
+	var qvals url.Values
+	qvals, err = url.ParseQuery(uriParsed.RawQuery)
+	if err != nil {
+		return
+	}
+
+	for k, vv := range qvals {
+		r.scanTarget("ARGS_NAMES", k, results)
+		if err != nil {
+			return
+		}
+
+		for _, v := range vv {
+			r.scanTarget("ARGS", v, results)
+			if err != nil {
+				return
+			}
 		}
 	}
 
-	return true
+	return
+}
+
+func (r *reqScannerImpl) scanMultipartBody(bodyReader io.Reader, mediaTypeParams map[string]string, results *ScanResults) (err error) {
+	var buf bytes.Buffer
+	m := multipart.NewReader(bodyReader, mediaTypeParams["boundary"])
+	for i := 0; ; i++ {
+		log.Printf("Getting next part")
+
+		var part *multipart.Part
+		part, err = m.NextPart()
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+				break
+			}
+			err = fmt.Errorf("parsing error: %v", err)
+			return
+		}
+
+		// Skip parts that are files.
+		c := part.Header.Get("Content-Disposition")
+		var cdParams map[string]string
+		_, cdParams, err = mime.ParseMediaType(c)
+		if err != nil {
+			err = fmt.Errorf("error while parsing Content-Disposition header of part number %v: %v", i, err)
+			return
+		}
+		if _, ok := cdParams["filename"]; ok {
+			// File parts are not scanned.
+			// Space for this file part will not be allocated.
+			log.Printf("Skipping file part, part number %v", i)
+			continue
+		}
+
+		r.scanTarget("ARGS_NAMES", part.FormName(), results)
+		if err != nil {
+			return
+		}
+
+		buf.Reset()
+		// TODO implement custom ReadFrom which stops and throws err when it reaches some max field length
+		_, err = buf.ReadFrom(part)
+		if err != nil {
+			err = fmt.Errorf("body parsing error: %v", err)
+			return
+		}
+
+		s := string(buf.Bytes())
+		r.scanTarget("ARGS", s, results)
+		if err != nil {
+			return
+		}
+
+		// TODO abort if there were too many fields
+	}
+
+	return
+}
+
+func (r *reqScannerImpl) scanUrlencodedBody(bodyReader io.Reader, results *ScanResults) (err error) {
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(bodyReader)
+	if err != nil {
+		return
+	}
+
+	// TODO don't use url.ParseQuery here. This is vulnerable to DoS by for example posting a gigabyte request body. Instead implement a streaming parser that takes an io.Reader. The source code of the current ParseQuery is only about 30 lines, so it should be easy.
+	qvals, err := url.ParseQuery(buf.String())
+	if err != nil {
+		return
+	}
+
+	for k, vv := range qvals {
+		r.scanTarget("ARGS_NAMES", k, results)
+		if err != nil {
+			return
+		}
+
+		for _, v := range vv {
+			r.scanTarget("ARGS", v, results)
+			if err != nil {
+				return
+			}
+
+			// TODO abort if there were too many fields
+		}
+	}
+
+	return
+}
+
+func (r *reqScannerImpl) scanJSONBody(bodyReader io.Reader, results *ScanResults) (err error) {
+	dec := json.NewDecoder(bodyReader)
+	for {
+		// TODO enforce a max for high large fields may be
+		var token json.Token
+		token, err = dec.Token()
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+
+		// TODO selectors
+		// It's odd, but SecRule-lang uses the XML selector to select JSON
+		target := "XML:/*"
+
+		// TODO handle float64, Number, bool, nil
+		switch v := token.(type) {
+		case string:
+			r.scanTarget(target, v, results)
+		}
+
+		// TODO abort if there were too many fields
+	}
+
+	return
+}
+
+func (r *reqScannerImpl) scanXMLBody(bodyReader io.Reader, results *ScanResults) (err error) {
+	dec := xml.NewDecoder(bodyReader)
+	for {
+		// TODO enforce a max for high large fields may be
+		var token xml.Token
+		token, err = dec.Token()
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+
+		// TODO selectors
+		target := "XML:/*"
+
+		// TODO consider handing element names, attribute names, attribute values. ModSec currently doesn't...
+		switch v := token.(type) {
+		case xml.CharData:
+			r.scanTarget(target, string(v), results)
+		}
+
+		// TODO abort if there were too many fields
+	}
+
+	return
 }

@@ -3,6 +3,7 @@ package secrule
 import (
 	"azwaf/waf"
 	"log"
+	"time"
 )
 
 type engineImpl struct {
@@ -13,25 +14,28 @@ type engineImpl struct {
 
 func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 	log.Print("SecRule engine got EvalRequest for with URI " + req.URI())
+	startTime := time.Now()
+	defer func() { log.Printf("EvalRequest done in %v", time.Since(startTime)) }()
+
 	scanResults, err := s.reqScanner.Scan(req)
 	if err != nil {
-		log.Printf("Error while scanning request: %v", err)
+		log.Printf("error while scanning request: %v", err)
 		return false
 	}
 
 	for key, match := range scanResults.rxMatches {
-		log.Printf("rxMatch. RuleID: %d. Target: %v. Data: \"%v\".", key.ruleID, key.target, string(match.Data))
+		log.Printf("request scanning found a match for rule ID %d:%d. Target: %v. Data: \"%v\".", key.ruleID, key.ruleItemIdx, key.target, string(match.Data))
 	}
 
 	allow, statusCode, err := s.ruleEvaluator.Process(s.rules, scanResults)
 	if err != nil {
-		log.Printf("Error while evaluating request: %v", err)
+		log.Printf("error while evaluating request: %v", err)
 		return false
 	}
 
-	//TODO: return status code
+	// TODO return status code
 	if !allow {
-		log.Printf("Rejecting request with status code %d", statusCode)
+		log.Printf("rejecting request with status code %d", statusCode)
 		return false
 	}
 

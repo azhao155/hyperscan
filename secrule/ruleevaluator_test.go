@@ -24,7 +24,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	key := rxMatchKey{100, 0, "ARGS"}
 	m := make(map[rxMatchKey]RxMatch)
 	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	sr := ScanResults{m}
+	sr := &ScanResults{m}
 
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(newEnvMap())
@@ -54,7 +54,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	key := rxMatchKey{100, 0, "ARGS"}
 	m := make(map[rxMatchKey]RxMatch)
 	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	sr := ScanResults{m}
+	sr := &ScanResults{m}
 
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(newEnvMap())
@@ -89,7 +89,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
 	re := ref.NewRuleEvaluator(em)
 
-	allow, code, err := re.Process(rules, ScanResults{})
+	allow, code, err := re.Process(rules, &ScanResults{})
 	assert.Nil(err)
 	assert.False(allow)
 	assert.Equal(403, code)

@@ -2,7 +2,7 @@ package secrule
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(rules []Rule, scanResults ScanResults) (allow bool, statusCode int, err error)
+	Process(rules []Rule, scanResults *ScanResults) (allow bool, statusCode int, err error)
 }
 
 type ruleEvaluatorImpl struct {
@@ -30,7 +30,7 @@ func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluato
 	return
 }
 
-func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults ScanResults) (bool, int, error) {
+func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults *ScanResults) (bool, int, error) {
 	for curRuleIdx := range rules {
 		rule := rules[curRuleIdx]
 		for curRuleItemIdx := range rules[curRuleIdx].Items {
