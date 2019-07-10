@@ -6,12 +6,14 @@ import (
 	"azwaf/hyperscan"
 	"azwaf/secrule"
 	"azwaf/waf"
-
 	"encoding/json"
-	"log"
+	log "github.com/sirupsen/logrus"
 )
 
 func main() {
+	//log.SetLevel(log.TraceLevel)
+	log.SetLevel(log.InfoLevel)
+
 	// TODO Implement real config loading.
 	c := &config.Main{}
 	json.Unmarshal([]byte(`

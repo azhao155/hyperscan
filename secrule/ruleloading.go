@@ -3,8 +3,8 @@ package secrule
 import (
 	"azwaf/waf"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -86,14 +86,14 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error)
 			// Skip this rule until we add support for backreferences
 			// TODO add support for backreferences
 			if r.ID == 942130 {
-				log.Printf("Skipping rule 942130")
+				log.WithFields(log.Fields{"ruleID": 942130}).Warn("Skipping rule due to lack of support for backreferences")
 				continue
 			}
 
 			// Skip this rule until we add support for stripping embedded anchors
 			// TODO add support for stripping embedded anchors
 			if r.ID == 942330 {
-				log.Printf("Skipping rule 942330")
+				log.WithFields(log.Fields{"ruleID": 942330}).Warn("Skipping rule due to lack of support for embedded anchors")
 				continue
 			}
 

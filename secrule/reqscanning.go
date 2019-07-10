@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"io"
-	"log"
 	"mime"
 	"mime/multipart"
 	"net/url"
@@ -130,7 +130,8 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 
 			scanPatterns[target][scanGroupIdx].backRefs = backRefs
 
-			log.Printf("Initialzing multi-regex database for target %v with transformations %v with %d patterns", target, scanGroup.transformations, len(patterns))
+			log.WithFields(log.Fields{"target": target, "transformations": scanGroup.transformations, "patternCount": len(patterns)}).Debug("Initializing multi-regex engine")
+
 			scanPatterns[target][scanGroupIdx].rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
 			if err != nil {
 				err = fmt.Errorf("failed to create multi-regex engine: %v", err)
@@ -143,7 +144,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err e
 		scanPatterns: scanPatterns,
 	}
 
-	log.Printf("Initialized scan targets in %v", time.Since(startTime))
+	log.WithFields(log.Fields{"timeTaken": time.Since(startTime)}).Info("Done initializing scan targets")
 
 	return
 }
@@ -153,13 +154,13 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 		rxMatches: make(map[rxMatchKey]RxMatch),
 	}
 
-	log.Printf("Scanning URI")
+	log.Debug("Scanning URI")
 	err = r.scanURI(req.URI(), results)
 	if err != nil {
 		return
 	}
 
-	log.Printf("Scanning headers")
+	log.Debug("Scanning headers")
 	contentType, err := r.scanHeaders(req.Headers(), results)
 	if err != nil {
 		return
@@ -171,7 +172,7 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 	mediatype, mediaTypeParams, _ := mime.ParseMediaType(contentType)
 	switch mediatype {
 	case "multipart/form-data":
-		log.Printf("Using multipart parser")
+		log.Debug("Using multipart parser")
 		err = r.scanMultipartBody(bodyReader, mediaTypeParams, results)
 		if err != nil {
 			err = fmt.Errorf("multipart body scanning error: %v", err)
@@ -179,7 +180,7 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 		}
 
 	case "application/x-www-form-urlencoded":
-		log.Printf("Using urlencoded parser")
+		log.Debug("Using urlencoded parser")
 		err = r.scanUrlencodedBody(bodyReader, results)
 		if err != nil {
 			err = fmt.Errorf("urlencoded body scanning error: %v", err)
@@ -187,7 +188,7 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 		}
 
 	case "text/xml":
-		log.Printf("Using XML parser")
+		log.Debug("Using XML parser")
 		err = r.scanXMLBody(bodyReader, results)
 		if err != nil {
 			err = fmt.Errorf("XML body scanning error: %v", err)
@@ -197,7 +198,7 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 	case "application/json":
 		// TODO also use for text/json? ModSec currently doesn't...
 		// TODO also use for application/javascript JSONP? ModSec currently doesn't...
-		log.Printf("Using JSON parser")
+		log.Debug("Using JSON parser")
 		err = r.scanJSONBody(bodyReader, results)
 		if err != nil {
 			err = fmt.Errorf("JSON body scanning error: %v", err)
@@ -218,6 +219,8 @@ func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string
 func (r *reqScannerImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 
+	log.WithFields(log.Fields{"targetName": targetName, "content": content}).Trace("Starting target content scan")
+
 	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
 	for _, sg := range r.scanPatterns[targetName] {
 		if len(sg.patterns) == 0 {
@@ -225,6 +228,8 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		}
 
 		contentTransformed := applyTransformations(content, sg.transformations)
+
+		log.WithFields(log.Fields{"contentOrig": content, "contentTransformed": contentTransformed, "transformations": sg.transformations}).Trace("Scanning transformed content")
 
 		var matches []MultiRegexEngineMatch
 		matches, err = sg.rxEngine.Scan([]byte(contentTransformed))
@@ -326,7 +331,7 @@ func (r *reqScannerImpl) scanMultipartBody(bodyReader io.Reader, mediaTypeParams
 	var buf bytes.Buffer
 	m := multipart.NewReader(bodyReader, mediaTypeParams["boundary"])
 	for i := 0; ; i++ {
-		log.Printf("Getting next part")
+		log.WithFields(log.Fields{"partNumber": i}).Trace("Getting next multipart part")
 
 		var part *multipart.Part
 		part, err = m.NextPart()
@@ -350,7 +355,7 @@ func (r *reqScannerImpl) scanMultipartBody(bodyReader io.Reader, mediaTypeParams
 		if _, ok := cdParams["filename"]; ok {
 			// File parts are not scanned.
 			// Space for this file part will not be allocated.
-			log.Printf("Skipping file part, part number %v", i)
+			log.WithFields(log.Fields{"partNumber": i}).Trace("Skipping file part")
 			continue
 		}
 
