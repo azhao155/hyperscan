@@ -1,5 +1,9 @@
 package secrule
 
+import (
+	log "github.com/sirupsen/logrus"
+)
+
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
 	Process(rules []Rule, scanResults *ScanResults) (allow bool, statusCode int, err error)
@@ -31,9 +35,20 @@ func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluato
 }
 
 func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults *ScanResults) (bool, int, error) {
+	// Comment these in until full support for &-operators in order to properly load the init conf files
+	//r.perRequestEnv.set("tx.critical_anomaly_score", &integerObject{5})
+	//r.perRequestEnv.set("tx.anomaly_score", &integerObject{0})
+	//r.perRequestEnv.set("tx.inbound_anomaly_score_threshold", &integerObject{5})
+
 	for curRuleIdx := range rules {
 		rule := rules[curRuleIdx]
+		isChainDone := false
 		for curRuleItemIdx := range rules[curRuleIdx].Items {
+			if isChainDone {
+				break
+			}
+
+			log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating rule")
 
 			ruleItem := rules[curRuleIdx].Items[curRuleItemIdx]
 			matchFound := false
@@ -51,14 +66,22 @@ func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults *ScanResults) (bool
 			}
 
 			if matchFound {
+				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Match")
+
 				for actionIdx := range ruleItem.Actions {
-					// TODO: Handle chaining correctly
 					ar := ruleItem.Actions[actionIdx].execute(r.perRequestEnv)
+
+					if ar.err != nil {
+						log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx, "error": ar.err}).Trace("Error during action")
+					}
+
 					// Not letting action related events affect the WAF decision as of now.
 					if ruleItem.Actions[actionIdx].isDisruptive() {
 						return ar.allow, ar.statusCode, nil
 					}
 				}
+			} else {
+				isChainDone = true
 			}
 
 		}

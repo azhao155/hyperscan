@@ -97,6 +97,20 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error)
 				continue
 			}
 
+			// Skip this rule until we add full support numerical operations
+			// TODO add full support numerical operations
+			if r.ID == 920130 {
+				log.WithFields(log.Fields{"ruleID": 920130}).Warn("Skipping rule due to lack of add full support numerical operations")
+				continue
+			}
+
+			// Skip this rule until we add full support numerical operations
+			// TODO add full support numerical operations
+			if r.ID == 920140 {
+				log.WithFields(log.Fields{"ruleID": 920140}).Warn("Skipping rule due to lack of add full support numerical operations")
+				continue
+			}
+
 			filteredRules = append(filteredRules, r)
 		}
 

@@ -94,3 +94,68 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	assert.False(allow)
 	assert.Equal(403, code)
 }
+
+func TestRuleEvaluatorChain(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Rule{
+		{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+				},
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Actions:   []actionHandler{newDenyAction()},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+
+	// Act
+	pass, code, err := re.Process(rules, sr)
+
+	// Assert
+	assert.Nil(err)
+	assert.False(pass)
+	assert.Equal(403, code)
+}
+
+func TestRuleEvaluatorChainNegative(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Rule{
+		{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+				},
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Actions:   []actionHandler{newDenyAction()},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+
+	// Act
+	pass, code, err := re.Process(rules, sr)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
