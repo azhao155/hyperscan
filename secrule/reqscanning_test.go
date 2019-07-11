@@ -3,7 +3,9 @@ package secrule
 import (
 	"azwaf/waf"
 	"bytes"
+	"github.com/stretchr/testify/assert"
 	"io"
+	"regexp"
 	"testing"
 )
 
@@ -74,6 +76,96 @@ func TestGetExprsRx(t *testing.T) {
 	if ee[0] != "abc+" {
 		t.Fatalf("Invalid expression %s", ee[0])
 	}
+}
+
+func TestGetExprsLiteralValueUnicode(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: BeginsWith, Val: "你好"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("^你好", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("你好d"))
+	assert.False(re.MatchString("d^你好d"))
+}
+
+func TestGetExprsBeginsWith(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: BeginsWith, Val: "^abc"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("^\\^abc", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("^abcd"))
+	assert.False(re.MatchString("dabcd"))
+}
+
+func TestGetExprsEndsWith(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: EndsWith, Val: "$abc"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("\\$abc$", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("d$abc"))
+	assert.False(re.MatchString("abcd"))
+}
+
+func TestGetExprsContains(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Contains, Val: "a b.c"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("a b\\.c", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("da b.c"))
+	assert.False(re.MatchString("ab cd"))
+}
+
+func TestGetExprsStrmatch(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Strmatch, Val: "a b.c"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("a b\\.c", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("da b.c"))
+	assert.False(re.MatchString("ab cd"))
+}
+
+func TestGetExprsContainsWord(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: ContainsWord, Val: "a$bc"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("\\ba\\$bc\\b", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString(" a$bc "))
+	assert.True(re.MatchString(" a$bc"))
+	assert.True(re.MatchString(" a$bc\n"))
+	assert.False(re.MatchString("a$bcd"))
+}
+
+func TestGetExprsStreq(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Streq, Val: "a$bc"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("^a\\$bc$", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("a$bc"))
+	assert.False(re.MatchString("a$bcd"))
+}
+
+func TestGetExprsWithin(t *testing.T) {
+	assert := assert.New(t)
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Within, Val: "abc$ def ghi"}}
+	ee := getRxExprs(r1)
+	assert.NotNil(ee)
+	assert.Equal("^abc\\$$", ee[0])
+	re := regexp.MustCompile(ee[0])
+	assert.True(re.MatchString("abc$"))
+	assert.False(re.MatchString("abc$d"))
 }
 
 func TestGetExprsPmf(t *testing.T) {

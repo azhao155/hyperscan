@@ -52,15 +52,18 @@ func (r ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResu
 				}
 
 				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating rule")
-
 				matchFound := false
 
 				for _, target := range ruleItem.Predicate.Targets {
 					switch ruleItem.Predicate.Op {
-					case Rx, Pmf, PmFromFile:
+					case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within:
 						_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
 						if ok {
 							matchFound = true
+						}
+
+						if len(ruleItem.Predicate.valMacroMatches) > 0 {
+							matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)
 						}
 					case Eq, Ge, Gt, Le, Lt:
 						matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)

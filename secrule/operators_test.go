@@ -89,3 +89,75 @@ func TestLessThanOperatorEval(t *testing.T) {
 	assert.Nil(err)
 	assert.False(result)
 }
+
+func TestBeginsWithOperatorEval(t *testing.T) {
+	assert := assert.New(t)
+
+	result, _, err := beginsWithOperatorEval("abc", "ab")
+	assert.Nil(err)
+	assert.True(result)
+
+	result, _, err = beginsWithOperatorEval("abc", "de")
+	assert.Nil(err)
+	assert.False(result)
+}
+
+func TestEndsWithOperatorEval(t *testing.T) {
+	assert := assert.New(t)
+
+	result, _, err := endsWithOperatorEval("abc", "bc")
+	assert.Nil(err)
+	assert.True(result)
+
+	result, _, err = endsWithOperatorEval("abc", "de")
+	assert.Nil(err)
+	assert.False(result)
+}
+
+func TestContainsOperatorEval(t *testing.T) {
+	assert := assert.New(t)
+
+	result, _, err := containsOperatorEval("abcd", "bc")
+	assert.Nil(err)
+	assert.True(result)
+
+	result, _, err = containsOperatorEval("abcd", "de")
+	assert.Nil(err)
+	assert.False(result)
+}
+
+func TestContainsWordOperatorEval(t *testing.T) {
+	assert := assert.New(t)
+
+	result, _, err := containsWordOperatorEval("a bc d", "bc")
+	assert.Nil(err)
+	assert.True(result)
+
+	result, _, err = containsWordOperatorEval("abcd", "bc")
+	assert.Nil(err)
+	assert.False(result)
+}
+
+func TestStreqWordOperatorEval(t *testing.T) {
+	assert := assert.New(t)
+
+	result, _, err := strEqOperatorEval("a bc d", "a bc d")
+	assert.Nil(err)
+	assert.True(result)
+
+	result, _, err = strEqOperatorEval("a bc d", "abcd")
+	assert.Nil(err)
+	assert.False(result)
+}
+
+func TestWordListSearchOperatorEval(t *testing.T) {
+	assert := assert.New(t)
+
+	result, _, err := wordListSearchOperatorEval("ab", "ab cd")
+	assert.Nil(err)
+	assert.True(result)
+
+	result, _, err = wordListSearchOperatorEval("ab", "abc abcd")
+	assert.Nil(err)
+	assert.False(result)
+}

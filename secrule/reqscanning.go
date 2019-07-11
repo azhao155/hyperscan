@@ -103,9 +103,12 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 				}
 
 				switch curRuleItem.Predicate.Op {
-				case Rx, Pmf, PmFromFile:
-					p := patternRef{curRule, curRuleItem, curRuleItemIdx}
-					curScanGroup.patterns = append(curScanGroup.patterns, p)
+				case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Streq, Strmatch, Within:
+					// The value can have macros that cannot be expanded at this time.
+					if len(curRuleItem.Predicate.valMacroMatches) == 0 {
+						p := patternRef{curRule, curRuleItem, curRuleItemIdx}
+						curScanGroup.patterns = append(curScanGroup.patterns, p)
+					}
 				}
 			}
 		}
@@ -261,16 +264,35 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 }
 
 func getRxExprs(ruleItem *RuleItem) []string {
+	v := regexp.QuoteMeta(ruleItem.Predicate.Val)
 	switch ruleItem.Predicate.Op {
 	case Rx:
 		return []string{ruleItem.Predicate.Val}
-	case Pmf, PmFromFile:
+	case Pm, Pmf, PmFromFile:
 		var phrases []string
 		for _, p := range ruleItem.PmPhrases {
 			phrases = append(phrases, regexp.QuoteMeta(p))
 		}
 		return phrases
+	case BeginsWith:
+		return []string{"^" + v}
+	case EndsWith:
+		return []string{v + "$"}
+	case Contains, Strmatch:
+		return []string{v}
+	case ContainsWord:
+		return []string{`\b` + v + `\b`}
+	case Streq:
+		return []string{"^" + v + "$"}
+	case Within:
+		var words []string
+		var parameterStrings = strings.Split(ruleItem.Predicate.Val, " ")
+		for _, p := range parameterStrings {
+			words = append(words, "^"+regexp.QuoteMeta(p)+"$")
+		}
+		return words
 	}
+
 	return nil
 }
 

@@ -3,16 +3,25 @@ package secrule
 import (
 	li "azwaf/libinjection"
 	"strconv"
+	"strings"
 )
 
 var operatorFuncsMap = map[Operator]operatorFunc{
-	DetectSQLi: detectSQLiOperatorEval,
-	DetectXSS:  detectXSSOperatorEval,
-	Eq:         equalOperatorEval,
-	Ge:         greaterOrEqualOperatorEval,
-	Gt:         greaterThanOperatorEval,
-	Le:         lessOrEqualOperatorEval,
-	Lt:         lessThanOperatorEval,
+	DetectSQLi:   detectSQLiOperatorEval,
+	DetectXSS:    detectXSSOperatorEval,
+	Eq:           equalOperatorEval,
+	Ge:           greaterOrEqualOperatorEval,
+	Gt:           greaterThanOperatorEval,
+	Le:           lessOrEqualOperatorEval,
+	Lt:           lessThanOperatorEval,
+	BeginsWith:   beginsWithOperatorEval,
+	EndsWith:     endsWithOperatorEval,
+	Contains:     containsOperatorEval,
+	ContainsWord: containsWordOperatorEval,
+	Streq:        strEqOperatorEval,
+	Strmatch:     containsOperatorEval,
+	Within:       wordListSearchOperatorEval,
+	Pm:           wordListSearchOperatorEval,
 }
 
 type operatorFunc func(string, string) (bool, string, error)
@@ -90,4 +99,34 @@ func lessThanOperatorEval(target string, value string) (bool, string, error) {
 	}
 
 	return t < v, "", nil
+}
+
+func beginsWithOperatorEval(target string, value string) (bool, string, error) {
+	return strings.HasPrefix(target, value), "", nil
+}
+
+func endsWithOperatorEval(target string, value string) (bool, string, error) {
+	return strings.HasSuffix(target, value), "", nil
+}
+
+func containsOperatorEval(target string, value string) (bool, string, error) {
+	return strings.Contains(target, value), "", nil
+}
+
+func containsWordOperatorEval(target string, value string) (bool, string, error) {
+	return strings.Contains(target, " "+value+" "), "", nil
+}
+
+func strEqOperatorEval(target string, value string) (bool, string, error) {
+	return target == value, "", nil
+}
+
+func wordListSearchOperatorEval(target string, value string) (bool, string, error) {
+	words := strings.Split(value, " ")
+	for _, w := range words {
+		if target == w {
+			return true, "", nil
+		}
+	}
+	return false, "", nil
 }

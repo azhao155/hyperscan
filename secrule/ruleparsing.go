@@ -149,6 +149,8 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 	ru.Predicate.OpFunc = toOperatorFunc(ru.Predicate.Op)
 
 	switch ru.Predicate.Op {
+	case Pm:
+		ru.PmPhrases = strings.Split(ru.Predicate.Val, " ")
 	case Pmf, PmFromFile:
 		if pf == nil {
 			err = fmt.Errorf("Rules contained @pmf but no loader callback was given")
@@ -161,6 +163,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		}
 	}
 
+	//TODO: Expand macros that are available during initialization
 	ru.Predicate.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(ru.Predicate.Val, -1)
 	_, s = r.findConsume(argSpaceRegex, s)
 
