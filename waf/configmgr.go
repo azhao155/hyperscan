@@ -3,11 +3,14 @@ package waf
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"sync"
 )
 
 // Path is the config file directory path
-const Path = ""
+const Path = "/azure/appgw/config/"
+
+const prefix = "AzWAFConfig"
 
 // ConfigMgr is the top level configuration management interface to AzWaf.
 type ConfigMgr interface {
@@ -29,6 +32,11 @@ func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (Confi
 	c.fileSystem = fileSystem
 	c.converter = converter
 
+	err := c.fileSystem.MkDir(Path)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	m, err := c.restoreConfig()
 	if err != nil {
 		return nil, nil, err
@@ -47,7 +55,7 @@ func (c *configMgrImpl) PutConfig(config Config) (int64, error) {
 		return -1, err
 	}
 
-	err = c.fileSystem.WriteFile(Path+strconv.FormatInt(c.curVersion, 10), str)
+	err = c.fileSystem.WriteFile(Path+prefix+strconv.FormatInt(c.curVersion, 10), str)
 	if err != nil {
 		return -1, err
 	}
@@ -60,7 +68,7 @@ func (c *configMgrImpl) DisposeConfig(version int) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	err := c.fileSystem.RemoveFile(Path + strconv.Itoa(version))
+	err := c.fileSystem.RemoveFile(Path + prefix + strconv.Itoa(version))
 
 	if err != nil {
 		return fmt.Errorf("Delete file: %v has error: %v", version, err)
@@ -81,6 +89,10 @@ func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 	}
 
 	for _, f := range files {
+		if !strings.HasPrefix(f, prefix) {
+			continue
+		}
+
 		str, err := c.fileSystem.ReadFile(Path + f)
 		if err != nil {
 			return m, fmt.Errorf("Read config file version  %v has error: %v", f, err)
@@ -91,7 +103,7 @@ func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 			return m, fmt.Errorf("Decode config file version  %v has error: %v", f, err)
 		}
 
-		v, err := strconv.ParseInt(f, 10, 64)
+		v, err := strconv.ParseInt(f[len(prefix):], 10, 64)
 		if err != nil {
 			return m, fmt.Errorf("Processing file %v has error: %v", f, err)
 		}

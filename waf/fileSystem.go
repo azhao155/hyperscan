@@ -11,6 +11,7 @@ type ConfigFileSystem interface {
 	WriteFile(filename string, data string) error
 	ReadFile(filename string) (string, error)
 	ReadDir(dirname string) ([]string, error)
+	MkDir(dirname string) error
 }
 
 // ConfigFileSystemImpl is the implementation for config file interface
@@ -51,4 +52,9 @@ func (fs *ConfigFileSystemImpl) ReadDir(name string) ([]string, error) {
 	}
 
 	return names, nil
+}
+
+// MkDir creates a directory named path, along with any necessary parents, and returns nil, or else returns an error. If path is already a directory, MkdirAll does nothing and returns nil.
+func (fs *ConfigFileSystemImpl) MkDir(name string) error {
+	return os.MkdirAll(name, 0777)
 }

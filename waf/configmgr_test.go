@@ -75,6 +75,10 @@ func (fs *mockFileSystem) ReadDir(name string) ([]string, error) {
 	return names, nil
 }
 
+func (fs *mockFileSystem) MkDir(name string) error {
+	return nil
+}
+
 func TestPutConfig(t *testing.T) {
 	ms := &mockFileSystem{}
 	ms.Files = make(map[string]string)
