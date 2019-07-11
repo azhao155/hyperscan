@@ -34,13 +34,7 @@ func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluato
 	return
 }
 
-func (r ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResults) (bool, int, error) {
-	// Comment these in until full support for &-operators in order to properly load the init conf files
-	//r.perRequestEnv.set("tx.critical_anomaly_score", &integerObject{5})
-	//r.perRequestEnv.set("tx.anomaly_score", &integerObject{0})
-	//r.perRequestEnv.set("tx.inbound_anomaly_score_threshold", &integerObject{5})
-	//r.perRequestEnv.set("tx.crs_setup_version", &integerObject{1})
-
+func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResults) (allow bool, statusCode int, err error) {
 	for _, stmt := range statements {
 		switch stmt := stmt.(type) {
 		case *Rule:
@@ -51,7 +45,8 @@ func (r ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResu
 					break
 				}
 
-				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating rule")
+				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
+
 				matchFound := false
 
 				for _, target := range ruleItem.Predicate.Targets {
@@ -71,26 +66,52 @@ func (r ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResu
 				}
 
 				if matchFound {
-					log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Match")
-
-					for actionIdx := range ruleItem.Actions {
-						ar := ruleItem.Actions[actionIdx].execute(r.perRequestEnv)
-
-						if ar.err != nil {
-							log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx, "error": ar.err}).Trace("Error during action")
-						}
-
-						// Not letting action related events affect the WAF decision as of now.
-						if ruleItem.Actions[actionIdx].isDisruptive() {
-							return ar.allow, ar.statusCode, nil
-						}
+					log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("SecRule chain item triggered")
+					disruptive, actionAllow, actionStatusCode := r.runActions(ruleItem.Actions, rule.ID)
+					if disruptive {
+						allow = actionAllow
+						statusCode = actionStatusCode
+						return
 					}
 				} else {
 					isChainDone = true
 				}
 			}
+
+		case *ActionStmt:
+			actionStmt := stmt
+
+			log.WithFields(log.Fields{"ruleID": actionStmt.ID}).Trace("Evaluating SecAction")
+
+			disruptive, actionAllow, actionStatusCode := r.runActions(actionStmt.Actions, actionStmt.ID)
+			if disruptive {
+				allow = actionAllow
+				statusCode = actionStatusCode
+				return
+			}
 		}
 	}
 
 	return true, 200, nil
+}
+
+func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int) {
+	for _, action := range actions {
+		ar := action.execute(r.perRequestEnv)
+
+		if ar.err != nil {
+			log.WithFields(log.Fields{"ruleID": ruleID, "error": ar.err}).Warn("Error executing action")
+		}
+
+		// Not letting action related errors affect the WAF decision as of now.
+		// TODO decide whether action errors should block the req
+		if action.isDisruptive() {
+			disruptive = true
+			allow = ar.allow
+			statusCode = ar.statusCode
+			return
+		}
+	}
+
+	return
 }

@@ -158,3 +158,58 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	assert.True(pass)
 	assert.Equal(200, code)
 }
+
+func TestRuleEvaluatorSecAction(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv, _ := newSetVarAction("tx.somevar=123")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{sv}},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	pass, code, err := re.Process(rules, sr)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"123"}, v)
+}
+
+func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=123")
+	sv2, _ := newSetVarAction("tx.somevar=+1")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{sv1, sv2}},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	pass, code, err := re.Process(rules, sr)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&integerObject{124}, v)
+}

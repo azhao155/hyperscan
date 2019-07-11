@@ -159,15 +159,15 @@ func parseAndCompareRuleCounts(t *testing.T, testrulefiles []testrulefile) {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", trf.filename, err)
 		}
 
-		if len(rr) != trf.expectedChainCount {
-			ids := []string{}
-			for _, r := range rr {
-				switch r := r.(type) {
-				case *Rule:
-					ids = append(ids, strconv.Itoa(r.ID))
-				}
+		ids := []string{}
+		for _, r := range rr {
+			switch r := r.(type) {
+			case *Rule:
+				ids = append(ids, strconv.Itoa(r.ID))
 			}
+		}
 
+		if len(ids) != trf.expectedChainCount {
 			t.Fatalf("Wrong rule chains count in filename: %s. Actual: %d. Expected: %d. Actual IDs: %s.",
 				trf.filename, len(rr), trf.expectedChainCount, strings.Join(ids, ","))
 		}

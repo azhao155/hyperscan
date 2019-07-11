@@ -108,11 +108,15 @@ func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (statements []Statem
 		case "SecRule":
 			err = r.parseSecRule(rest, &curRule, &statements, pf)
 			if err != nil {
-				err = fmt.Errorf("Parse error in SecRule on line %d: %s", lineNumber, err)
+				err = fmt.Errorf("parse error in SecRule on line %d: %s", lineNumber, err)
 				return
 			}
 		case "SecAction":
-			// No-op for now.
+			err = r.parseSecActionStmt(rest, &curRule, &statements, pf)
+			if err != nil {
+				err = fmt.Errorf("parse error in SecAction on line %d: %s", lineNumber, err)
+				return
+			}
 		case "SecMarker":
 			// No-op for now.
 		case "SecDefaultAction":
@@ -122,7 +126,7 @@ func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (statements []Statem
 		case "SecComponentSignature":
 			// No-op for now.
 		default:
-			err = fmt.Errorf("Unknown statement on line %d: %s", lineNumber, stmt)
+			err = fmt.Errorf("unknown statement on line %d: %s", lineNumber, stmt)
 			return
 		}
 	}
@@ -153,7 +157,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		ru.PmPhrases = strings.Split(ru.Predicate.Val, " ")
 	case Pmf, PmFromFile:
 		if pf == nil {
-			err = fmt.Errorf("Rules contained @pmf but no loader callback was given")
+			err = fmt.Errorf("rules contained @pmf but no loader callback was given")
 			return
 		}
 
@@ -175,45 +179,21 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 	_, s = r.findConsume(argSpaceRegex, s)
 	s, _ = r.nextArg(s)
 	if s != "" {
-		err = fmt.Errorf("Unexpected arg: %s", s)
+		err = fmt.Errorf("unexpected arg: %s", s)
 		return
 	}
 
 	var id int
 	var hasChainAction bool
-	for _, a := range ru.RawActions {
-		switch a.Key {
-		case "id":
-			id, err = strconv.Atoi(a.Val)
-			if err != nil {
-				return
-			}
-		case "chain":
-			hasChainAction = true
-		case "deny":
-			ru.Actions = append(ru.Actions, newDenyAction())
-		case "msg":
-			ru.Msg = a.Val
-		case "t":
-			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
-				ru.Transformations = append(ru.Transformations, t)
-			} else {
-				err = fmt.Errorf("Unknown transformation: %s", a.Val)
-				return
-			}
-		case "setvar":
-			sv, err := newSetVarAction(a.Val)
-			if err != nil {
-				return err
-			}
-
-			ru.Actions = append(ru.Actions, sv)
-		}
+	ru.Actions, id, ru.Msg, ru.Transformations, hasChainAction, err = parseActions(ru.RawActions)
+	if err != nil {
+		err = fmt.Errorf("error while parsing targets: %s", s)
+		return
 	}
 
 	if (*curRule).ID == 0 {
 		if id == 0 {
-			err = fmt.Errorf("Missing ID")
+			err = fmt.Errorf("missing ID")
 			return
 		}
 
@@ -231,6 +211,34 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 	return
 }
 
+// Parse a single SecAction statement.
+func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements *[]Statement, pf phraseFunc) (err error) {
+	actionStmt := &ActionStmt{}
+
+	actionStmt.RawActions, s, err = r.parseRawActions(s)
+	if err != nil {
+		return
+	}
+
+	_, s = r.findConsume(argSpaceRegex, s)
+	s, _ = r.nextArg(s)
+	if s != "" {
+		err = fmt.Errorf("unexpected arg: %s", s)
+		return
+	}
+
+	actionStmt.Actions, actionStmt.ID, actionStmt.Msg, _, _, err = parseActions(actionStmt.RawActions)
+
+	if actionStmt.ID == 0 {
+		err = fmt.Errorf("missing ID")
+		return
+	}
+
+	*statements = append(*statements, actionStmt)
+
+	return
+}
+
 // Parse a SecRule targets field (aka. variables field).
 func (r *ruleParserImpl) parseTargets(s string) (targets []string, exceptTargets []string, rest string, err error) {
 	s, rest = r.nextArg(s)
@@ -239,7 +247,7 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []string, exceptTargets
 		var target string
 		target, s = r.findConsume(targetRegex, s)
 		if target == "" {
-			err = fmt.Errorf("Unable to parse targets")
+			err = fmt.Errorf("unable to parse targets")
 			return
 		}
 
@@ -277,7 +285,7 @@ func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, neg b
 		if o, ok := operatorsMap[strings.ToLower(ops)]; ok {
 			op = o
 		} else {
-			err = fmt.Errorf("Unable to parse operator")
+			err = fmt.Errorf("unable to parse operator")
 			return
 		}
 
@@ -303,7 +311,7 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest st
 		var a string
 		a, s = r.findConsume(actionRegex, s)
 		if a == "" {
-			err = fmt.Errorf("Unable to parse actions")
+			err = fmt.Errorf("unable to parse actions")
 			return
 		}
 
@@ -321,6 +329,41 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest st
 			_, s = r.findConsume(argSpaceRegex, s)
 		}
 	}
+}
+
+func parseActions(rawActions []RawAction) (actions []actionHandler, id int, msg string, transformations []Transformation, hasChainAction bool, err error) {
+	for _, a := range rawActions {
+		switch a.Key {
+		case "id":
+			id, err = strconv.Atoi(a.Val)
+			if err != nil {
+				return
+			}
+		case "chain":
+			hasChainAction = true
+		case "deny":
+			actions = append(actions, newDenyAction())
+		case "msg":
+			msg = a.Val
+		case "t":
+			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
+				transformations = append(transformations, t)
+			} else {
+				err = fmt.Errorf("unknown transformation: %s", a.Val)
+				return
+			}
+		case "setvar":
+			var sv *setVarAction
+			sv, err = newSetVarAction(a.Val)
+			if err != nil {
+				return
+			}
+
+			actions = append(actions, sv)
+		}
+	}
+
+	return
 }
 
 // Get the next full statement from the reader. Statements can continue on multiple lines using \.

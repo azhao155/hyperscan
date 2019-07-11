@@ -11,7 +11,7 @@ import (
 
 func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	// Arrange
-	//log.SetLevel(log.TraceLevel)
+	//logrus.SetLevel(logrus.TraceLevel)
 	p := secrule.NewRuleParser()
 	rl := secrule.NewCrsRuleLoader(p)
 	hsfs := hyperscan.NewCacheFileSystem()
@@ -30,9 +30,8 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	r := e.EvalRequest(req)
 
 	// Assert
-	if r {
-		// Will be fixed with sec action support
-		t.Fatalf("EvalRequest did not return false")
+	if !r {
+		t.Fatalf("EvalRequest did not return true")
 	}
 }
 

@@ -112,6 +112,20 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, 
 					log.WithFields(log.Fields{"ruleID": 920140}).Warn("Skipping rule due to lack of add full support numerical operations")
 					continue
 				}
+
+				// Skip this rule until we add support for target REQUEST_PROTOCOL
+				// TODO add support for target REQUEST_PROTOCOL
+				if rule.ID == 920430 {
+					log.WithFields(log.Fields{"ruleID": 920430}).Warn("Skipping rule due to lack of add support for target REQUEST_PROTOCOL")
+					continue
+				}
+
+				// Skip this rule until we add support for target REQUEST_METHOD
+				// TODO add support for target REQUEST_METHOD
+				if rule.ID == 911100 {
+					log.WithFields(log.Fields{"ruleID": 911100}).Warn("Skipping rule due to lack of add support for target REQUEST_METHOD")
+					continue
+				}
 			}
 
 			filteredStatements = append(filteredStatements, r)

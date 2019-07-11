@@ -3,13 +3,21 @@ package secrule
 // Statement is a SecRule-lang statement, such as SecRule, SecAction, SecMarker, etc.
 type Statement interface{}
 
-// Rule is a SecRule, or multiple SecRules if they are chained.
+// ActionStmt represents a SecAction in the SecRule-lang.
+type ActionStmt struct {
+	ID         int
+	Msg        string
+	RawActions []RawAction
+	Actions    []actionHandler
+}
+
+// Rule is one or more SecRule statements in the SecRule-lang. Multiple SecRules if they are chained.
 type Rule struct {
 	ID    int
 	Items []RuleItem
 }
 
-// RuleItem is a single SecRule, which might be part of a chain.
+// RuleItem is a single SecRule statement, which might be part of a chain.
 type RuleItem struct {
 	Msg             string
 	Predicate       RulePredicate

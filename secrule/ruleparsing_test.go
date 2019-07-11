@@ -47,6 +47,55 @@ func TestTwoRules(t *testing.T) {
 	}
 }
 
+func TestSecRuleSecActionMixed(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rules := `
+		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
+		SecAction "id:'950903',setvar:tx.hello=0"
+		SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"
+	`
+
+	// Act
+	rr, err := p.Parse(rules, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(rr) != 3 {
+		t.Fatalf("Wrong rule statements count: %d", len(rr))
+	}
+
+	r, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if r.ID != 950901 {
+		t.Fatalf("Wrong ID of 950901")
+	}
+
+	a, ok := rr[1].(*ActionStmt)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[1])
+	}
+
+	if a.ID != 950903 {
+		t.Fatalf("Wrong ID of 950903")
+	}
+
+	r, ok = rr[2].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[1])
+	}
+
+	if r.ID != 950902 {
+		t.Fatalf("Wrong ID of 950902")
+	}
+}
+
 func TestInvalidStatement(t *testing.T) {
 	// Arrange
 	p := NewRuleParser()
@@ -69,7 +118,7 @@ func TestInvalidStatement(t *testing.T) {
 		t.Fatalf("Expected error, but err was nil")
 	}
 
-	if err.Error() != "Unknown statement on line 9: Something something something" {
+	if err.Error() != "unknown statement on line 9: Something something something" {
 		t.Fatalf("Error message was not as expected. Got: %s", err)
 	}
 
@@ -124,7 +173,7 @@ func TestMissingId(t *testing.T) {
 		t.Fatalf("Expected error, but err was nil")
 	}
 
-	expected := "Parse error in SecRule on line 2: Missing ID"
+	expected := "parse error in SecRule on line 2: missing ID"
 	if err.Error() != expected {
 		t.Fatalf("Error message was not as expected. Got: %s. Expected: %s", err, expected)
 	}
@@ -149,7 +198,7 @@ func TestSecRuleTrailingArg(t *testing.T) {
 		t.Fatalf("Expected error, but err was nil")
 	}
 
-	expected := "Parse error in SecRule on line 2: Unexpected arg: something"
+	expected := "parse error in SecRule on line 2: unexpected arg: something"
 	if err.Error() != expected {
 		t.Fatalf("Error message was not as expected. Got: %s. Expected: %s", err, expected)
 	}
@@ -176,7 +225,7 @@ func TestMissingChain(t *testing.T) {
 		t.Fatalf("Expected error, but err was nil")
 	}
 
-	expected := "Parse error in SecRule on line 4: Missing ID"
+	expected := "parse error in SecRule on line 4: missing ID"
 	if err.Error() != expected {
 		t.Fatalf("Error message was not as expected. Got: %s. Expected: %s", err, expected)
 	}
@@ -437,7 +486,7 @@ func TestSecRuleTargetErrors(t *testing.T) {
 		expectedErr string
 	}
 	tests := []testcase{
-		{`|`, `Parse error in SecRule on line 1: Unable to parse targets`},
+		{`|`, `parse error in SecRule on line 1: unable to parse targets`},
 	}
 
 	// Act and assert
@@ -634,6 +683,61 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 	for i := range expectedTransformations {
 		if r.Transformations[i] != expectedTransformations[i] {
 			t.Fatalf("Unexpected transformation. Actual: %d. Expected: %d.", r.Transformations[i], expectedTransformations[i])
+		}
+	}
+}
+
+func TestSecAction900990(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecAction \
+		  "id:900990,\
+		  msg:'this message isnt actually in the original 900990',\
+		  phase:1,\
+		  nolog,\
+		  pass,\
+		  t:none,\
+		  setvar:tx.crs_setup_version=300"
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	a, ok := rr[0].(*ActionStmt)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if a.ID != 900990 {
+		t.Fatalf("Unexpected ID: %d", a.ID)
+	}
+
+	expectedMsg := "this message isnt actually in the original 900990"
+	if a.Msg != expectedMsg {
+		t.Fatalf("Unexpected Msg. Actual: %s. Expected: %s.", a.Msg, expectedMsg)
+	}
+
+	expectedRawActions := []RawAction{
+		{`id`, `900990`},
+		{`msg`, `this message isnt actually in the original 900990`},
+		{`phase`, `1`},
+		{`nolog`, ``},
+		{`pass`, ``},
+		{`t`, `none`},
+		{`setvar`, `tx.crs_setup_version=300`},
+	}
+	if len(a.RawActions) != len(expectedRawActions) {
+		t.Fatalf("Unexpected raw actions count. Actual: %d. Expected: %d.", len(a.RawActions), len(expectedRawActions))
+	}
+	for i := range expectedRawActions {
+		if a.RawActions[i] != expectedRawActions[i] {
+			t.Fatalf("Unexpected raw action. Actual: %s. Expected: %s.", a.RawActions[i], expectedRawActions[i])
 		}
 	}
 }
