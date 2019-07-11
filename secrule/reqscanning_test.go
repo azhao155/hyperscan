@@ -342,8 +342,8 @@ func TestReqScannerBodyXMLParseError(t *testing.T) {
 func arrangeReqScannerForBodyParsing(t *testing.T, target string, contentType string, body string) (rs ReqScanner, req waf.HTTPRequest) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
-	rules := []Rule{
-		{
+	rules := []Statement{
+		&Rule{
 			ID: 200,
 			Items: []RuleItem{
 				{Predicate: RulePredicate{Targets: []string{target}, Op: Rx, Val: "abc+"}},

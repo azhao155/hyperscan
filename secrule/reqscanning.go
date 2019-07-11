@@ -35,7 +35,7 @@ type ScanResults struct {
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
 type ReqScannerFactory interface {
-	NewReqScanner(rules []Rule) (r ReqScanner, err error)
+	NewReqScanner(statements []Statement) (r ReqScanner, err error)
 }
 
 // NewReqScannerFactory creates a ReqScannerFactory. The ReqScanners it will create will use multi-regex engines created by the given MultiRegexEngineFactory.
@@ -71,14 +71,19 @@ type reqScannerImpl struct {
 }
 
 // NewReqScanner creates a ReqScanner.
-func (f *reqScannerFactoryImpl) NewReqScanner(rules []Rule) (r ReqScanner, err error) {
+func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScanner, err error) {
 	startTime := time.Now()
 
 	scanPatterns := make(map[string][]*scanGroup)
 
 	// Construct a inverted view of the rules that maps from targets to rules
-	for curRuleIdx := range rules {
-		curRule := &rules[curRuleIdx]
+	for _, curStmt := range statements {
+		curRule, ok := curStmt.(*Rule)
+		if !ok {
+			// This statement was not a rule
+			continue
+		}
+
 		for curRuleItemIdx := range curRule.Items {
 			curRuleItem := &curRule.Items[curRuleItemIdx]
 			for _, target := range curRuleItem.Predicate.Targets {

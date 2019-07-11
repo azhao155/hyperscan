@@ -21,18 +21,18 @@ func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecR
 	ruleSetID := waf.RuleSetID(config.RuleSetID())
 	log.WithFields(log.Fields{"ruleSet": ruleSetID}).Info("Loading rules")
 
-	rules, err := f.ruleLoader.Rules(ruleSetID)
+	statements, err := f.ruleLoader.Rules(ruleSetID)
 	if err != nil {
 		err = fmt.Errorf("failed to load ruleset %v: %v", ruleSetID, err)
 		return
 	}
 
-	reqScanner, err := f.reqScannerFactory.NewReqScanner(rules)
+	reqScanner, err := f.reqScannerFactory.NewReqScanner(statements)
 	if err != nil {
 		err = fmt.Errorf("failed to create request scanner: %v", err)
 		return
 	}
 
-	engine = &engineImpl{rules, reqScanner, f.ruleEvaluatorFactory.NewRuleEvaluator(newEnvMap())}
+	engine = &engineImpl{statements, reqScanner, f.ruleEvaluatorFactory.NewRuleEvaluator(newEnvMap())}
 	return
 }

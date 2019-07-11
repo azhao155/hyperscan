@@ -162,7 +162,10 @@ func parseAndCompareRuleCounts(t *testing.T, testrulefiles []testrulefile) {
 		if len(rr) != trf.expectedChainCount {
 			ids := []string{}
 			for _, r := range rr {
-				ids = append(ids, strconv.Itoa(r.ID))
+				switch r := r.(type) {
+				case *Rule:
+					ids = append(ids, strconv.Itoa(r.ID))
+				}
 			}
 
 			t.Fatalf("Wrong rule chains count in filename: %s. Actual: %d. Expected: %d. Actual IDs: %s.",

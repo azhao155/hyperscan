@@ -28,12 +28,20 @@ func TestTwoRules(t *testing.T) {
 		t.Fatalf("Wrong rule rules count: %d", len(rr))
 	}
 
-	r := rr[0]
+	r, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
 	if r.ID != 950901 {
 		t.Fatalf("Wrong ID of 950901")
 	}
 
-	r = rr[1]
+	r, ok = rr[1].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[1])
+	}
+
 	if r.ID != 950902 {
 		t.Fatalf("Wrong ID of 950902")
 	}
@@ -198,17 +206,32 @@ func TestChaining(t *testing.T) {
 		t.Fatalf("Wrong rule rules count: %d", n)
 	}
 
-	n = len(rr[0].Items)
+	r, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	n = len(r.Items)
 	if n != 1 {
 		t.Fatalf("Wrong rule items count in rule 0: %d", n)
 	}
 
-	n = len(rr[1].Items)
-	if len(rr[1].Items) != 3 {
+	r, ok = rr[1].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[1])
+	}
+
+	n = len(r.Items)
+	if len(r.Items) != 3 {
 		t.Fatalf("Wrong rule items count in rule 1: %d", n)
 	}
 
-	n = len(rr[2].Items)
+	r, ok = rr[2].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[2])
+	}
+
+	n = len(r.Items)
 	if n != 1 {
 		t.Fatalf("Wrong rule items count in rule 2: %d", n)
 	}
@@ -235,7 +258,12 @@ func TestNoActions(t *testing.T) {
 		t.Fatalf("Wrong rules count: %d", n)
 	}
 
-	n = len(rr[0].Items)
+	r, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	n = len(r.Items)
 	if n != 2 {
 		t.Fatalf("Wrong rule items count in rule 0: %d", n)
 	}
@@ -299,21 +327,26 @@ func TestSecRuleTargets(t *testing.T) {
 			continue
 		}
 
-		n = len(rr[0].Items)
+		r, ok := rr[0].(*Rule)
+		if !ok {
+			t.Fatalf("Wrong statement type: %T", rr[0])
+		}
+
+		n = len(r.Items)
 		if n != 1 {
 			fmt.Fprintf(&b, "Wrong rule items count in rule 0: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
-		n = len(rr[0].Items[0].Predicate.Targets)
+		n = len(r.Items[0].Predicate.Targets)
 		if n != len(test.expected) {
 			fmt.Fprintf(&b, "Wrong targets count: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
 		for i, val := range test.expected {
-			if rr[0].Items[0].Predicate.Targets[i] != val {
-				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", rr[0].Items[0].Predicate.Targets[i], test.input)
+			if r.Items[0].Predicate.Targets[i] != val {
+				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", r.Items[0].Predicate.Targets[i], test.input)
 			}
 		}
 	}
@@ -355,33 +388,38 @@ func TestSecRuleTargetExclusions(t *testing.T) {
 			continue
 		}
 
-		n = len(rr[0].Items)
+		r, ok := rr[0].(*Rule)
+		if !ok {
+			t.Fatalf("Wrong statement type: %T", rr[0])
+		}
+
+		n = len(r.Items)
 		if n != 1 {
 			fmt.Fprintf(&b, "Wrong rule items count in rule 0: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
-		n = len(rr[0].Items[0].Predicate.Targets)
+		n = len(r.Items[0].Predicate.Targets)
 		if n != len(test.expectedTargets) {
 			fmt.Fprintf(&b, "Wrong targets count: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
 		for i, val := range test.expectedTargets {
-			if rr[0].Items[0].Predicate.Targets[i] != val {
-				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", rr[0].Items[0].Predicate.Targets[i], test.input)
+			if r.Items[0].Predicate.Targets[i] != val {
+				fmt.Fprintf(&b, "Wrong target: %s. Tested input: %s\n", r.Items[0].Predicate.Targets[i], test.input)
 			}
 		}
 
-		n = len(rr[0].Items[0].Predicate.ExceptTargets)
+		n = len(r.Items[0].Predicate.ExceptTargets)
 		if n != len(test.expectedExceptTargets) {
 			fmt.Fprintf(&b, "Wrong target exclusions count: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
 		for i, val := range test.expectedExceptTargets {
-			if rr[0].Items[0].Predicate.ExceptTargets[i] != val {
-				fmt.Fprintf(&b, "Wrong target exclusion: %s. Tested input: %s\n", rr[0].Items[0].Predicate.ExceptTargets[i], test.input)
+			if r.Items[0].Predicate.ExceptTargets[i] != val {
+				fmt.Fprintf(&b, "Wrong target exclusion: %s. Tested input: %s\n", r.Items[0].Predicate.ExceptTargets[i], test.input)
 			}
 		}
 	}
@@ -462,24 +500,29 @@ func TestSecRuleOperators(t *testing.T) {
 			continue
 		}
 
-		n = len(rr[0].Items)
+		r, ok := rr[0].(*Rule)
+		if !ok {
+			t.Fatalf("Wrong statement type: %T", rr[0])
+		}
+
+		n = len(r.Items)
 		if n != 1 {
 			fmt.Fprintf(&b, "Wrong rule items count in rule 0: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
-		if rr[0].Items[0].Predicate.Op != test.op {
-			fmt.Fprintf(&b, "Wrong Operator: %d. Tested input: %s\n", rr[0].Items[0].Predicate.Op, test.input)
+		if r.Items[0].Predicate.Op != test.op {
+			fmt.Fprintf(&b, "Wrong Operator: %d. Tested input: %s\n", r.Items[0].Predicate.Op, test.input)
 			continue
 		}
 
-		if rr[0].Items[0].Predicate.Val != test.val {
-			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", rr[0].Items[0].Predicate.Val, test.input)
+		if r.Items[0].Predicate.Val != test.val {
+			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", r.Items[0].Predicate.Val, test.input)
 			continue
 		}
 
-		if rr[0].Items[0].Predicate.Neg != test.neg {
-			fmt.Fprintf(&b, "Wrong negate value: %t. Tested input: %s\n", rr[0].Items[0].Predicate.Neg, test.input)
+		if r.Items[0].Predicate.Neg != test.neg {
+			fmt.Fprintf(&b, "Wrong negate value: %t. Tested input: %s\n", r.Items[0].Predicate.Neg, test.input)
 			continue
 		}
 	}
@@ -527,20 +570,25 @@ func TestSecRuleRawActions(t *testing.T) {
 			continue
 		}
 
-		n = len(rr[0].Items)
+		r, ok := rr[0].(*Rule)
+		if !ok {
+			t.Fatalf("Wrong statement type: %T", rr[0])
+		}
+
+		n = len(r.Items)
 		if n != 1 {
 			fmt.Fprintf(&b, "Wrong rule items count in rule 0: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
-		n = len(rr[0].Items[0].RawActions)
+		n = len(r.Items[0].RawActions)
 		if n != len(test.expected) {
 			fmt.Fprintf(&b, "Wrong actions count: %d. Tested input: %s\n", n, test.input)
 			continue
 		}
 
 		for i, expectedVal := range test.expected {
-			a := rr[0].Items[0].RawActions[i]
+			a := r.Items[0].RawActions[i]
 
 			if a != expectedVal {
 				fmt.Fprintf(&b, "Got wrong action: %s. Expected: %s. Tested input: %s\n", a, expectedVal, test.input)
@@ -568,7 +616,10 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	rc := rr[0]
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
 
 	if len(rc.Items) != 1 {
 		t.Fatalf("Unexpected rule count: %d", len(rc.Items))
@@ -627,7 +678,10 @@ func TestRule942320(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	rc := rr[0]
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
 
 	if rc.ID != 942320 {
 		t.Fatalf("Unexpected rule ID: %d", rc.ID)
@@ -748,7 +802,10 @@ func TestRule901001(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	rc := rr[0]
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
 
 	if rc.ID != 901001 {
 		t.Fatalf("Unexpected rule ID: %d", rc.ID)

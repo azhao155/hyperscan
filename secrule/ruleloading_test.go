@@ -8,9 +8,9 @@ func newMockRuleLoader() RuleLoader {
 
 type mockRuleLoader struct{}
 
-func (m *mockRuleLoader) Rules(r waf.RuleSetID) (rules []Rule, err error) {
-	rules = []Rule{
-		{
+func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err error) {
+	statements = []Statement{
+		&Rule{
 			ID: 100,
 			Items: []RuleItem{
 				{
@@ -19,7 +19,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (rules []Rule, err error) {
 				},
 			},
 		},
-		{
+		&Rule{
 			ID: 200,
 			Items: []RuleItem{
 				{
@@ -32,7 +32,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (rules []Rule, err error) {
 				},
 			},
 		},
-		{
+		&Rule{
 			ID: 300,
 			Items: []RuleItem{
 				{

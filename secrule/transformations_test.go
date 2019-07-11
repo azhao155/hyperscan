@@ -84,7 +84,7 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 	var b strings.Builder
 	for i, test := range tests {
 		scannedFor = []string{}
-		rules := []Rule{{ID: 100, Items: []RuleItem{{Predicate: RulePredicate{Targets: []string{test.target}, Op: Rx, Val: "abc"}, Transformations: test.inputTransformations}}}}
+		rules := []Statement{&Rule{ID: 100, Items: []RuleItem{{Predicate: RulePredicate{Targets: []string{test.target}, Op: Rx, Val: "abc"}, Transformations: test.inputTransformations}}}}
 		req := &mockWafHTTPRequest{uri: test.inputURI}
 		rs, err1 := rsf.NewReqScanner(rules)
 

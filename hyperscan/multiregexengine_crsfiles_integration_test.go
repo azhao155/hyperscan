@@ -58,6 +58,11 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 		}
 
 		for _, rule := range rr {
+			rule, ok := rule.(*secrule.Rule)
+			if !ok {
+				continue
+			}
+
 			// Skip this rule until we add support for backreferences
 			// TODO add support for backreferences
 			if rule.ID == 942130 {

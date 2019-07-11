@@ -7,7 +7,7 @@ import (
 )
 
 type engineImpl struct {
-	rules         []Rule
+	statements    []Statement
 	reqScanner    ReqScanner
 	ruleEvaluator RuleEvaluator
 }
@@ -30,7 +30,7 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		log.WithFields(lf).Debug("Request scanning found a match")
 	}
 
-	allow, statusCode, err := s.ruleEvaluator.Process(s.rules, scanResults)
+	allow, statusCode, err := s.ruleEvaluator.Process(s.statements, scanResults)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Debug("SecRule engine got rule evaluation error")
 		return false

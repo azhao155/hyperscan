@@ -6,7 +6,7 @@ import (
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(rules []Rule, scanResults *ScanResults) (allow bool, statusCode int, err error)
+	Process(statements []Statement, scanResults *ScanResults) (allow bool, statusCode int, err error)
 }
 
 type ruleEvaluatorImpl struct {
@@ -34,57 +34,60 @@ func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluato
 	return
 }
 
-func (r ruleEvaluatorImpl) Process(rules []Rule, scanResults *ScanResults) (bool, int, error) {
+func (r ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResults) (bool, int, error) {
 	// Comment these in until full support for &-operators in order to properly load the init conf files
 	//r.perRequestEnv.set("tx.critical_anomaly_score", &integerObject{5})
 	//r.perRequestEnv.set("tx.anomaly_score", &integerObject{0})
 	//r.perRequestEnv.set("tx.inbound_anomaly_score_threshold", &integerObject{5})
+	//r.perRequestEnv.set("tx.crs_setup_version", &integerObject{1})
 
-	for curRuleIdx := range rules {
-		rule := rules[curRuleIdx]
-		isChainDone := false
-		for curRuleItemIdx := range rules[curRuleIdx].Items {
-			if isChainDone {
-				break
-			}
-
-			log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating rule")
-
-			ruleItem := rules[curRuleIdx].Items[curRuleItemIdx]
-			matchFound := false
-
-			for _, target := range ruleItem.Predicate.Targets {
-				switch ruleItem.Predicate.Op {
-				case Rx, Pmf, PmFromFile:
-					_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
-					if ok {
-						matchFound = true
-					}
-				case Eq, Ge, Gt, Le, Lt:
-					matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)
+	for _, stmt := range statements {
+		switch stmt := stmt.(type) {
+		case *Rule:
+			rule := stmt
+			isChainDone := false
+			for curRuleItemIdx, ruleItem := range rule.Items {
+				if isChainDone {
+					break
 				}
-			}
 
-			if matchFound {
-				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Match")
+				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating rule")
 
-				for actionIdx := range ruleItem.Actions {
-					ar := ruleItem.Actions[actionIdx].execute(r.perRequestEnv)
+				matchFound := false
 
-					if ar.err != nil {
-						log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx, "error": ar.err}).Trace("Error during action")
-					}
-
-					// Not letting action related events affect the WAF decision as of now.
-					if ruleItem.Actions[actionIdx].isDisruptive() {
-						return ar.allow, ar.statusCode, nil
+				for _, target := range ruleItem.Predicate.Targets {
+					switch ruleItem.Predicate.Op {
+					case Rx, Pmf, PmFromFile:
+						_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
+						if ok {
+							matchFound = true
+						}
+					case Eq, Ge, Gt, Le, Lt:
+						matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)
 					}
 				}
-			} else {
-				isChainDone = true
-			}
 
+				if matchFound {
+					log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Match")
+
+					for actionIdx := range ruleItem.Actions {
+						ar := ruleItem.Actions[actionIdx].execute(r.perRequestEnv)
+
+						if ar.err != nil {
+							log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx, "error": ar.err}).Trace("Error during action")
+						}
+
+						// Not letting action related events affect the WAF decision as of now.
+						if ruleItem.Actions[actionIdx].isDisruptive() {
+							return ar.allow, ar.statusCode, nil
+						}
+					}
+				} else {
+					isChainDone = true
+				}
+			}
 		}
 	}
+
 	return true, 200, nil
 }

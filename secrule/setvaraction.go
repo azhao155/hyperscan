@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strconv"
 )
@@ -92,6 +93,9 @@ func (sv setVarAction) execute(perRequestEnv envMap) (ar *actionResult) {
 		ar.err = fmt.Errorf("Unsupported operator:%d for setvar operation", sv.operator)
 		return
 	}
+
+	newValue, _ := perRequestEnv.get(variable)
+	log.WithFields(log.Fields{"variable": variable, "newValue": newValue}).Trace("Executed setVarAction")
 
 	return
 }

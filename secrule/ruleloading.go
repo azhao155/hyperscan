@@ -14,7 +14,7 @@ import (
 
 // RuleLoader obtains rules for a given rule set.
 type RuleLoader interface {
-	Rules(r waf.RuleSetID) (rules []Rule, err error)
+	Rules(r waf.RuleSetID) (statements []Statement, err error)
 }
 
 type crsRuleLoader struct {
@@ -54,7 +54,7 @@ var ruleSetPathsMap = map[waf.RuleSetID][]string{
 }
 
 // GetRules loads and parses CRS files from disk.
-func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error) {
+func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, err error) {
 	paths, ok := ruleSetPathsMap[ruleSetID]
 	if !ok {
 		err = fmt.Errorf("unsupported ruleset: %s", ruleSetID)
@@ -71,7 +71,7 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error)
 			return
 		}
 
-		var rr []Rule
+		var rr []Statement
 		phraseHandler := func(fileName string) ([]string, error) {
 			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
 		}
@@ -81,40 +81,43 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (rules []Rule, err error)
 			return
 		}
 
-		var filteredRules []Rule
+		var filteredStatements []Statement
 		for _, r := range rr {
-			// Skip this rule until we add support for backreferences
-			// TODO add support for backreferences
-			if r.ID == 942130 {
-				log.WithFields(log.Fields{"ruleID": 942130}).Warn("Skipping rule due to lack of support for backreferences")
-				continue
+			rule, ok := r.(*Rule)
+			if ok {
+				// Skip this rule until we add support for backreferences
+				// TODO add support for backreferences
+				if rule.ID == 942130 {
+					log.WithFields(log.Fields{"ruleID": 942130}).Warn("Skipping rule due to lack of support for backreferences")
+					continue
+				}
+
+				// Skip this rule until we add support for stripping embedded anchors
+				// TODO add support for stripping embedded anchors
+				if rule.ID == 942330 {
+					log.WithFields(log.Fields{"ruleID": 942330}).Warn("Skipping rule due to lack of support for embedded anchors")
+					continue
+				}
+
+				// Skip this rule until we add full support numerical operations
+				// TODO add full support numerical operations
+				if rule.ID == 920130 {
+					log.WithFields(log.Fields{"ruleID": 920130}).Warn("Skipping rule due to lack of add full support numerical operations")
+					continue
+				}
+
+				// Skip this rule until we add full support numerical operations
+				// TODO add full support numerical operations
+				if rule.ID == 920140 {
+					log.WithFields(log.Fields{"ruleID": 920140}).Warn("Skipping rule due to lack of add full support numerical operations")
+					continue
+				}
 			}
 
-			// Skip this rule until we add support for stripping embedded anchors
-			// TODO add support for stripping embedded anchors
-			if r.ID == 942330 {
-				log.WithFields(log.Fields{"ruleID": 942330}).Warn("Skipping rule due to lack of support for embedded anchors")
-				continue
-			}
-
-			// Skip this rule until we add full support numerical operations
-			// TODO add full support numerical operations
-			if r.ID == 920130 {
-				log.WithFields(log.Fields{"ruleID": 920130}).Warn("Skipping rule due to lack of add full support numerical operations")
-				continue
-			}
-
-			// Skip this rule until we add full support numerical operations
-			// TODO add full support numerical operations
-			if r.ID == 920140 {
-				log.WithFields(log.Fields{"ruleID": 920140}).Warn("Skipping rule due to lack of add full support numerical operations")
-				continue
-			}
-
-			filteredRules = append(filteredRules, r)
+			filteredStatements = append(filteredStatements, r)
 		}
 
-		rules = append(rules, filteredRules...)
+		statements = append(statements, filteredStatements...)
 	}
 
 	return

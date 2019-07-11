@@ -9,7 +9,7 @@ import (
 
 // RuleParser parses SecRule language files.
 type RuleParser interface {
-	Parse(input string, pf phraseFunc) (rules []Rule, err error)
+	Parse(input string, pf phraseFunc) (statements []Statement, err error)
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
@@ -83,8 +83,8 @@ func NewRuleParser() RuleParser {
 }
 
 // Parse a ruleset.
-func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (rules []Rule, err error) {
-	rules = []Rule{}
+func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (statements []Statement, err error) {
+	statements = []Statement{}
 	curRule := &Rule{}
 	rest := input
 	lineNumber := 0
@@ -106,7 +106,7 @@ func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (rules []Rule, err e
 
 		switch statementName {
 		case "SecRule":
-			err = r.parseSecRule(rest, &curRule, &rules, pf)
+			err = r.parseSecRule(rest, &curRule, &statements, pf)
 			if err != nil {
 				err = fmt.Errorf("Parse error in SecRule on line %d: %s", lineNumber, err)
 				return
@@ -131,7 +131,7 @@ func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (rules []Rule, err e
 }
 
 // Parse a single rule.
-func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule, pf phraseFunc) (err error) {
+func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseFunc) (err error) {
 	ru := &RuleItem{}
 
 	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = r.parseTargets(s)
@@ -221,7 +221,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, rules *[]Rule, p
 
 	if !hasChainAction {
 		// End of rule chain
-		*rules = append(*rules, **curRule)
+		*statements = append(*statements, *curRule)
 		*curRule = &Rule{}
 	}
 
