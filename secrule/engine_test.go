@@ -1,6 +1,7 @@
 package secrule
 
 import (
+	"azwaf/waf"
 	"testing"
 )
 
@@ -10,7 +11,8 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rl := newMockRuleLoader()
 	ref := NewRuleEvaluatorFactory()
-	ef := NewEngineFactory(rl, rsf, ref)
+	reslog := &mockResultsLogger{}
+	ef := NewEngineFactory(rl, rsf, ref, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -31,3 +33,9 @@ type mockSecRuleConfig struct{}
 func (c *mockSecRuleConfig) ID() string        { return "SecRuleConfig1" }
 func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
+
+type mockResultsLogger struct{}
+
+func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt Statement, action string, msg string) {
+	return
+}

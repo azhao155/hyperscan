@@ -226,6 +226,7 @@ func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string
 
 func (r *reqScannerImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
+	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
 
 	log.WithFields(log.Fields{"targetName": targetName, "content": content}).Trace("Starting target content scan")
 

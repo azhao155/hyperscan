@@ -6,8 +6,11 @@ import (
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(statements []Statement, scanResults *ScanResults) (allow bool, statusCode int, err error)
+	Process(statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error)
 }
+
+// RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
+type RuleEvaluatorTriggeredCb = func(stmt Statement, isDisruptive bool, logMsg string)
 
 type ruleEvaluatorImpl struct {
 	// TODO: populate initial values as part of TxState task
@@ -34,7 +37,12 @@ func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluato
 	return
 }
 
-func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResults) (allow bool, statusCode int, err error) {
+func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
+	// The triggered callback is optional. Default to do nothing.
+	if triggeredCb == nil {
+		triggeredCb = func(stmt Statement, isDisruptive bool, logMsg string) {}
+	}
+
 	for _, stmt := range statements {
 		switch stmt := stmt.(type) {
 		case *Rule:
@@ -67,12 +75,15 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 
 				if matchFound {
 					log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("SecRule chain item triggered")
-					disruptive, actionAllow, actionStatusCode := r.runActions(ruleItem.Actions, rule.ID)
+					disruptive, actionAllow, actionStatusCode, logMsg := r.runActions(ruleItem.Actions, rule.ID)
 					if disruptive {
 						allow = actionAllow
 						statusCode = actionStatusCode
+						triggeredCb(stmt, true, logMsg)
 						return
 					}
+
+					triggeredCb(stmt, false, logMsg)
 				} else {
 					isChainDone = true
 				}
@@ -83,19 +94,24 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 
 			log.WithFields(log.Fields{"ruleID": actionStmt.ID}).Trace("Evaluating SecAction")
 
-			disruptive, actionAllow, actionStatusCode := r.runActions(actionStmt.Actions, actionStmt.ID)
+			disruptive, actionAllow, actionStatusCode, logMsg := r.runActions(actionStmt.Actions, actionStmt.ID)
 			if disruptive {
 				allow = actionAllow
 				statusCode = actionStatusCode
+				triggeredCb(stmt, true, logMsg)
 				return
 			}
+
+			triggeredCb(stmt, false, logMsg)
 		}
 	}
 
 	return true, 200, nil
 }
 
-func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int) {
+func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string) {
+	// TODO implement the "log" action, so we can put something in logMsg
+
 	for _, action := range actions {
 		ar := action.execute(r.perRequestEnv)
 

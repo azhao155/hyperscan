@@ -3,6 +3,7 @@ package main
 import (
 	"azwaf/grpc"
 	"azwaf/hyperscan"
+	"azwaf/logging"
 	"azwaf/secrule"
 	"azwaf/waf"
 
@@ -17,14 +18,15 @@ func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
 
 type mockConfig struct{}
 
-func (c *mockConfig) SecRuleConfigs() []waf.SecRuleConfig {return []waf.SecRuleConfig{&mockSecRuleConfig{}}}
+func (c *mockConfig) SecRuleConfigs() []waf.SecRuleConfig {
+	return []waf.SecRuleConfig{&mockSecRuleConfig{}}
+}
 
 func (c *mockConfig) GeoDBConfigs() []waf.GeoDBConfig { return []waf.GeoDBConfig{} }
 
 func (c *mockConfig) IPReputationConfigs() []waf.IPReputationConfig { return []waf.IPReputationConfig{} }
 
 func main() {
-
 	//log.SetLevel(log.TraceLevel)
 	log.SetLevel(log.InfoLevel)
 
@@ -36,7 +38,8 @@ func main() {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	ref := secrule.NewRuleEvaluatorFactory()
-	sref := secrule.NewEngineFactory(rl, rsf, ref)
+	reslog := logging.NewLogrusResultsLogger()
+	sref := secrule.NewEngineFactory(rl, rsf, ref, reslog)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	cm, _, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})

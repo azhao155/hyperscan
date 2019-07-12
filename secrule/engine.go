@@ -10,6 +10,7 @@ type engineImpl struct {
 	statements    []Statement
 	reqScanner    ReqScanner
 	ruleEvaluator RuleEvaluator
+	resultsLogger ResultsLogger
 }
 
 func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
@@ -30,7 +31,15 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		log.WithFields(lf).Debug("Request scanning found a match")
 	}
 
-	allow, statusCode, err := s.ruleEvaluator.Process(s.statements, scanResults)
+	triggeredCb := func(stmt Statement, isDisruptive bool, logMsg string) {
+		action := "Matched"
+		if isDisruptive {
+			action = "Blocked"
+		}
+
+		s.resultsLogger.SecRuleTriggered(req, stmt, action, logMsg)
+	}
+	allow, statusCode, err := s.ruleEvaluator.Process(s.statements, scanResults, triggeredCb)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Debug("SecRule engine got rule evaluation error")
 		return false

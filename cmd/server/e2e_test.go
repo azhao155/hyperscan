@@ -19,7 +19,8 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	ref := secrule.NewRuleEvaluatorFactory()
-	ef := secrule.NewEngineFactory(rl, rsf, ref)
+	reslog := &mockResultsLogger{}
+	ef := secrule.NewEngineFactory(rl, rsf, ref, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -45,3 +46,9 @@ func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
 func (r *mockWafHTTPRequest) SecRuleID() string         { return "SecRuleConfig1" }
 func (r *mockWafHTTPRequest) Version() int64            { return 0 }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }
+
+type mockResultsLogger struct{}
+
+func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string) {
+	return
+}

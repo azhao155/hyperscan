@@ -29,7 +29,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(newEnvMap())
 
-	pass, code, err := re.Process(rules, sr)
+	pass, code, err := re.Process(rules, sr, nil)
 	assert.Nil(err)
 	assert.True(pass)
 	assert.Equal(200, code)
@@ -59,7 +59,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(newEnvMap())
 
-	pass, code, err := re.Process(rules, sr)
+	pass, code, err := re.Process(rules, sr, nil)
 	assert.Nil(err)
 	assert.False(pass)
 	assert.Equal(403, code)
@@ -88,7 +88,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
 	re := ref.NewRuleEvaluator(em)
 
-	allow, code, err := re.Process(rules, &ScanResults{})
+	allow, code, err := re.Process(rules, &ScanResults{}, nil)
 	assert.Nil(err)
 	assert.False(allow)
 	assert.Equal(403, code)
@@ -119,7 +119,7 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	re := ref.NewRuleEvaluator(newEnvMap())
 
 	// Act
-	pass, code, err := re.Process(rules, sr)
+	pass, code, err := re.Process(rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -151,7 +151,7 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(newEnvMap())
 
 	// Act
-	pass, code, err := re.Process(rules, sr)
+	pass, code, err := re.Process(rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -174,7 +174,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	re := ref.NewRuleEvaluator(env)
 
 	// Act
-	pass, code, err := re.Process(rules, sr)
+	pass, code, err := re.Process(rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -202,7 +202,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	re := ref.NewRuleEvaluator(env)
 
 	// Act
-	pass, code, err := re.Process(rules, sr)
+	pass, code, err := re.Process(rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)

@@ -7,14 +7,15 @@ import (
 )
 
 // NewEngineFactory creates a factory that can create SecRule engines.
-func NewEngineFactory(rl RuleLoader, rsf ReqScannerFactory, ref RuleEvaluatorFactory) waf.SecRuleEngineFactory {
-	return &engineFactoryImpl{rl, rsf, ref}
+func NewEngineFactory(rl RuleLoader, rsf ReqScannerFactory, ref RuleEvaluatorFactory, reslog ResultsLogger) waf.SecRuleEngineFactory {
+	return &engineFactoryImpl{rl, rsf, ref, reslog}
 }
 
 type engineFactoryImpl struct {
 	ruleLoader           RuleLoader
 	reqScannerFactory    ReqScannerFactory
 	ruleEvaluatorFactory RuleEvaluatorFactory
+	resultsLogger        ResultsLogger
 }
 
 func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecRuleEngine, err error) {
@@ -33,6 +34,6 @@ func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecR
 		return
 	}
 
-	engine = &engineImpl{statements, reqScanner, f.ruleEvaluatorFactory.NewRuleEvaluator(newEnvMap())}
+	engine = &engineImpl{statements, reqScanner, f.ruleEvaluatorFactory.NewRuleEvaluator(newEnvMap()), f.resultsLogger}
 	return
 }
