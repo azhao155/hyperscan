@@ -21,7 +21,11 @@ Within the container you can run the following commands:
 go run azwaf/cmd/server
 
 # To run all tests
-go test azwaf/...
+go test -cover azwaf/...
+
+# To generate a detailed code coverage report
+go test -covermode=count -coverprofile=coverage.out azwaf/...
+go tool cover -html=coverage.out -o coverage.html
 
 # To run code style analysis
 go install golang.org/x/lint/golint

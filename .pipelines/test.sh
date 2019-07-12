@@ -2,6 +2,18 @@
 
 cd $CDP_USER_SOURCE_FOLDER_CONTAINER_PATH
 
-go test azwaf/... -v
+go test -covermode=count -coverprofile=coverage.out azwaf/... -v
+rc1=$?
 
-exit $?
+echo
+echo
+echo Code coverage
+echo =============
+echo
+go tool cover -func=coverage.out
+
+if [[ $rc1 != 0 ]] ; then
+    exit 1
+fi
+
+exit 0
