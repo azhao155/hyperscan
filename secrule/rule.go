@@ -9,12 +9,14 @@ type ActionStmt struct {
 	Msg        string
 	RawActions []RawAction
 	Actions    []actionHandler
+	Nolog      bool
 }
 
 // Rule is one or more SecRule statements in the SecRule-lang. Multiple SecRules if they are chained.
 type Rule struct {
 	ID    int
 	Items []RuleItem
+	Nolog bool
 }
 
 // RuleItem is a single SecRule statement, which might be part of a chain.

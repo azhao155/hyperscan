@@ -14,7 +14,7 @@ type engineImpl struct {
 }
 
 func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
-	log.WithFields(log.Fields{"URI": req.URI()}).Info("SecRule engine got EvalRequest")
+	log.WithFields(log.Fields{"uri": req.URI()}).Info("SecRule engine got EvalRequest")
 	startTime := time.Now()
 	defer func() {
 		log.WithFields(log.Fields{"timeTaken": time.Since(startTime)}).Info("SecRule EvalRequest done")

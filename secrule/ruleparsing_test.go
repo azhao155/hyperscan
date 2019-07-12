@@ -589,6 +589,7 @@ func TestSecRuleRawActions(t *testing.T) {
 		expected []RawAction
 	}
 	tests := []testcase{
+		{`ID:950902`, []RawAction{{`id`, `950902`}}},
 		{`id:950902`, []RawAction{{`id`, `950902`}}},
 		{`id:'950902'`, []RawAction{{`id`, `950902`}}},
 		{`id:'950902',deny`, []RawAction{{`id`, `950902`}, {`deny`, ``}}},
@@ -988,5 +989,112 @@ func TestPhraseFunc(t *testing.T) {
 
 	if callbackArg != "test.data" {
 		t.Fatalf("...")
+	}
+}
+
+func TestNolog(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `SecRule ARGS "hello" "id:901001,nolog"`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if !rc.Nolog {
+		t.Fatalf("Nolog not set")
+	}
+}
+
+func TestNologChain(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule ARGS "hello" "id:901001,chain"
+		SecRule ARGS "abc" "nolog"
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if !rc.Nolog {
+		t.Fatalf("Nolog not set")
+	}
+}
+
+func TestNologChain910130(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule &TX:block_suspicious_ip "@eq 0" \
+		  "id:910130,\
+		  phase:request,\
+		  t:none,\
+		  nolog,\
+		  pass,\
+		  chain,\
+		  skipAfter:END_RBL_CHECK"
+		  SecRule &TX:block_harvester_ip "@eq 0" "chain"
+		  SecRule &TX:block_spammer_ip "@eq 0" "chain"
+		  SecRule &TX:block_search_ip "@eq 0"
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if !rc.Nolog {
+		t.Fatalf("Nolog not set")
+	}
+}
+
+func TestNologNegative(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `SecRule ARGS "hello" "id:901001,deny"`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if rc.Nolog {
+		t.Fatalf("Nolog set")
 	}
 }

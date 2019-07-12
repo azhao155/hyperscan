@@ -1,6 +1,10 @@
 package waf
 
-import "fmt"
+import (
+	"fmt"
+	log "github.com/sirupsen/logrus"
+	"time"
+)
 
 // Server is the top level interface to AzWaf.
 type Server interface {
@@ -33,6 +37,12 @@ func NewServer(c map[int64]Config, sref SecRuleEngineFactory) (server Server, er
 }
 
 func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
+	log.WithField("uri", req.URI()).Info("WAF got request")
+	startTime := time.Now()
+	defer func() {
+		log.WithFields(log.Fields{"timeTaken": time.Since(startTime), "uri": req.URI()}).Info("WAF completed request")
+	}()
+
 	// TODO Decide which site this request belongs to. version and id will be contained in the req and configured by nginx
 	if _, ok := s.secRuleEngines[req.Version()]; !ok {
 		err = fmt.Errorf("Not found config for the request, version %v", req.Version())

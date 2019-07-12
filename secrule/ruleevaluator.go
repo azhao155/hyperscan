@@ -64,6 +64,8 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 				var logMsg string
 
 				for _, ruleItem := range rule.Items {
+					// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
+
 					disruptive, actionAllow, actionStatusCode, actionLogMsg := r.runActions(ruleItem.Actions, rule.ID)
 
 					if disruptive {
@@ -77,8 +79,11 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 					}
 				}
 
-				// TODO triggeredCb should get match data (which target and string was matched) from the LAST item of the chain, even if the disruptive action is in the first.
-				triggeredCb(stmt, anyDisruptive, logMsg)
+				if !stmt.Nolog {
+					// TODO triggeredCb should get match data (which target and string was matched) from the LAST item of the chain, even if the disruptive action is in the first.
+					triggeredCb(stmt, anyDisruptive, logMsg)
+				}
+
 				if anyDisruptive {
 					return
 				}
@@ -90,14 +95,16 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 			log.WithFields(log.Fields{"ruleID": actionStmt.ID}).Trace("Evaluating SecAction")
 
 			disruptive, actionAllow, actionStatusCode, logMsg := r.runActions(actionStmt.Actions, actionStmt.ID)
+
+			if !stmt.Nolog {
+				triggeredCb(stmt, disruptive, logMsg)
+			}
+
 			if disruptive {
 				allow = actionAllow
 				statusCode = actionStatusCode
-				triggeredCb(stmt, true, logMsg)
 				return
 			}
-
-			triggeredCb(stmt, false, logMsg)
 		}
 	}
 

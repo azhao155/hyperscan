@@ -185,7 +185,14 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 
 	var id int
 	var hasChainAction bool
-	ru.Actions, id, ru.Msg, ru.Transformations, hasChainAction, err = parseActions(ru.RawActions)
+	var hasNologAction bool
+	ru.Actions,
+		id,
+		ru.Msg,
+		ru.Transformations,
+		hasChainAction,
+		hasNologAction,
+		err = parseActions(ru.RawActions)
 	if err != nil {
 		err = fmt.Errorf("error while parsing targets: %s", s)
 		return
@@ -198,6 +205,10 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		}
 
 		(*curRule).ID = id
+	}
+
+	if hasNologAction {
+		(*curRule).Nolog = true
 	}
 
 	(*curRule).Items = append((*curRule).Items, *ru)
@@ -227,7 +238,13 @@ func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements
 		return
 	}
 
-	actionStmt.Actions, actionStmt.ID, actionStmt.Msg, _, _, err = parseActions(actionStmt.RawActions)
+	actionStmt.Actions,
+		actionStmt.ID,
+		actionStmt.Msg,
+		_,
+		_,
+		actionStmt.Nolog,
+		err = parseActions(actionStmt.RawActions)
 
 	if actionStmt.ID == 0 {
 		err = fmt.Errorf("missing ID")
@@ -317,6 +334,7 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest st
 
 		var k, v string
 		k, v = r.parseActionKeyValue(a)
+		k = strings.ToLower(k)
 		actions = append(actions, RawAction{k, v})
 
 		// Consume whitespace
@@ -331,20 +349,33 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest st
 	}
 }
 
-func parseActions(rawActions []RawAction) (actions []actionHandler, id int, msg string, transformations []Transformation, hasChainAction bool, err error) {
+func parseActions(rawActions []RawAction) (
+	actions []actionHandler,
+	id int,
+	msg string,
+	transformations []Transformation,
+	hasChainAction bool,
+	hasNologAction bool,
+	err error) {
+
 	for _, a := range rawActions {
 		switch a.Key {
+
 		case "id":
 			id, err = strconv.Atoi(a.Val)
 			if err != nil {
 				return
 			}
+
 		case "chain":
 			hasChainAction = true
+
 		case "deny":
 			actions = append(actions, newDenyAction())
+
 		case "msg":
 			msg = a.Val
+
 		case "t":
 			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
 				transformations = append(transformations, t)
@@ -352,6 +383,7 @@ func parseActions(rawActions []RawAction) (actions []actionHandler, id int, msg 
 				err = fmt.Errorf("unknown transformation: %s", a.Val)
 				return
 			}
+
 		case "setvar":
 			var sv *setVarAction
 			sv, err = newSetVarAction(a.Val)
@@ -360,6 +392,10 @@ func parseActions(rawActions []RawAction) (actions []actionHandler, id int, msg 
 			}
 
 			actions = append(actions, sv)
+
+		case "nolog":
+			hasNologAction = true
+
 		}
 	}
 

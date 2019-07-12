@@ -345,3 +345,64 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	assert.False(pass)
 	assert.Equal(403, code)
 }
+
+func TestRuleEvaluatorNolog(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+				},
+			},
+			Nolog: true,
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+	cbCalled := false
+	cb := func(stmt Statement, isDisruptive bool, logMsg string) {
+		cbCalled = true
+	}
+
+	// Act
+	re.Process(rules, sr, cb)
+
+	// Assert
+	assert.False(cbCalled)
+}
+
+func TestRuleEvaluatorNologNegative(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+	cbCalled := false
+	cb := func(stmt Statement, isDisruptive bool, logMsg string) {
+		cbCalled = true
+	}
+
+	// Act
+	re.Process(rules, sr, cb)
+
+	// Assert
+	assert.True(cbCalled)
+}
