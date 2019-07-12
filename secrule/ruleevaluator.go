@@ -47,45 +47,40 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 		switch stmt := stmt.(type) {
 		case *Rule:
 			rule := stmt
-			isChainDone := false
+			allChainItemsMatched := true
 			for curRuleItemIdx, ruleItem := range rule.Items {
-				if isChainDone {
-					break
-				}
-
 				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
 
-				matchFound := false
+				if !evalPredicate(r.perRequestEnv, ruleItem, scanResults, rule, curRuleItemIdx) {
+					allChainItemsMatched = false
+					break
+				}
+			}
 
-				for _, target := range ruleItem.Predicate.Targets {
-					switch ruleItem.Predicate.Op {
-					case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within:
-						_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
-						if ok {
-							matchFound = true
-						}
+			if allChainItemsMatched {
+				log.WithFields(log.Fields{"ruleID": rule.ID}).Trace("SecRule triggered")
 
-						if len(ruleItem.Predicate.valMacroMatches) > 0 {
-							matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)
-						}
-					case Eq, Ge, Gt, Le, Lt:
-						matchFound, _, _ = ruleItem.Predicate.eval(r.perRequestEnv)
+				anyDisruptive := false
+				var logMsg string
+
+				for _, ruleItem := range rule.Items {
+					disruptive, actionAllow, actionStatusCode, actionLogMsg := r.runActions(ruleItem.Actions, rule.ID)
+
+					if disruptive {
+						anyDisruptive = true
+						allow = actionAllow
+						statusCode = actionStatusCode
+					}
+
+					if actionLogMsg != "" {
+						logMsg = actionLogMsg
 					}
 				}
 
-				if matchFound {
-					log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("SecRule chain item triggered")
-					disruptive, actionAllow, actionStatusCode, logMsg := r.runActions(ruleItem.Actions, rule.ID)
-					if disruptive {
-						allow = actionAllow
-						statusCode = actionStatusCode
-						triggeredCb(stmt, true, logMsg)
-						return
-					}
-
-					triggeredCb(stmt, false, logMsg)
-				} else {
-					isChainDone = true
+				// TODO triggeredCb should get match data (which target and string was matched) from the LAST item of the chain, even if the disruptive action is in the first.
+				triggeredCb(stmt, anyDisruptive, logMsg)
+				if anyDisruptive {
+					return
 				}
 			}
 
@@ -106,7 +101,35 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 		}
 	}
 
-	return true, 200, nil
+	allow = true
+	statusCode = 200
+	return
+}
+
+func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
+	for _, target := range ruleItem.Predicate.Targets {
+		switch ruleItem.Predicate.Op {
+		case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within:
+			_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
+			if ok {
+				return true
+			}
+
+			if len(ruleItem.Predicate.valMacroMatches) > 0 {
+				matchFound, _, _ := ruleItem.Predicate.eval(env)
+				if matchFound {
+					return true
+				}
+			}
+		case Eq, Ge, Gt, Le, Lt:
+			matchFound, _, _ := ruleItem.Predicate.eval(env)
+			if matchFound {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string) {

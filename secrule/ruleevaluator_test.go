@@ -159,6 +159,80 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	assert.Equal(200, code)
 }
 
+func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Actions:   []actionHandler{newDenyAction()},
+				},
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+
+	// Act
+	pass, code, err := re.Process(rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
+
+func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) {
+	// Arrange
+
+	sv1, _ := newSetVarAction("tx.somevar=123")
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Actions:   []actionHandler{newDenyAction()},
+				},
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Actions:   []actionHandler{sv1},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	pass, code, err := re.Process(rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.False(pass)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"123"}, v)
+	assert.Equal(403, code)
+}
+
 func TestRuleEvaluatorSecAction(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
@@ -212,4 +286,62 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&integerObject{124}, v)
+}
+
+func TestRuleEvaluatorMultiTarget1(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES", "ARGS"}, Op: Rx, Val: "abc"},
+					Actions:   []actionHandler{newDenyAction()},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+
+	// Act
+	pass, code, err := re.Process(rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.False(pass)
+	assert.Equal(403, code)
+}
+
+func TestRuleEvaluatorMultiTarget2(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Actions:   []actionHandler{newDenyAction()},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(newEnvMap())
+
+	// Act
+	pass, code, err := re.Process(rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.False(pass)
+	assert.Equal(403, code)
 }
