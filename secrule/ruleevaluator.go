@@ -43,10 +43,60 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 		triggeredCb = func(stmt Statement, isDisruptive bool, logMsg string) {}
 	}
 
+	// Evaluate each phase, but stop if there was a disruptive action.
+	anyDisruptive := false
+	for phase := 1; phase <= 4; phase++ {
+		log.Debugf("Starting rule evaluation phase %v", phase)
+		phaseAllow, phaseStatusCode, phaseDisruptive := r.processPhase(phase, statements, scanResults, triggeredCb)
+		if phaseDisruptive {
+			allow = phaseAllow
+			statusCode = phaseStatusCode
+			anyDisruptive = true
+			break
+		}
+	}
+
+	// Phase 5 is special, because it cannot perform any disruptive actions.
+	log.Debug("Starting rule evaluation phase 5")
+	r.processPhase(5, statements, scanResults, triggeredCb)
+
+	if !anyDisruptive {
+		allow = true
+		statusCode = 200
+	}
+
+	return
+}
+
+func (r *ruleEvaluatorImpl) processPhase(phase int, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, phaseDisruptive bool) {
+	var skipAfter string
+
 	for _, stmt := range statements {
+		// If we are currently looking for a skipAfter marker, then keep skipping until we find it.
+		if skipAfter != "" {
+			if m, ok := stmt.(*Marker); ok {
+				if m.Label == skipAfter {
+					skipAfter = ""
+				}
+			}
+
+			continue
+		}
+
 		switch stmt := stmt.(type) {
 		case *Rule:
 			rule := stmt
+
+			// Are we in the right phase for this rule?
+			p := rule.Phase
+			if p == 0 {
+				p = 2 // Phase 2 is the default phase for SecRules
+			}
+			if p != phase {
+				// TODO potential small optimization: pre-arrange statements into phases before passing them to processPhase
+				continue
+			}
+
 			allChainItemsMatched := true
 			for curRuleItemIdx, ruleItem := range rule.Items {
 				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
@@ -66,7 +116,7 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 				for _, ruleItem := range rule.Items {
 					// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
-					disruptive, actionAllow, actionStatusCode, actionLogMsg := r.runActions(ruleItem.Actions, rule.ID)
+					disruptive, actionAllow, actionStatusCode, actionLogMsg, actionSkipAfter := r.runActions(ruleItem.Actions, rule.ID)
 
 					if disruptive {
 						anyDisruptive = true
@@ -77,6 +127,12 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 					if actionLogMsg != "" {
 						logMsg = actionLogMsg
 					}
+
+					if actionSkipAfter != "" {
+						log.WithFields(log.Fields{"label": skipAfter}).Trace("Skipping to marker")
+
+						skipAfter = actionSkipAfter
+					}
 				}
 
 				if !stmt.Nolog {
@@ -85,6 +141,7 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 				}
 
 				if anyDisruptive {
+					phaseDisruptive = true
 					return
 				}
 			}
@@ -92,9 +149,18 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 		case *ActionStmt:
 			actionStmt := stmt
 
+			// Are we in the right phase for this action statement?
+			p := actionStmt.Phase
+			if p == 0 {
+				p = 2 // Phase 2 is the default phase for SecActions
+			}
+			if p != phase {
+				continue
+			}
+
 			log.WithFields(log.Fields{"ruleID": actionStmt.ID}).Trace("Evaluating SecAction")
 
-			disruptive, actionAllow, actionStatusCode, logMsg := r.runActions(actionStmt.Actions, actionStmt.ID)
+			disruptive, actionAllow, actionStatusCode, logMsg, actionSkipAfter := r.runActions(actionStmt.Actions, actionStmt.ID)
 
 			if !stmt.Nolog {
 				triggeredCb(stmt, disruptive, logMsg)
@@ -103,13 +169,18 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 			if disruptive {
 				allow = actionAllow
 				statusCode = actionStatusCode
+				phaseDisruptive = true
 				return
+			}
+
+			if actionSkipAfter != "" {
+				log.WithFields(log.Fields{"label": skipAfter}).Trace("Skipping to marker")
+
+				skipAfter = actionSkipAfter
 			}
 		}
 	}
 
-	allow = true
-	statusCode = 200
 	return
 }
 
@@ -139,10 +210,15 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 	return false
 }
 
-func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string) {
+func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {
 	// TODO implement the "log" action, so we can put something in logMsg
 
 	for _, action := range actions {
+		switch action := action.(type) {
+		case *skipAfterAction:
+			skipAfter = action.label
+		}
+
 		ar := action.execute(r.perRequestEnv)
 
 		if ar.err != nil {

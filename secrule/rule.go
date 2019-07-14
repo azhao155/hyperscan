@@ -10,6 +10,7 @@ type ActionStmt struct {
 	RawActions []RawAction
 	Actions    []actionHandler
 	Nolog      bool
+	Phase      int
 }
 
 // Rule is one or more SecRule statements in the SecRule-lang. Multiple SecRules if they are chained.
@@ -17,6 +18,7 @@ type Rule struct {
 	ID    int
 	Items []RuleItem
 	Nolog bool
+	Phase int
 }
 
 // RuleItem is a single SecRule statement, which might be part of a chain.
@@ -96,3 +98,8 @@ const (
 	URLDecodeUni
 	Utf8toUnicode
 )
+
+// Marker is a SecMarker, used by skipAfter-actions.
+type Marker struct {
+	Label string
+}

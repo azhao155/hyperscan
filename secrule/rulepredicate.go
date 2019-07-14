@@ -12,7 +12,7 @@ type RulePredicate struct {
 	Op              Operator
 	OpFunc          operatorFunc
 	Neg             bool
-	Val             string
+	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
 	valMacroMatches [][]string
 }
 
@@ -66,6 +66,7 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (bool, string, error) {
 
 // Substitute variable macros of the type %{variable_name} with actual values
 func expandMacros(s string, perRequestEnv envMap, matches [][]string) (string, error) {
+	// TODO potential optimization: this could return object instead of string, so we could potentially return an integer if the entire input string was a macro (very common)
 
 	// Replace placeholders
 	for i := 0; i < len(matches); i++ {

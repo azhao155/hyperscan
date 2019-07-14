@@ -1098,3 +1098,197 @@ func TestNologNegative(t *testing.T) {
 		t.Fatalf("Nolog set")
 	}
 }
+
+func TestPhase(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule ARGS "hello" "id:901001,phase:4"
+		SecAction "id:901002,phase:4"
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if rc.Phase != 4 {
+		t.Fatalf("Unexpected phase: %v", rc.Phase)
+	}
+
+	a, ok := rr[1].(*ActionStmt)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if a.Phase != 4 {
+		t.Fatalf("Unexpected phase: %v", a.Phase)
+	}
+}
+
+func TestPhaseChain1(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule ARGS "hello" "id:901001,chain,phase:3"
+		SecRule ARGS "abc" ""
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if rc.Phase != 3 {
+		t.Fatalf("Unexpected phase: %v", rc.Phase)
+	}
+}
+
+func TestPhaseChain2(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule ARGS "hello" "id:901001,chain"
+		SecRule ARGS "abc" "phase:3"
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if rc.Phase != 3 {
+		t.Fatalf("Unexpected phase: %v", rc.Phase)
+	}
+}
+
+func TestPhaseChainConflicting(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule ARGS "hello" "id:901001,chain,phase:3"
+		SecRule ARGS "abc" "phase:4"
+	`
+
+	// Act
+	_, err := p.Parse(rule, nil)
+
+	// Assert
+	if err.Error() != "parse error in SecRule on line 3: rule chain has conflicting phases" {
+		t.Fatalf("Error message was not as expected. Got: %s", err)
+	}
+}
+
+func TestMarker(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecMarker hello1
+		SecMarker "hello2"
+		SecMarker 'hello3'
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(rr) != 3 {
+		t.Fatalf("Wrong rule rules count: %d", len(rr))
+	}
+
+	m, ok := rr[0].(*Marker)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if m.Label != "hello1" {
+		t.Fatalf("Unexpected label: %v", m.Label)
+	}
+
+	m, ok = rr[1].(*Marker)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if m.Label != "hello2" {
+		t.Fatalf("Unexpected label: %v", m.Label)
+	}
+
+	m, ok = rr[2].(*Marker)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if m.Label != "hello3" {
+		t.Fatalf("Unexpected label: %v", m.Label)
+	}
+}
+
+func TestParseSkipAfter(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule ARGS "hello" "id:12345,skipAfter:somelabel"
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if len(rc.Items) != 1 {
+		t.Fatalf("Unexpected rule count: %d", len(rc.Items))
+	}
+
+	r := rc.Items[0]
+
+	found := false
+	for _, a := range r.Actions {
+		if a, ok := a.(*skipAfterAction); ok {
+			found = true
+			if a.label != "somelabel" {
+				t.Fatalf("Unexpected label: %v", a.label)
+			}
+		}
+	}
+
+	if !found {
+		t.Fatalf("Did not find skipAfter action")
+	}
+}

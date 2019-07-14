@@ -406,3 +406,167 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	// Assert
 	assert.True(cbCalled)
 }
+
+func TestRuleEvaluatorPhases(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=10")
+	sv2, _ := newSetVarAction("tx.somevar=20")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{sv1}, Phase: 2},
+		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}, Phase: 1}, // This will run first, because it's phase 1
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	re.Process(rules, sr, nil)
+
+	// Assert
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"10"}, v)
+}
+
+func TestRuleEvaluatorDefaultPhase(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=10")
+	sv2, _ := newSetVarAction("tx.somevar=20")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{sv1}},           // Phase 2 is default
+		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}, Phase: 1}, // This will run first, because it's phase 1
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	re.Process(rules, sr, nil)
+
+	// Assert
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"10"}, v)
+}
+
+func TestSkipAfter(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=10")
+	sv2, _ := newSetVarAction("tx.somevar=20")
+	sv3, _ := newSetVarAction("tx.othervar=10")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}, sv1}},
+		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}},
+		&Marker{Label: "hello1"},
+		&ActionStmt{ID: 300, Actions: []actionHandler{sv3}},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	re.Process(rules, sr, nil)
+
+	// Assert
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"10"}, v)
+
+	assert.True(env.hasKey("tx.othervar"))
+	v, ok = env.get("tx.othervar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"10"}, v)
+}
+
+func TestSkipAfterWithinPhase(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=10")
+	sv2, _ := newSetVarAction("tx.somevar=20")
+	sv3, _ := newSetVarAction("tx.somevar=30")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}, sv1}, Phase: 1},
+		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}, Phase: 2},
+		&Marker{Label: "hello1"},
+		&ActionStmt{ID: 300, Actions: []actionHandler{sv3}, Phase: 1},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	re.Process(rules, sr, nil)
+
+	// Assert
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"20"}, v)
+}
+
+func TestMarkerCaseSensitive(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=10")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}}},
+		&Marker{Label: "heLLo1"},
+		&ActionStmt{ID: 200, Actions: []actionHandler{sv1}},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	re.Process(rules, sr, nil)
+
+	// Assert
+	assert.False(env.hasKey("tx.somevar"))
+}
+
+func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	sv1, _ := newSetVarAction("tx.somevar=10")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}, sv1}},
+		&Marker{Label: "hello1"},
+		&ActionStmt{ID: 200},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	sr := &ScanResults{m}
+	ref := NewRuleEvaluatorFactory()
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := ref.NewRuleEvaluator(env)
+
+	// Act
+	re.Process(rules, sr, nil)
+
+	// Assert
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"10"}, v)
+}

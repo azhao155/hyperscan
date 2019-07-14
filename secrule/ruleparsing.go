@@ -112,13 +112,17 @@ func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (statements []Statem
 				return
 			}
 		case "SecAction":
-			err = r.parseSecActionStmt(rest, &curRule, &statements, pf)
+			err = r.parseSecActionStmt(rest, &curRule, &statements)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecAction on line %d: %s", lineNumber, err)
 				return
 			}
 		case "SecMarker":
-			// No-op for now.
+			err = r.parseSecMarker(rest, &curRule, &statements)
+			if err != nil {
+				err = fmt.Errorf("parse error in SecMarker on line %d: %s", lineNumber, err)
+				return
+			}
 		case "SecDefaultAction":
 			// No-op for now.
 		case "SecCollectionTimeout":
@@ -186,15 +190,17 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 	var id int
 	var hasChainAction bool
 	var hasNologAction bool
+	var phase int
 	ru.Actions,
 		id,
 		ru.Msg,
 		ru.Transformations,
 		hasChainAction,
 		hasNologAction,
+		phase,
 		err = parseActions(ru.RawActions)
 	if err != nil {
-		err = fmt.Errorf("error while parsing targets: %s", s)
+		err = fmt.Errorf("error while parsing targets: %s", err)
 		return
 	}
 
@@ -205,6 +211,15 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		}
 
 		(*curRule).ID = id
+	}
+
+	if phase != 0 {
+		if (*curRule).Phase != 0 {
+			err = fmt.Errorf("rule chain has conflicting phases")
+			return
+		}
+
+		(*curRule).Phase = phase
 	}
 
 	if hasNologAction {
@@ -223,7 +238,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 }
 
 // Parse a single SecAction statement.
-func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements *[]Statement, pf phraseFunc) (err error) {
+func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements *[]Statement) (err error) {
 	actionStmt := &ActionStmt{}
 
 	actionStmt.RawActions, s, err = r.parseRawActions(s)
@@ -244,6 +259,7 @@ func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements
 		_,
 		_,
 		actionStmt.Nolog,
+		actionStmt.Phase,
 		err = parseActions(actionStmt.RawActions)
 
 	if actionStmt.ID == 0 {
@@ -252,6 +268,23 @@ func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements
 	}
 
 	*statements = append(*statements, actionStmt)
+
+	return
+}
+
+// Parse a single SecAction statement.
+func (r *ruleParserImpl) parseSecMarker(s string, curRule **Rule, statements *[]Statement) (err error) {
+	marker := &Marker{}
+
+	marker.Label, s = r.nextArg(s)
+
+	s, _ = r.nextArg(s)
+	if s != "" {
+		err = fmt.Errorf("unexpected arg: %s", s)
+		return
+	}
+
+	*statements = append(*statements, marker)
 
 	return
 }
@@ -356,6 +389,7 @@ func parseActions(rawActions []RawAction) (
 	transformations []Transformation,
 	hasChainAction bool,
 	hasNologAction bool,
+	phase int,
 	err error) {
 
 	for _, a := range rawActions {
@@ -396,7 +430,35 @@ func parseActions(rawActions []RawAction) (
 		case "nolog":
 			hasNologAction = true
 
+		case "phase":
+			phase, err = parsePhase(a.Val)
+			if err != nil {
+				return
+			}
+
+		case "skipafter":
+			actions = append(actions, &skipAfterAction{label: a.Val})
+
 		}
+	}
+
+	return
+}
+
+func parsePhase(s string) (phase int, err error) {
+	switch s {
+	case "1":
+		phase = 1
+	case "2", "request":
+		phase = 2
+	case "3":
+		phase = 3
+	case "4", "response":
+		phase = 4
+	case "5", "logging":
+		phase = 5
+	default:
+		err = fmt.Errorf("unknown phase: %s", s)
 	}
 
 	return
