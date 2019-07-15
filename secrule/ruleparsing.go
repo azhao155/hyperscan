@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"fmt"
+	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 
 // RuleParser parses SecRule language files.
 type RuleParser interface {
-	Parse(input string, pf phraseFunc) (statements []Statement, err error)
+	Parse(input string, pf phraseLoaderCb) (statements []Statement, err error)
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
@@ -21,6 +22,7 @@ var argSpaceRegex = regexp.MustCompile(`(?s)^([ \t]|\\\n)+`)
 var operatorRegex = regexp.MustCompile(`^@\w+`)
 var actionRegex = regexp.MustCompile(`^(\w+:('(\\.|[^'\\])+'|[^,]+))|\w+`)
 var variableMacroRegex = regexp.MustCompile(`%{(?P<variable>[^}]+)}`)
+var setVarParameterRegex = regexp.MustCompile(`!?(?P<variable>[^=]+)(?P<operator>=[+-]?)?(?P<value>.+)?`)
 
 var transformationsMap = map[string]Transformation{
 	"cmdline":            CmdLine,
@@ -83,7 +85,7 @@ func NewRuleParser() RuleParser {
 }
 
 // Parse a ruleset.
-func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (statements []Statement, err error) {
+func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb) (statements []Statement, err error) {
 	statements = []Statement{}
 	curRule := &Rule{}
 	rest := input
@@ -139,7 +141,7 @@ func (r *ruleParserImpl) Parse(input string, pf phraseFunc) (statements []Statem
 }
 
 // Parse a single rule.
-func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseFunc) (err error) {
+func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLoaderCb) (err error) {
 	ru := &RuleItem{}
 
 	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = r.parseTargets(s)
@@ -175,7 +177,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 	ru.Predicate.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(ru.Predicate.Val, -1)
 	_, s = r.findConsume(argSpaceRegex, s)
 
-	ru.RawActions, s, err = r.parseRawActions(s)
+	rawActions, s, err := r.parseRawActions(s)
 	if err != nil {
 		return
 	}
@@ -189,16 +191,13 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 
 	var id int
 	var hasChainAction bool
-	var hasNologAction bool
 	var phase int
 	ru.Actions,
 		id,
-		ru.Msg,
 		ru.Transformations,
 		hasChainAction,
-		hasNologAction,
 		phase,
-		err = parseActions(ru.RawActions)
+		err = parseActions(rawActions)
 	if err != nil {
 		err = fmt.Errorf("error while parsing targets: %s", err)
 		return
@@ -222,10 +221,6 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		(*curRule).Phase = phase
 	}
 
-	if hasNologAction {
-		(*curRule).Nolog = true
-	}
-
 	(*curRule).Items = append((*curRule).Items, *ru)
 
 	if !hasChainAction {
@@ -241,7 +236,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements *[]Statement) (err error) {
 	actionStmt := &ActionStmt{}
 
-	actionStmt.RawActions, s, err = r.parseRawActions(s)
+	rawActions, s, err := r.parseRawActions(s)
 	if err != nil {
 		return
 	}
@@ -255,12 +250,10 @@ func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements
 
 	actionStmt.Actions,
 		actionStmt.ID,
-		actionStmt.Msg,
 		_,
 		_,
-		actionStmt.Nolog,
 		actionStmt.Phase,
-		err = parseActions(actionStmt.RawActions)
+		err = parseActions(rawActions)
 
 	if actionStmt.ID == 0 {
 		err = fmt.Errorf("missing ID")
@@ -383,12 +376,10 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest st
 }
 
 func parseActions(rawActions []RawAction) (
-	actions []actionHandler,
+	actions []Action,
 	id int,
-	msg string,
 	transformations []Transformation,
 	hasChainAction bool,
-	hasNologAction bool,
 	phase int,
 	err error) {
 
@@ -405,10 +396,10 @@ func parseActions(rawActions []RawAction) (
 			hasChainAction = true
 
 		case "deny":
-			actions = append(actions, newDenyAction())
+			actions = append(actions, &DenyAction{})
 
 		case "msg":
-			msg = a.Val
+			actions = append(actions, &MsgAction{Msg: a.Val})
 
 		case "t":
 			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
@@ -419,16 +410,19 @@ func parseActions(rawActions []RawAction) (
 			}
 
 		case "setvar":
-			var sv *setVarAction
-			sv, err = newSetVarAction(a.Val)
+			var sv SetVarAction
+			sv, err = parseSetVarAction(a.Val)
 			if err != nil {
 				return
 			}
 
-			actions = append(actions, sv)
+			actions = append(actions, &sv)
 
 		case "nolog":
-			hasNologAction = true
+			actions = append(actions, &NoLogAction{})
+
+		case "log":
+			actions = append(actions, &LogAction{})
 
 		case "phase":
 			phase, err = parsePhase(a.Val)
@@ -437,12 +431,74 @@ func parseActions(rawActions []RawAction) (
 			}
 
 		case "skipafter":
-			actions = append(actions, &skipAfterAction{label: a.Val})
+			actions = append(actions, &SkipAfterAction{Label: a.Val})
+
+		default:
+			// TODO support all actions and do a proper error here for unknown actions
+			log.WithField("action", a.Key).Debug("Unknown action")
+			actions = append(actions, &a)
 
 		}
 	}
 
 	return
+}
+
+func parseSetVarAction(parameter string) (sv SetVarAction, err error) {
+	matches := setVarParameterRegex.FindStringSubmatch(parameter)
+	if matches == nil {
+		err = fmt.Errorf("unsupported parameter %s for setvar operation", parameter)
+		return
+	}
+
+	// TODO: potential optimization (replace map with variables)
+	result := findStringSubmatchMap(setVarParameterRegex, parameter)
+	if parameter[0] == '!' {
+		result["operator"] = "!"
+	}
+
+	// Default values
+	if result["operator"] == "" {
+		result["operator"] = "="
+	}
+
+	if result["value"] == "" {
+		result["value"] = "1"
+	}
+
+	op, err := toSetvarOperator(result["operator"])
+	if err != nil {
+		return
+	}
+
+	varMacroMatches := variableMacroRegex.FindAllStringSubmatch(result["variable"], -1)
+	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(result["value"], -1)
+
+	sv = SetVarAction{
+		variable:        result["variable"],
+		operator:        op,
+		value:           result["value"],
+		varMacroMatches: varMacroMatches,
+		valMacroMatches: valMacroMatches,
+	}
+
+	return
+}
+
+func findStringSubmatchMap(r *regexp.Regexp, str string) map[string]string {
+	match := r.FindStringSubmatch(str)
+	if match == nil {
+		return nil
+	}
+
+	submatchMap := make(map[string]string)
+	for i, name := range r.SubexpNames() {
+		if i != 0 {
+			submatchMap[name] = match[i]
+		}
+	}
+
+	return submatchMap
 }
 
 func parsePhase(s string) (phase int, err error) {

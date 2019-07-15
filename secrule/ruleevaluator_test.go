@@ -6,7 +6,7 @@ import (
 )
 
 func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
-	sv, _ := newSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
+	sv, _ := parseSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Statement{
 		&Rule{
 			ID: 100,
@@ -14,7 +14,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 				{
 					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
-					Actions:         []actionHandler{sv},
+					Actions:         []Action{sv},
 				},
 			},
 		},
@@ -35,7 +35,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 }
 
 func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
-	sv, _ := newSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
+	sv, _ := parseSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Statement{
 		&Rule{
 			ID: 100,
@@ -43,7 +43,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 				{
 					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
-					Actions:         []actionHandler{sv, newDenyAction()},
+					Actions:         []Action{sv, &DenyAction{}},
 				},
 			},
 		},
@@ -74,7 +74,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 				{
 					Predicate:       p,
 					Transformations: []Transformation{None},
-					Actions:         []actionHandler{newDenyAction()},
+					Actions:         []Action{&DenyAction{}},
 				},
 			},
 		},
@@ -103,7 +103,7 @@ func TestRuleEvaluatorChain(t *testing.T) {
 				},
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
-					Actions:   []actionHandler{newDenyAction()},
+					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
@@ -135,7 +135,7 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 				},
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
-					Actions:   []actionHandler{newDenyAction()},
+					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
@@ -163,7 +163,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 			Items: []RuleItem{
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
-					Actions:   []actionHandler{newDenyAction()},
+					Actions:   []Action{&DenyAction{}},
 				},
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
@@ -188,7 +188,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) {
 	// Arrange
 
-	sv1, _ := newSetVarAction("tx.somevar=123")
+	sv1, _ := parseSetVarAction("tx.somevar=123")
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -196,11 +196,11 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 			Items: []RuleItem{
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
-					Actions:   []actionHandler{newDenyAction()},
+					Actions:   []Action{&DenyAction{}},
 				},
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
-					Actions:   []actionHandler{sv1},
+					Actions:   []Action{&sv1},
 				},
 			},
 		},
@@ -229,9 +229,9 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 func TestRuleEvaluatorSecAction(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv, _ := newSetVarAction("tx.somevar=123")
+	sv, _ := parseSetVarAction("tx.somevar=123")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{sv}},
+		&ActionStmt{ID: 100, Actions: []Action{&sv}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -255,10 +255,10 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=123")
-	sv2, _ := newSetVarAction("tx.somevar=+1")
+	sv1, _ := parseSetVarAction("tx.somevar=123")
+	sv2, _ := parseSetVarAction("tx.somevar=+1")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{sv1, sv2}},
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &sv2}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -288,7 +288,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 			Items: []RuleItem{
 				{
 					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES", "ARGS"}, Op: Rx, Val: "abc"},
-					Actions:   []actionHandler{newDenyAction()},
+					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
@@ -316,7 +316,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 			Items: []RuleItem{
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
-					Actions:   []actionHandler{newDenyAction()},
+					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
@@ -344,9 +344,9 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 			Items: []RuleItem{
 				{
 					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&NoLogAction{}},
 				},
 			},
-			Nolog: true,
 		},
 	}
 	m := make(map[rxMatchKey]RxMatch)
@@ -354,7 +354,84 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	sr := &ScanResults{m}
 	re := NewRuleEvaluator()
 	cbCalled := false
-	cb := func(stmt Statement, isDisruptive bool, logMsg string) {
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled = true
+	}
+
+	// Act
+	re.Process(newEnvMap(), rules, sr, cb)
+
+	// Assert
+	assert.False(cbCalled)
+}
+
+func TestRuleEvaluatorNologOverride(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&NoLogAction{}, &LogAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	re := NewRuleEvaluator()
+	cbCalled := false
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled = true
+	}
+
+	// Act
+	re.Process(newEnvMap(), rules, sr, cb)
+
+	// Assert
+	assert.True(cbCalled)
+}
+
+func TestRuleEvaluatorNologChain(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Actions:   []Action{},
+				},
+				{
+					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&NoLogAction{}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&NoLogAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Actions:   []Action{},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	sr := &ScanResults{m}
+	re := NewRuleEvaluator()
+	cbCalled := false
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
 		cbCalled = true
 	}
 
@@ -383,7 +460,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	sr := &ScanResults{m}
 	re := NewRuleEvaluator()
 	cbCalled := false
-	cb := func(stmt Statement, isDisruptive bool, logMsg string) {
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
 		cbCalled = true
 	}
 
@@ -397,11 +474,11 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 func TestRuleEvaluatorPhases(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=10")
-	sv2, _ := newSetVarAction("tx.somevar=20")
+	sv1, _ := parseSetVarAction("tx.somevar=10")
+	sv2, _ := parseSetVarAction("tx.somevar=20")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{sv1}, Phase: 2},
-		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}, Phase: 1}, // This will run first, because it's phase 1
+		&ActionStmt{ID: 100, Actions: []Action{&sv1}, Phase: 2},
+		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -422,11 +499,11 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=10")
-	sv2, _ := newSetVarAction("tx.somevar=20")
+	sv1, _ := parseSetVarAction("tx.somevar=10")
+	sv2, _ := parseSetVarAction("tx.somevar=20")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{sv1}},           // Phase 2 is default
-		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}, Phase: 1}, // This will run first, because it's phase 1
+		&ActionStmt{ID: 100, Actions: []Action{&sv1}},           // Phase 2 is default
+		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -447,14 +524,14 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 func TestSkipAfter(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=10")
-	sv2, _ := newSetVarAction("tx.somevar=20")
-	sv3, _ := newSetVarAction("tx.othervar=10")
+	sv1, _ := parseSetVarAction("tx.somevar=10")
+	sv2, _ := parseSetVarAction("tx.somevar=20")
+	sv3, _ := parseSetVarAction("tx.othervar=10")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}, sv1}},
-		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}},
+		&ActionStmt{ID: 100, Actions: []Action{&SkipAfterAction{Label: "hello1"}, &sv1}},
+		&ActionStmt{ID: 200, Actions: []Action{&sv2}},
 		&Marker{Label: "hello1"},
-		&ActionStmt{ID: 300, Actions: []actionHandler{sv3}},
+		&ActionStmt{ID: 300, Actions: []Action{&sv3}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -480,14 +557,14 @@ func TestSkipAfter(t *testing.T) {
 func TestSkipAfterWithinPhase(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=10")
-	sv2, _ := newSetVarAction("tx.somevar=20")
-	sv3, _ := newSetVarAction("tx.somevar=30")
+	sv1, _ := parseSetVarAction("tx.somevar=10")
+	sv2, _ := parseSetVarAction("tx.somevar=20")
+	sv3, _ := parseSetVarAction("tx.somevar=30")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}, sv1}, Phase: 1},
-		&ActionStmt{ID: 200, Actions: []actionHandler{sv2}, Phase: 2},
+		&ActionStmt{ID: 100, Actions: []Action{&SkipAfterAction{Label: "hello1"}, &sv1}, Phase: 1},
+		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 2},
 		&Marker{Label: "hello1"},
-		&ActionStmt{ID: 300, Actions: []actionHandler{sv3}, Phase: 1},
+		&ActionStmt{ID: 300, Actions: []Action{&sv3}, Phase: 1},
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -508,11 +585,11 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 func TestMarkerCaseSensitive(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=10")
+	sv1, _ := parseSetVarAction("tx.somevar=10")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}}},
+		&ActionStmt{ID: 100, Actions: []Action{&SkipAfterAction{Label: "hello1"}}},
 		&Marker{Label: "heLLo1"},
-		&ActionStmt{ID: 200, Actions: []actionHandler{sv1}},
+		&ActionStmt{ID: 200, Actions: []Action{&sv1}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
@@ -530,9 +607,9 @@ func TestMarkerCaseSensitive(t *testing.T) {
 func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
-	sv1, _ := newSetVarAction("tx.somevar=10")
+	sv1, _ := parseSetVarAction("tx.somevar=10")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []actionHandler{&skipAfterAction{label: "hello1"}, sv1}},
+		&ActionStmt{ID: 100, Actions: []Action{&SkipAfterAction{Label: "hello1"}, &sv1}},
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 200},
 	}

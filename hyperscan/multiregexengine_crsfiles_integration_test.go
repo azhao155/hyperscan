@@ -47,11 +47,11 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 			t.Fatalf("Failed to load rule file: %s", err)
 		}
 
-		phraseHandler := func(fileName string) ([]string, error) {
+		phraseLoaderCb := func(fileName string) ([]string, error) {
 			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
 		}
 
-		rr, err := p.Parse(string(b), phraseHandler)
+		rr, err := p.Parse(string(b), phraseLoaderCb)
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", fullPath, err)

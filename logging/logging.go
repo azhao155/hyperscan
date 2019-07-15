@@ -39,13 +39,13 @@ func NewLogrusResultsLogger() secrule.ResultsLogger {
 
 type logrusResultsLogger struct{}
 
-func (l *logrusResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string) {
+func (l *logrusResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	var ruleID int
 	var message string
 	switch stmt := stmt.(type) {
 	case *secrule.Rule:
 		ruleID = stmt.ID
-		message = stmt.Items[0].Msg // TODO figure out if this should really be from item 0, or maybe from the ruleitem where the disruptive action was?
+		message = msg
 	case *secrule.ActionStmt:
 		ruleID = stmt.ID
 	}

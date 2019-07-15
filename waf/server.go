@@ -40,7 +40,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	log.WithField("uri", req.URI()).Info("WAF got request")
 	startTime := time.Now()
 	defer func() {
-		log.WithFields(log.Fields{"timeTaken": time.Since(startTime), "uri": req.URI()}).Info("WAF completed request")
+		log.WithFields(log.Fields{"timeTaken": time.Since(startTime), "uri": req.URI(), "allow": allow}).Info("WAF completed request")
 	}()
 
 	// TODO Decide which site this request belongs to. version and id will be contained in the req and configured by nginx

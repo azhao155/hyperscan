@@ -36,6 +36,6 @@ func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
 
 type mockResultsLogger struct{}
 
-func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt Statement, action string, msg string) {
+func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt Statement, action string, msg string, logData string) {
 	return
 }

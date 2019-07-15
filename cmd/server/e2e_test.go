@@ -49,6 +49,6 @@ func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{}
 
 type mockResultsLogger struct{}
 
-func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string) {
+func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	return
 }

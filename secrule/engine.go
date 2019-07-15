@@ -31,13 +31,13 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		log.WithFields(lf).Debug("Request scanning found a match")
 	}
 
-	triggeredCb := func(stmt Statement, isDisruptive bool, logMsg string) {
+	triggeredCb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
 		action := "Matched"
 		if isDisruptive {
 			action = "Blocked"
 		}
 
-		s.resultsLogger.SecRuleTriggered(req, stmt, action, logMsg)
+		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
 	}
 
 	// TODO: populate initial values as part of TxState task

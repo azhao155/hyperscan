@@ -10,7 +10,7 @@ type RuleEvaluator interface {
 }
 
 // RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
-type RuleEvaluatorTriggeredCb = func(stmt Statement, isDisruptive bool, logMsg string)
+type RuleEvaluatorTriggeredCb = func(stmt Statement, isDisruptive bool, msg string, logData string)
 
 type ruleEvaluatorImpl struct{}
 
@@ -22,7 +22,7 @@ func NewRuleEvaluator() RuleEvaluator {
 func (r *ruleEvaluatorImpl) Process(perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
 	// The triggered callback is optional. Default to do nothing.
 	if triggeredCb == nil {
-		triggeredCb = func(stmt Statement, isDisruptive bool, logMsg string) {}
+		triggeredCb = func(stmt Statement, isDisruptive bool, msg string, logData string) {}
 	}
 
 	// Evaluate each phase, but stop if there was a disruptive action.
@@ -65,105 +65,114 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, perRequestEnv envMap, statem
 			continue
 		}
 
+		// Are we in the right phase for this statement?
+		if checkPhaseShouldContinue(phase, stmt) {
+			continue
+		}
+
+		var actions []Action
+		var stmtID int
+		var triggered bool
+
 		switch stmt := stmt.(type) {
 		case *Rule:
-			rule := stmt
+			triggered = true
+			for curRuleItemIdx, ruleItem := range stmt.Items {
+				log.WithFields(log.Fields{"ruleID": stmt.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
 
-			// Are we in the right phase for this rule?
-			p := rule.Phase
-			if p == 0 {
-				p = 2 // Phase 2 is the default phase for SecRules
-			}
-			if p != phase {
-				// TODO potential small optimization: pre-arrange statements into phases before passing them to processPhase
-				continue
-			}
-
-			allChainItemsMatched := true
-			for curRuleItemIdx, ruleItem := range rule.Items {
-				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
-
-				if !evalPredicate(perRequestEnv, ruleItem, scanResults, rule, curRuleItemIdx) {
-					allChainItemsMatched = false
+				if !evalPredicate(perRequestEnv, ruleItem, scanResults, stmt, curRuleItemIdx) {
+					triggered = false
 					break
 				}
 			}
 
-			if allChainItemsMatched {
-				log.WithFields(log.Fields{"ruleID": rule.ID}).Trace("SecRule triggered")
+			// Did all chain items match?
+			if triggered {
+				log.WithFields(log.Fields{"ruleID": stmt.ID}).Trace("SecRule triggered")
 
-				anyDisruptive := false
-				var logMsg string
+				stmtID = stmt.ID
 
-				for _, ruleItem := range rule.Items {
-					// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
-
-					disruptive, actionAllow, actionStatusCode, actionLogMsg, actionSkipAfter := r.runActions(perRequestEnv, ruleItem.Actions, rule.ID)
-
-					if disruptive {
-						anyDisruptive = true
-						allow = actionAllow
-						statusCode = actionStatusCode
-					}
-
-					if actionLogMsg != "" {
-						logMsg = actionLogMsg
-					}
-
-					if actionSkipAfter != "" {
-						log.WithFields(log.Fields{"label": skipAfter}).Trace("Skipping to marker")
-
-						skipAfter = actionSkipAfter
-					}
-				}
-
-				if !stmt.Nolog {
-					// TODO triggeredCb should get match data (which target and string was matched) from the LAST item of the chain, even if the disruptive action is in the first.
-					triggeredCb(stmt, anyDisruptive, logMsg)
-				}
-
-				if anyDisruptive {
-					phaseDisruptive = true
-					return
+				// Queue up all actions to be run
+				for _, ruleItem := range stmt.Items {
+					actions = append(actions, ruleItem.Actions...)
 				}
 			}
 
 		case *ActionStmt:
-			actionStmt := stmt
+			log.WithFields(log.Fields{"ruleID": stmt.ID}).Trace("SecAction triggered")
+			triggered = true
+			stmtID = stmt.ID
+			actions = append(actions, stmt.Actions...)
+		}
 
-			// Are we in the right phase for this action statement?
-			p := actionStmt.Phase
-			if p == 0 {
-				p = 2 // Phase 2 is the default phase for SecActions
+		shouldLog := true
+		var msg string
+		if len(actions) > 0 {
+			// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
+
+			for _, action := range actions {
+				switch action := action.(type) {
+
+				case *SkipAfterAction:
+					log.WithFields(log.Fields{"label": skipAfter}).Trace("Skipping to marker")
+					skipAfter = action.Label
+
+				case *SetVarAction:
+					err := executeSetVarAction(action, perRequestEnv)
+					if err != nil {
+						log.WithFields(log.Fields{"ruleID": stmtID, "error": err}).Warn("Error executing setVar action")
+					}
+
+				case *NoLogAction:
+					shouldLog = false
+
+				case *LogAction:
+					shouldLog = true
+
+				case *MsgAction:
+					msg = action.Msg
+
+				case *DenyAction:
+					phaseDisruptive = true
+					allow = false
+					statusCode = 403
+
+				}
 			}
-			if p != phase {
-				continue
+		}
+
+		if triggered {
+			if shouldLog {
+				// TODO implement the "logdata" action, so we can put something better than "" in logData
+				triggeredCb(stmt, phaseDisruptive, msg, "")
 			}
 
-			log.WithFields(log.Fields{"ruleID": actionStmt.ID}).Trace("Evaluating SecAction")
-
-			disruptive, actionAllow, actionStatusCode, logMsg, actionSkipAfter := r.runActions(perRequestEnv, actionStmt.Actions, actionStmt.ID)
-
-			if !stmt.Nolog {
-				triggeredCb(stmt, disruptive, logMsg)
-			}
-
-			if disruptive {
-				allow = actionAllow
-				statusCode = actionStatusCode
-				phaseDisruptive = true
+			if phaseDisruptive {
 				return
-			}
-
-			if actionSkipAfter != "" {
-				log.WithFields(log.Fields{"label": skipAfter}).Trace("Skipping to marker")
-
-				skipAfter = actionSkipAfter
 			}
 		}
 	}
 
 	return
+}
+
+func checkPhaseShouldContinue(phase int, stmt Statement) bool {
+	var stmtPhase int
+	switch stmt := stmt.(type) {
+	case *Rule:
+		stmtPhase = stmt.Phase
+	case *ActionStmt:
+		stmtPhase = stmt.Phase
+	}
+	if stmtPhase == 0 {
+		stmtPhase = 2 // Phase 2 is the default phase
+	}
+	if stmtPhase != phase {
+		// TODO potential small optimization: pre-arrange statements into phases before passing them to processPhase
+		return true
+	}
+
+	return false
 }
 
 func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
@@ -192,30 +201,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 	return false
 }
 
-func (r *ruleEvaluatorImpl) runActions(perRequestEnv envMap, actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {
-	// TODO implement the "log" action, so we can put something in logMsg
-
-	for _, action := range actions {
-		switch action := action.(type) {
-		case *skipAfterAction:
-			skipAfter = action.label
-		}
-
-		ar := action.execute(perRequestEnv)
-
-		if ar.err != nil {
-			log.WithFields(log.Fields{"ruleID": ruleID, "error": ar.err}).Warn("Error executing action")
-		}
-
-		// Not letting action related errors affect the WAF decision as of now.
-		// TODO decide whether action errors should block the req
-		if action.isDisruptive() {
-			disruptive = true
-			allow = ar.allow
-			statusCode = ar.statusCode
-			return
-		}
-	}
+func (r *ruleEvaluatorImpl) runActions(perRequestEnv envMap, actions []Action, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {
 
 	return
 }

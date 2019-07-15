@@ -5,36 +5,62 @@ type Statement interface{}
 
 // ActionStmt represents a SecAction in the SecRule-lang.
 type ActionStmt struct {
-	ID         int
-	Msg        string
-	RawActions []RawAction
-	Actions    []actionHandler
-	Nolog      bool
-	Phase      int
+	ID      int
+	Phase   int
+	Actions []Action
 }
 
 // Rule is one or more SecRule statements in the SecRule-lang. Multiple SecRules if they are chained.
 type Rule struct {
 	ID    int
-	Items []RuleItem
-	Nolog bool
 	Phase int
+	Items []RuleItem
 }
 
 // RuleItem is a single SecRule statement, which might be part of a chain.
 type RuleItem struct {
-	Msg             string
 	Predicate       RulePredicate
-	RawActions      []RawAction
-	Actions         []actionHandler
+	Actions         []Action
 	Transformations []Transformation
 	PmPhrases       []string
 }
 
-// RawAction is a key-value pair in the "actions"-block of a SecRule.
+// Action is any of the items in the actions-block of a SecRule or SecAction.
+type Action interface{}
+
+// RawAction is an action we couldn't parse into anything more specific.
 type RawAction struct {
 	Key string
 	Val string
+}
+
+// DenyAction is an action that instructs to stop processing and deny the request.
+type DenyAction struct{}
+
+// NoLogAction is an action that makes the engine not log.
+type NoLogAction struct{}
+
+// LogAction is an action that makes the engine log. It logs by default, but this action is useful to override NoLogAction.
+type LogAction struct{}
+
+// MsgAction is an action that says what message to log.
+type MsgAction struct {
+	Msg string
+}
+
+// SkipAfterAction instructs to skip all subsequent statements until the SecMarker with the given label is found.
+type SkipAfterAction struct {
+	Label string
+}
+
+// SetVarAction is the action that modifies variables in the per-request environment.
+type SetVarAction struct {
+	// TODO potential optimization, variable and value could be stored as a list of objects (especially in case of macros)
+	variable        string
+	operator        setvarActionOperator
+	value           string
+	varMacroMatches [][]string
+	valMacroMatches [][]string
 }
 
 // Operator that the SecRule will use to evaluates the input against the value.

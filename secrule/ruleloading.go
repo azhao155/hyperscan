@@ -72,10 +72,10 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, 
 		}
 
 		var rr []Statement
-		phraseHandler := func(fileName string) ([]string, error) {
+		phraseLoaderCb := func(fileName string) ([]string, error) {
 			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
 		}
-		rr, err = c.parser.Parse(string(bb), phraseHandler)
+		rr, err = c.parser.Parse(string(bb), phraseLoaderCb)
 		if err != nil {
 			err = fmt.Errorf("Got unexpected error while loading rule file %s. Error: %s", fullPath, err)
 			return
@@ -154,7 +154,7 @@ func getCrsRulesPath() string {
 	return dir
 }
 
-type phraseFunc func(string) ([]string, error)
+type phraseLoaderCb func(string) ([]string, error)
 
 func loadPhraseFile(fullPath string) (phrases []string, err error) {
 	var bb []byte
