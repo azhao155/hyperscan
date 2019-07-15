@@ -6,38 +6,20 @@ import (
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error)
+	Process(perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error)
 }
 
 // RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
 type RuleEvaluatorTriggeredCb = func(stmt Statement, isDisruptive bool, logMsg string)
 
-type ruleEvaluatorImpl struct {
-	// TODO: populate initial values as part of TxState task
-	perRequestEnv envMap
-}
-
-// RuleEvaluatorFactory creates RuleEvaluators.
-type RuleEvaluatorFactory interface {
-	NewRuleEvaluator(env envMap) (r RuleEvaluator)
-}
-
-// NewRuleEvaluatorFactory creates a RuleEvaluatorFactory.
-func NewRuleEvaluatorFactory() RuleEvaluatorFactory {
-	return &ruleEvaluatorFactoryImpl{newEnvMap()}
-}
-
-type ruleEvaluatorFactoryImpl struct {
-	em envMap
-}
+type ruleEvaluatorImpl struct{}
 
 // NewRuleEvaluator creates a new rule evaluator
-func (ref *ruleEvaluatorFactoryImpl) NewRuleEvaluator(em envMap) (r RuleEvaluator) {
-	r = &ruleEvaluatorImpl{em}
-	return
+func NewRuleEvaluator() RuleEvaluator {
+	return &ruleEvaluatorImpl{}
 }
 
-func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
+func (r *ruleEvaluatorImpl) Process(perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
 	// The triggered callback is optional. Default to do nothing.
 	if triggeredCb == nil {
 		triggeredCb = func(stmt Statement, isDisruptive bool, logMsg string) {}
@@ -47,7 +29,7 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 	anyDisruptive := false
 	for phase := 1; phase <= 4; phase++ {
 		log.Debugf("Starting rule evaluation phase %v", phase)
-		phaseAllow, phaseStatusCode, phaseDisruptive := r.processPhase(phase, statements, scanResults, triggeredCb)
+		phaseAllow, phaseStatusCode, phaseDisruptive := r.processPhase(phase, perRequestEnv, statements, scanResults, triggeredCb)
 		if phaseDisruptive {
 			allow = phaseAllow
 			statusCode = phaseStatusCode
@@ -58,7 +40,7 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 
 	// Phase 5 is special, because it cannot perform any disruptive actions.
 	log.Debug("Starting rule evaluation phase 5")
-	r.processPhase(5, statements, scanResults, triggeredCb)
+	r.processPhase(5, perRequestEnv, statements, scanResults, triggeredCb)
 
 	if !anyDisruptive {
 		allow = true
@@ -68,7 +50,7 @@ func (r *ruleEvaluatorImpl) Process(statements []Statement, scanResults *ScanRes
 	return
 }
 
-func (r *ruleEvaluatorImpl) processPhase(phase int, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, phaseDisruptive bool) {
+func (r *ruleEvaluatorImpl) processPhase(phase int, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, phaseDisruptive bool) {
 	var skipAfter string
 
 	for _, stmt := range statements {
@@ -101,7 +83,7 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, statements []Statement, scan
 			for curRuleItemIdx, ruleItem := range rule.Items {
 				log.WithFields(log.Fields{"ruleID": rule.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
 
-				if !evalPredicate(r.perRequestEnv, ruleItem, scanResults, rule, curRuleItemIdx) {
+				if !evalPredicate(perRequestEnv, ruleItem, scanResults, rule, curRuleItemIdx) {
 					allChainItemsMatched = false
 					break
 				}
@@ -116,7 +98,7 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, statements []Statement, scan
 				for _, ruleItem := range rule.Items {
 					// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
-					disruptive, actionAllow, actionStatusCode, actionLogMsg, actionSkipAfter := r.runActions(ruleItem.Actions, rule.ID)
+					disruptive, actionAllow, actionStatusCode, actionLogMsg, actionSkipAfter := r.runActions(perRequestEnv, ruleItem.Actions, rule.ID)
 
 					if disruptive {
 						anyDisruptive = true
@@ -160,7 +142,7 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, statements []Statement, scan
 
 			log.WithFields(log.Fields{"ruleID": actionStmt.ID}).Trace("Evaluating SecAction")
 
-			disruptive, actionAllow, actionStatusCode, logMsg, actionSkipAfter := r.runActions(actionStmt.Actions, actionStmt.ID)
+			disruptive, actionAllow, actionStatusCode, logMsg, actionSkipAfter := r.runActions(perRequestEnv, actionStmt.Actions, actionStmt.ID)
 
 			if !stmt.Nolog {
 				triggeredCb(stmt, disruptive, logMsg)
@@ -210,7 +192,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 	return false
 }
 
-func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {
+func (r *ruleEvaluatorImpl) runActions(perRequestEnv envMap, actions []actionHandler, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {
 	// TODO implement the "log" action, so we can put something in logMsg
 
 	for _, action := range actions {
@@ -219,7 +201,7 @@ func (r *ruleEvaluatorImpl) runActions(actions []actionHandler, ruleID int) (dis
 			skipAfter = action.label
 		}
 
-		ar := action.execute(r.perRequestEnv)
+		ar := action.execute(perRequestEnv)
 
 		if ar.err != nil {
 			log.WithFields(log.Fields{"ruleID": ruleID, "error": ar.err}).Warn("Error executing action")

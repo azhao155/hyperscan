@@ -18,9 +18,9 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
+	re := secrule.NewRuleEvaluator()
 	reslog := &mockResultsLogger{}
-	ef := secrule.NewEngineFactory(rl, rsf, ref, reslog)
+	ef := secrule.NewEngineFactory(rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)

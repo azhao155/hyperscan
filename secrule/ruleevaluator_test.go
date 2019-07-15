@@ -26,10 +26,9 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
 	sr := &ScanResults{m}
 
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
 	assert.True(pass)
 	assert.Equal(200, code)
@@ -56,10 +55,9 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
 	sr := &ScanResults{m}
 
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
 	assert.False(pass)
 	assert.Equal(403, code)
@@ -82,13 +80,12 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 		},
 	}
 
-	ref := NewRuleEvaluatorFactory()
 	em := newEnvMap()
 	em.set("tx.anomaly_score", &integerObject{Value: 10})
 	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
-	re := ref.NewRuleEvaluator(em)
+	re := NewRuleEvaluator()
 
-	allow, code, err := re.Process(rules, &ScanResults{}, nil)
+	allow, code, err := re.Process(em, rules, &ScanResults{}, nil)
 	assert.Nil(err)
 	assert.False(allow)
 	assert.Equal(403, code)
@@ -115,11 +112,10 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -147,11 +143,10 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -179,11 +174,10 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -215,13 +209,12 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -242,13 +235,12 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -270,13 +262,12 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -305,11 +296,10 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -334,11 +324,10 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(rules, sr, nil)
+	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -363,15 +352,14 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 	cbCalled := false
 	cb := func(stmt Statement, isDisruptive bool, logMsg string) {
 		cbCalled = true
 	}
 
 	// Act
-	re.Process(rules, sr, cb)
+	re.Process(newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.False(cbCalled)
@@ -393,15 +381,14 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
-	re := ref.NewRuleEvaluator(newEnvMap())
+	re := NewRuleEvaluator()
 	cbCalled := false
 	cb := func(stmt Statement, isDisruptive bool, logMsg string) {
 		cbCalled = true
 	}
 
 	// Act
-	re.Process(rules, sr, cb)
+	re.Process(newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.True(cbCalled)
@@ -418,13 +405,12 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(rules, sr, nil)
+	re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -444,13 +430,12 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(rules, sr, nil)
+	re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -473,13 +458,12 @@ func TestSkipAfter(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(rules, sr, nil)
+	re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -507,13 +491,12 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(rules, sr, nil)
+	re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -533,13 +516,12 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(rules, sr, nil)
+	re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.False(env.hasKey("tx.somevar"))
@@ -556,13 +538,12 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	sr := &ScanResults{m}
-	ref := NewRuleEvaluatorFactory()
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
-	re := ref.NewRuleEvaluator(env)
+	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(rules, sr, nil)
+	re.Process(env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))

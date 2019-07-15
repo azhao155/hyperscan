@@ -39,7 +39,11 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 
 		s.resultsLogger.SecRuleTriggered(req, stmt, action, logMsg)
 	}
-	allow, statusCode, err := s.ruleEvaluator.Process(s.statements, scanResults, triggeredCb)
+
+	// TODO: populate initial values as part of TxState task
+	perRequestEnv := newEnvMap()
+
+	allow, statusCode, err := s.ruleEvaluator.Process(perRequestEnv, s.statements, scanResults, triggeredCb)
 	if err != nil {
 		log.WithFields(log.Fields{"error": err}).Debug("SecRule engine got rule evaluation error")
 		return false

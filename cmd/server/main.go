@@ -37,9 +37,9 @@ func main() {
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
+	re := secrule.NewRuleEvaluator()
 	reslog := logging.NewLogrusResultsLogger()
-	sref := secrule.NewEngineFactory(rl, rsf, ref, reslog)
+	sref := secrule.NewEngineFactory(rl, rsf, re, reslog)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	cm, _, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})

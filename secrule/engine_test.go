@@ -10,9 +10,9 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rl := newMockRuleLoader()
-	ref := NewRuleEvaluatorFactory()
+	re := NewRuleEvaluator()
 	reslog := &mockResultsLogger{}
-	ef := NewEngineFactory(rl, rsf, ref, reslog)
+	ef := NewEngineFactory(rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
