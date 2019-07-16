@@ -24,7 +24,8 @@ go run azwaf/cmd/server
 go test -cover azwaf/...
 
 # To generate a detailed code coverage report
-go test -covermode=count -coverprofile=coverage.out azwaf/...
+rm -fr hyperscancache
+go test -count=1 -covermode=count -coverprofile=coverage.out azwaf/...
 go tool cover -html=coverage.out -o coverage.html
 
 # To run code style analysis
