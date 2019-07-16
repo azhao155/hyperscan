@@ -6,8 +6,11 @@ import (
 	"azwaf/logging"
 	"azwaf/secrule"
 	"azwaf/waf"
+	"flag"
+	"os"
 
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type mockSecRuleConfig struct{}
@@ -27,8 +30,12 @@ func (c *mockConfig) GeoDBConfigs() []waf.GeoDBConfig { return []waf.GeoDBConfig
 func (c *mockConfig) IPReputationConfigs() []waf.IPReputationConfig { return []waf.IPReputationConfig{} }
 
 func main() {
-	//log.SetLevel(log.TraceLevel)
-	log.SetLevel(log.InfoLevel)
+	logLevel := flag.String("loglevel", "error", "sets log level. Can be one of: debug, info, warn, error, fatal, panic.")
+	flag.Parse()
+
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+	l, _ := zerolog.ParseLevel(*logLevel)
+	zerolog.SetGlobalLevel(l)
 
 	// Depedency injection composition root
 	p := secrule.NewRuleParser()
@@ -38,13 +45,13 @@ func main() {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
-	reslog := logging.NewLogrusResultsLogger()
+	reslog := logging.NewZerologResultsLogger()
 	sref := secrule.NewEngineFactory(rl, rsf, re, reslog)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	cm, _, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
 	if err != nil {
-		log.Fatalf("error while creating config manager: %v", err)
+		log.Fatal().Err(err).Msg("Error while creating config manager")
 	}
 
 	// TODO Implement real config loading.
@@ -53,13 +60,13 @@ func main() {
 
 	w, err := waf.NewServer(c, sref)
 	if err != nil {
-		log.Fatalf("error while creating service manager: %v", err)
+		log.Fatal().Err(err).Msg("Error while creating service manager")
 	}
 
 	s := grpc.NewServer(w, cm)
 
 	log.Print("Starting WAF server")
 	if err := s.Serve(); err != nil {
-		log.Fatalf("%v", err)
+		log.Fatal().Err(err).Msg("Error while running WAF server")
 	}
 }

@@ -2,7 +2,8 @@ package secrule
 
 import (
 	"azwaf/waf"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"time"
 )
 
@@ -14,21 +15,29 @@ type engineImpl struct {
 }
 
 func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
-	log.WithFields(log.Fields{"uri": req.URI()}).Info("SecRule engine got EvalRequest")
-	startTime := time.Now()
-	defer func() {
-		log.WithFields(log.Fields{"timeTaken": time.Since(startTime)}).Info("SecRule EvalRequest done")
-	}()
+	if zerolog.GlobalLevel() >= zerolog.InfoLevel {
+		log.Info().Str("uri", req.URI()).Msg("SecRule engine got EvalRequest")
+		startTime := time.Now()
+		defer func() {
+			log.Info().Dur("timeTaken", time.Since(startTime)).Msg("SecRule EvalRequest done")
+		}()
+	}
 
 	scanResults, err := s.reqScanner.Scan(req)
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Debug("SecRule engine got scanning error")
+		log.Debug().Err(err).Msg("SecRule engine got scanning error")
 		return false
 	}
 
-	for key, match := range scanResults.rxMatches {
-		lf := log.Fields{"ruleID": key.ruleID, "ruleItemIdx": key.ruleItemIdx, "target": key.target, "matchedData": string(match.Data)}
-		log.WithFields(lf).Debug("Request scanning found a match")
+	if zerolog.GlobalLevel() >= zerolog.DebugLevel {
+		for key, match := range scanResults.rxMatches {
+			log.Debug().
+				Int("ruleID", key.ruleID).
+				Int("ruleItemIdx", key.ruleItemIdx).
+				Str("target", key.target).
+				Str("matchedData", string(match.Data)).
+				Msg("Request scanning found a match")
+		}
 	}
 
 	triggeredCb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -45,11 +54,11 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 
 	allow, statusCode, err := s.ruleEvaluator.Process(perRequestEnv, s.statements, scanResults, triggeredCb)
 	if err != nil {
-		log.WithFields(log.Fields{"error": err}).Debug("SecRule engine got rule evaluation error")
+		log.Debug().Err(err).Msg("SecRule engine got rule evaluation error")
 		return false
 	}
 
-	log.WithFields(log.Fields{"allow": allow, "statusCode": statusCode}).Debug("SecRule engine rule evaluation decision")
+	log.Debug().Bool("allow", allow).Int("statusCode", statusCode).Msg("SecRule engine rule evaluation decision")
 
 	// TODO return status code
 	if !allow {

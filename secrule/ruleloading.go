@@ -3,7 +3,7 @@ package secrule
 import (
 	"azwaf/waf"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"io/ioutil"
 	"os"
 	"path"
@@ -88,42 +88,42 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, 
 				// Skip this rule until we add support for backreferences
 				// TODO add support for backreferences
 				if rule.ID == 942130 {
-					log.WithFields(log.Fields{"ruleID": 942130}).Warn("Skipping rule due to lack of support for backreferences")
+					log.Warn().Int("ruleID", 942130).Msg("Skipping rule due to lack of support for backreferences")
 					continue
 				}
 
 				// Skip this rule until we add support for stripping embedded anchors
 				// TODO add support for stripping embedded anchors
 				if rule.ID == 942330 {
-					log.WithFields(log.Fields{"ruleID": 942330}).Warn("Skipping rule due to lack of support for embedded anchors")
+					log.Warn().Int("ruleID", 942330).Msg("Skipping rule due to lack of support for embedded anchors")
 					continue
 				}
 
 				// Skip this rule until we add full support numerical operations
 				// TODO add full support numerical operations
 				if rule.ID == 920130 {
-					log.WithFields(log.Fields{"ruleID": 920130}).Warn("Skipping rule due to lack of add full support numerical operations")
+					log.Warn().Int("ruleID", 920130).Msg("Skipping rule due to lack of add full support numerical operations")
 					continue
 				}
 
 				// Skip this rule until we add full support numerical operations
 				// TODO add full support numerical operations
 				if rule.ID == 920140 {
-					log.WithFields(log.Fields{"ruleID": 920140}).Warn("Skipping rule due to lack of add full support numerical operations")
+					log.Warn().Int("ruleID", 920140).Msg("Skipping rule due to lack of add full support numerical operations")
 					continue
 				}
 
 				// Skip this rule until we add support for target REQUEST_PROTOCOL
 				// TODO add support for target REQUEST_PROTOCOL
 				if rule.ID == 920430 {
-					log.WithFields(log.Fields{"ruleID": 920430}).Warn("Skipping rule due to lack of add support for target REQUEST_PROTOCOL")
+					log.Warn().Int("ruleID", 920430).Msg("Skipping rule due to lack of add support for target REQUEST_PROTOCOL")
 					continue
 				}
 
 				// Skip this rule until we add support for target REQUEST_METHOD
 				// TODO add support for target REQUEST_METHOD
 				if rule.ID == 911100 {
-					log.WithFields(log.Fields{"ruleID": 911100}).Warn("Skipping rule due to lack of add support for target REQUEST_METHOD")
+					log.Warn().Int("ruleID", 911100).Msg("Skipping rule due to lack of add support for target REQUEST_METHOD")
 					continue
 				}
 			}

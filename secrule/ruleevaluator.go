@@ -1,7 +1,7 @@
 package secrule
 
 import (
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 // RuleEvaluator processes the incoming request against all parsed rules
@@ -28,7 +28,7 @@ func (r *ruleEvaluatorImpl) Process(perRequestEnv envMap, statements []Statement
 	// Evaluate each phase, but stop if there was a disruptive action.
 	anyDisruptive := false
 	for phase := 1; phase <= 4; phase++ {
-		log.Debugf("Starting rule evaluation phase %v", phase)
+		log.Debug().Int("phase", phase).Msg("Starting rule evaluation phase")
 		phaseAllow, phaseStatusCode, phaseDisruptive := r.processPhase(phase, perRequestEnv, statements, scanResults, triggeredCb)
 		if phaseDisruptive {
 			allow = phaseAllow
@@ -39,7 +39,7 @@ func (r *ruleEvaluatorImpl) Process(perRequestEnv envMap, statements []Statement
 	}
 
 	// Phase 5 is special, because it cannot perform any disruptive actions.
-	log.Debug("Starting rule evaluation phase 5")
+	log.Debug().Int("phase", 5).Msg("Starting rule evaluation phase")
 	r.processPhase(5, perRequestEnv, statements, scanResults, triggeredCb)
 
 	if !anyDisruptive {
@@ -78,7 +78,7 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, perRequestEnv envMap, statem
 		case *Rule:
 			triggered = true
 			for curRuleItemIdx, ruleItem := range stmt.Items {
-				log.WithFields(log.Fields{"ruleID": stmt.ID, "ruleItemIdx": curRuleItemIdx}).Trace("Evaluating SecRule")
+				log.Debug().Int("ruleID", stmt.ID).Int("ruleItemIdx", curRuleItemIdx).Msg("Evaluating SecRule")
 
 				if !evalPredicate(perRequestEnv, ruleItem, scanResults, stmt, curRuleItemIdx) {
 					triggered = false
@@ -88,7 +88,7 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, perRequestEnv envMap, statem
 
 			// Did all chain items match?
 			if triggered {
-				log.WithFields(log.Fields{"ruleID": stmt.ID}).Trace("SecRule triggered")
+				log.Debug().Int("ruleID", stmt.ID).Msg("SecRule triggered")
 
 				stmtID = stmt.ID
 
@@ -99,7 +99,7 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, perRequestEnv envMap, statem
 			}
 
 		case *ActionStmt:
-			log.WithFields(log.Fields{"ruleID": stmt.ID}).Trace("SecAction triggered")
+			log.Debug().Int("ruleID", stmt.ID).Msg("SecAction triggered")
 			triggered = true
 			stmtID = stmt.ID
 			actions = append(actions, stmt.Actions...)
@@ -114,13 +114,13 @@ func (r *ruleEvaluatorImpl) processPhase(phase int, perRequestEnv envMap, statem
 				switch action := action.(type) {
 
 				case *SkipAfterAction:
-					log.WithFields(log.Fields{"label": skipAfter}).Trace("Skipping to marker")
+					log.Debug().Str("label", skipAfter).Msg("Skipping to marker")
 					skipAfter = action.Label
 
 				case *SetVarAction:
 					err := executeSetVarAction(action, perRequestEnv)
 					if err != nil {
-						log.WithFields(log.Fields{"ruleID": stmtID, "error": err}).Warn("Error executing setVar action")
+						log.Warn().Int("ruleID", stmtID).Err(err).Msg("Error executing setVar action")
 					}
 
 				case *NoLogAction:

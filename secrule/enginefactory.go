@@ -3,7 +3,7 @@ package secrule
 import (
 	"azwaf/waf"
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 )
 
 // NewEngineFactory creates a factory that can create SecRule engines.
@@ -20,7 +20,7 @@ type engineFactoryImpl struct {
 
 func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecRuleEngine, err error) {
 	ruleSetID := waf.RuleSetID(config.RuleSetID())
-	log.WithFields(log.Fields{"ruleSet": ruleSetID}).Info("Loading rules")
+	log.Info().Str("ruleSet", string(ruleSetID)).Msg("Loading rules")
 
 	statements, err := f.ruleLoader.Rules(ruleSetID)
 	if err != nil {

@@ -2,7 +2,8 @@ package waf
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"time"
 )
 
@@ -37,11 +38,13 @@ func NewServer(c map[int64]Config, sref SecRuleEngineFactory) (server Server, er
 }
 
 func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
-	log.WithField("uri", req.URI()).Info("WAF got request")
-	startTime := time.Now()
-	defer func() {
-		log.WithFields(log.Fields{"timeTaken": time.Since(startTime), "uri": req.URI(), "allow": allow}).Info("WAF completed request")
-	}()
+	if zerolog.GlobalLevel() >= zerolog.InfoLevel {
+		log.Info().Str("uri", req.URI()).Msg("WAF got request")
+		startTime := time.Now()
+		defer func() {
+			log.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Bool("allow", allow).Msg("WAF completed request")
+		}()
+	}
 
 	// TODO Decide which site this request belongs to. version and id will be contained in the req and configured by nginx
 	if _, ok := s.secRuleEngines[req.Version()]; !ok {

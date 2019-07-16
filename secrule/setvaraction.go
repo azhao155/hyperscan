@@ -2,7 +2,7 @@ package secrule
 
 import (
 	"fmt"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"strconv"
 )
 
@@ -35,7 +35,7 @@ func executeSetVarAction(sv *SetVarAction, perRequestEnv envMap) (err error) {
 	}
 
 	newValue, _ := perRequestEnv.get(variable)
-	log.WithFields(log.Fields{"variable": variable, "newValue": newValue}).Trace("Executed setVarAction")
+	log.Debug().Str("variable", variable).Interface("newValue", newValue).Msg("Executed setVarAction")
 
 	return
 }

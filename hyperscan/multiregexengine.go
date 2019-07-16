@@ -4,7 +4,7 @@ import (
 	"azwaf/secrule"
 	"fmt"
 	hs "github.com/flier/gohs/hyperscan"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"regexp"
 )
 
@@ -50,7 +50,7 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 		cacheID = f.dbCache.cacheID(patterns)
 		h.db = f.dbCache.loadFromCache(cacheID)
 
-		log.WithFields(log.Fields{"cacheHit": h.db != nil}).Trace("Attempted Hyperscan DB load from cache")
+		log.Debug().Bool("cacheHit", h.db != nil).Msg("Attempted Hyperscan DB load from cache")
 	}
 
 	// Build the Hyperscan database if cache miss.

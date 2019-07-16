@@ -4,7 +4,7 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
+	"github.com/rs/zerolog/log"
 	"strconv"
 )
 
@@ -32,14 +32,14 @@ type customerFirewallLogDetailsEntry struct {
 	Line    string `json:"line"`
 }
 
-// NewLogrusResultsLogger creates a results logger that creates log messages like the ones we want to send to the customer, but just outputs them to Logrus.
-func NewLogrusResultsLogger() secrule.ResultsLogger {
-	return &logrusResultsLogger{}
+// NewZerologResultsLogger creates a results logger that creates log messages like the ones we want to send to the customer, but just outputs them to Zerolog.
+func NewZerologResultsLogger() secrule.ResultsLogger {
+	return &zerologResultsLogger{}
 }
 
-type logrusResultsLogger struct{}
+type zerologResultsLogger struct{}
 
-func (l *logrusResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	var ruleID int
 	var message string
 	switch stmt := stmt.(type) {
@@ -60,8 +60,8 @@ func (l *logrusResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt sec
 
 	bb, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		log.WithField("error", err).Error("Error while marshaling JSON results log")
+		log.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}
 
-	log.Infof("Customer facing log:\n%s", bb)
+	log.Info().Msgf("Customer facing log: %s\n", bb)
 }

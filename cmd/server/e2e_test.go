@@ -5,13 +5,16 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"bytes"
+	"github.com/rs/zerolog"
 	"io"
 	"testing"
 )
 
 func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	// Arrange
-	//logrus.SetLevel(logrus.TraceLevel)
+	origLogLevel := zerolog.GlobalLevel()
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	defer zerolog.SetGlobalLevel(origLogLevel)
 	p := secrule.NewRuleParser()
 	rl := secrule.NewCrsRuleLoader(p)
 	hsfs := hyperscan.NewCacheFileSystem()
