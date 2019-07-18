@@ -88,6 +88,7 @@ func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 		return m, err
 	}
 
+	var found = false
 	for _, f := range files {
 		if !strings.HasPrefix(f, prefix) {
 			continue
@@ -108,8 +109,13 @@ func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 			return m, fmt.Errorf("Processing file %v has error: %v", f, err)
 		}
 
+		found = true
 		c.curVersion = max(c.curVersion, v)
 		m[v] = wafConfig
+	}
+
+	if found {
+		c.curVersion++
 	}
 
 	return m, nil
