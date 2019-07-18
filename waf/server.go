@@ -46,20 +46,23 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 		}()
 	}
 
+	version := req.Version()
+	ruleSetID := req.RuleSetID()
+
 	// TODO Decide which site this request belongs to. version and id will be contained in the req and configured by nginx
-	if _, ok := s.secRuleEngines[req.Version()]; !ok {
-		err = fmt.Errorf("Not found config for the request, version %v", req.Version())
+	if _, ok := s.secRuleEngines[version]; !ok {
+		err = fmt.Errorf("not found config for the request, version %v", version)
 		return
 	}
 
-	if _, ok := s.secRuleEngines[req.Version()][req.SecRuleID()]; !ok {
-		err = fmt.Errorf("Not found config for the request, version %v seculeID %v", req.Version(), req.SecRuleID())
+	if _, ok := s.secRuleEngines[version][ruleSetID]; !ok {
+		err = fmt.Errorf("not found config for the request, version %v ruleSetID %v", version, ruleSetID)
 		return
 	}
 
 	// TODO add other engine
 
-	allow = s.secRuleEngines[req.Version()][req.SecRuleID()].EvalRequest(req)
+	allow = s.secRuleEngines[version][ruleSetID].EvalRequest(req)
 
 	return
 }

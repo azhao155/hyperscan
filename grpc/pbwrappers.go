@@ -4,8 +4,9 @@ import (
 	pb "azwaf/proto"
 	"azwaf/waf"
 	"fmt"
-	"github.com/golang/protobuf/jsonpb"
 	"io"
+
+	"github.com/golang/protobuf/jsonpb"
 )
 
 type wafHTTPRequestPbWrapper struct {
@@ -25,8 +26,8 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 
 // TODO once protobuf has version and config id, need to be implemented
-func (r *wafHTTPRequestPbWrapper) SecRuleID() string { return "SecRuleConfig1" }
-func (r *wafHTTPRequestPbWrapper) Version() int64    { return 0 }
+func (r *wafHTTPRequestPbWrapper) RuleSetID() string { return r.pb.RuleSetID }
+func (r *wafHTTPRequestPbWrapper) Version() int64    { return r.pb.Version }
 
 type headerPairPbWrapper struct{ pb *pb.HeaderPair }
 

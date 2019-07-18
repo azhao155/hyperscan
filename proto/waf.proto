@@ -20,6 +20,8 @@ message WafHttpRequest {
 }
 
 message HeadersAndFirstChunk {
+  int64 version = 6;
+  string ruleSetID = 7;
   string method = 1;
   string uri = 2;
   repeated HeaderPair headers = 3;

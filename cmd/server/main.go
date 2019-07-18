@@ -49,14 +49,10 @@ func main() {
 	sref := secrule.NewEngineFactory(rl, rsf, re, reslog)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
-	cm, _, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
+	cm, c, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error while creating config manager")
 	}
-
-	// TODO Implement real config loading.
-	c := make(map[int64]waf.Config)
-	c[0] = &mockConfig{}
 
 	w, err := waf.NewServer(c, sref)
 	if err != nil {
