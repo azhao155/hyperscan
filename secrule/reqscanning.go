@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -19,6 +20,7 @@ import (
 // ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
 type ReqScanner interface {
 	Scan(req waf.HTTPRequest) (results *ScanResults, err error)
+	LengthLimits() LengthLimits
 }
 
 // RxMatch represents a regex match found while scanning.
@@ -68,6 +70,7 @@ type scanGroup struct {
 
 type reqScannerImpl struct {
 	scanPatterns map[string][]*scanGroup
+	lengthLimits LengthLimits
 }
 
 // NewReqScanner creates a ReqScanner.
@@ -148,8 +151,15 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 		}
 	}
 
+	lengthLimits := LengthLimits{
+		MaxLengthField:    1024 * 20,         // 20 KiB
+		MaxLengthPausable: 1024 * 128,        // 128 KiB
+		MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
+	}
+
 	r = &reqScannerImpl{
 		scanPatterns: scanPatterns,
+		lengthLimits: lengthLimits,
 	}
 
 	log.Info().Dur("timeTaken", time.Since(startTime)).Msg("Done initializing scan targets")
@@ -169,53 +179,64 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 	}
 
 	log.Debug().Msg("Scanning headers")
-	contentType, err := r.scanHeaders(req.Headers(), results)
+	contentType, contentLength, err := r.scanHeaders(req.Headers(), results)
 	if err != nil {
 		return
 	}
 
+	// If the headers already up front said that the request is going to be too large, there's no point in starting to scan the body.
+	if contentLength > r.lengthLimits.MaxLengthTotal {
+		err = errTotalBytesLimitExceeded
+		return
+	}
+
 	bodyReader := req.BodyReader()
+	bodyReaderWithMax := newMaxLengthReaderDecorator(bodyReader, r.lengthLimits)
+	// TODO besides these byte count Limits, consider abort if there were too many individual fields
 
 	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
 	mediatype, mediaTypeParams, _ := mime.ParseMediaType(contentType)
+
+	log.Debug().Str("mediatype", mediatype).Msg("Starting body parsing")
+
 	switch mediatype {
+
 	case "multipart/form-data":
-		log.Debug().Msg("Using multipart parser")
-		err = r.scanMultipartBody(bodyReader, mediaTypeParams, results)
-		if err != nil {
-			err = fmt.Errorf("multipart body scanning error: %v", err)
-			return
-		}
+		err = r.scanMultipartBody(bodyReaderWithMax, mediaTypeParams, results)
 
 	case "application/x-www-form-urlencoded":
-		log.Debug().Msg("Using urlencoded parser")
-		err = r.scanUrlencodedBody(bodyReader, results)
-		if err != nil {
-			err = fmt.Errorf("urlencoded body scanning error: %v", err)
-			return
-		}
+		err = r.scanUrlencodedBody(bodyReaderWithMax, results)
 
 	case "text/xml":
-		log.Debug().Msg("Using XML parser")
-		err = r.scanXMLBody(bodyReader, results)
-		if err != nil {
-			err = fmt.Errorf("XML body scanning error: %v", err)
-			return
-		}
+		err = r.scanXMLBody(bodyReaderWithMax, results)
 
 	case "application/json":
 		// TODO also use for text/json? ModSec currently doesn't...
 		// TODO also use for application/javascript JSONP? ModSec currently doesn't...
-		log.Debug().Msg("Using JSON parser")
-		err = r.scanJSONBody(bodyReader, results)
-		if err != nil {
-			err = fmt.Errorf("JSON body scanning error: %v", err)
-			return
-		}
+		err = r.scanJSONBody(bodyReaderWithMax, results)
+
+	default:
+		// Unsupported type of body. Not scanning for now.
+		// TODO consider doing something sensible even for unknown request body types. ModSec doesn't though.
+
+		log.Debug().Str("mediatype", mediatype).Msg("Unsupported request body type")
 
 	}
 
+	if err != nil {
+		if err == errFieldBytesLimitExceeded || err == errPausableBytesLimitExceeded || err == errTotalBytesLimitExceeded {
+			return
+		}
+
+		err = fmt.Errorf("%v body scanning error: %v", mediatype, err)
+		return
+	}
+
 	return
+}
+
+func (r *reqScannerImpl) LengthLimits() LengthLimits {
+	return r.lengthLimits
 }
 
 // GetRxResultsFor returns any results for regex matches that were done during the request scanning.
@@ -297,10 +318,19 @@ func getRxExprs(ruleItem *RuleItem) []string {
 	return nil
 }
 
-func (r *reqScannerImpl) scanHeaders(headers []waf.HeaderPair, results *ScanResults) (contentType string, err error) {
+func (r *reqScannerImpl) scanHeaders(headers []waf.HeaderPair, results *ScanResults) (contentType string, contentLength int, err error) {
+	contentLength = -1
+
 	for _, h := range headers {
 		k := h.Key()
 		v := h.Value()
+
+		if strings.ToLower(h.Key()) == "content-length" {
+			contentLength, err = strconv.Atoi(h.Value())
+			if err != nil {
+				err = fmt.Errorf("failed to parse Content-Length header")
+			}
+		}
 
 		if strings.ToLower(h.Key()) == "content-type" {
 			contentType = h.Value()
@@ -355,20 +385,36 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	return
 }
 
-func (r *reqScannerImpl) scanMultipartBody(bodyReader io.Reader, mediaTypeParams map[string]string, results *ScanResults) (err error) {
+func (r *reqScannerImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorator, mediaTypeParams map[string]string, results *ScanResults) (err error) {
 	var buf bytes.Buffer
 	m := multipart.NewReader(bodyReader, mediaTypeParams["boundary"])
 	for i := 0; ; i++ {
 		log.Debug().Int("partNumber", i).Msg("Getting next multipart part")
 
+		bodyReader.ResetFieldReadCount() // Even though the part headers are not strictly a "field", they still may be a significant number of bytes, so we'll treat them as a field.
 		var part *multipart.Part
 		part, err = m.NextPart()
 		if err != nil {
+			// Unfortunately NextPart() doesn't return the raw err, but wraps it.
+			if bodyReader.IsFieldLimitReached() {
+				err = errFieldBytesLimitExceeded
+				return
+			}
+			if bodyReader.IsPausableReached() {
+				err = errPausableBytesLimitExceeded
+				return
+			}
+			if bodyReader.IsTotalLimitReached() {
+				err = errTotalBytesLimitExceeded
+				return
+			}
+
 			if err == io.EOF {
 				err = nil
 				break
 			}
-			err = fmt.Errorf("parsing error: %v", err)
+
+			err = fmt.Errorf("body parsing error while reading part headers: %v", err)
 			return
 		}
 
@@ -383,20 +429,27 @@ func (r *reqScannerImpl) scanMultipartBody(bodyReader io.Reader, mediaTypeParams
 		if _, ok := cdParams["filename"]; ok {
 			// File parts are not scanned.
 			// Space for this file part will not be allocated.
+			bodyReader.PauseCounting = true
 			log.Debug().Int("partNumber", i).Msg("Skipping file part")
 			continue
 		}
 
-		r.scanTarget("ARGS_NAMES", part.FormName(), results)
+		bodyReader.PauseCounting = false
+
+		err = r.scanTarget("ARGS_NAMES", part.FormName(), results)
 		if err != nil {
 			return
 		}
 
+		bodyReader.ResetFieldReadCount()
 		buf.Reset()
-		// TODO implement custom ReadFrom which stops and throws err when it reaches some max field length
 		_, err = buf.ReadFrom(part)
 		if err != nil {
-			err = fmt.Errorf("body parsing error: %v", err)
+			if err == errFieldBytesLimitExceeded || err == errPausableBytesLimitExceeded || err == errTotalBytesLimitExceeded {
+				return
+			}
+
+			err = fmt.Errorf("body parsing error while reading part content: %v", err)
 			return
 		}
 
@@ -405,21 +458,25 @@ func (r *reqScannerImpl) scanMultipartBody(bodyReader io.Reader, mediaTypeParams
 		if err != nil {
 			return
 		}
-
-		// TODO abort if there were too many fields
 	}
 
 	return
 }
 
-func (r *reqScannerImpl) scanUrlencodedBody(bodyReader io.Reader, results *ScanResults) (err error) {
+func (r *reqScannerImpl) scanUrlencodedBody(bodyReader *maxLengthReaderDecorator, results *ScanResults) (err error) {
+	// TODO remove this line, and instead implement a urlencode parser that uses the io.Reader interface, so we can call body bodyReader.ResetFieldReadCount() after reading each field
+	bodyReader.Limits.MaxLengthField = bodyReader.Limits.MaxLengthPausable
+
 	var buf bytes.Buffer
 	_, err = buf.ReadFrom(bodyReader)
 	if err != nil {
+		if err == errPausableBytesLimitExceeded || err == errTotalBytesLimitExceeded {
+			return
+		}
+
 		return
 	}
 
-	// TODO don't use url.ParseQuery here. This is vulnerable to DoS by for example posting a gigabyte request body. Instead implement a streaming parser that takes an io.Reader. The source code of the current ParseQuery is only about 30 lines, so it should be easy.
 	qvals, err := url.ParseQuery(buf.String())
 	if err != nil {
 		return
@@ -436,24 +493,27 @@ func (r *reqScannerImpl) scanUrlencodedBody(bodyReader io.Reader, results *ScanR
 			if err != nil {
 				return
 			}
-
-			// TODO abort if there were too many fields
 		}
 	}
 
 	return
 }
 
-func (r *reqScannerImpl) scanJSONBody(bodyReader io.Reader, results *ScanResults) (err error) {
+func (r *reqScannerImpl) scanJSONBody(bodyReader *maxLengthReaderDecorator, results *ScanResults) (err error) {
 	dec := json.NewDecoder(bodyReader)
 	for {
-		// TODO enforce a max for high large fields may be
+		bodyReader.ResetFieldReadCount()
 		var token json.Token
 		token, err = dec.Token()
 		if err != nil {
+			if err == errFieldBytesLimitExceeded || err == errPausableBytesLimitExceeded || err == errTotalBytesLimitExceeded {
+				return
+			}
+
 			if err == io.EOF {
 				err = nil
 			}
+
 			return
 		}
 
@@ -466,23 +526,26 @@ func (r *reqScannerImpl) scanJSONBody(bodyReader io.Reader, results *ScanResults
 		case string:
 			r.scanTarget(target, v, results)
 		}
-
-		// TODO abort if there were too many fields
 	}
 
 	return
 }
 
-func (r *reqScannerImpl) scanXMLBody(bodyReader io.Reader, results *ScanResults) (err error) {
+func (r *reqScannerImpl) scanXMLBody(bodyReader *maxLengthReaderDecorator, results *ScanResults) (err error) {
 	dec := xml.NewDecoder(bodyReader)
 	for {
-		// TODO enforce a max for high large fields may be
+		bodyReader.ResetFieldReadCount()
 		var token xml.Token
 		token, err = dec.Token()
 		if err != nil {
+			if err == errFieldBytesLimitExceeded || err == errPausableBytesLimitExceeded || err == errTotalBytesLimitExceeded {
+				return
+			}
+
 			if err == io.EOF {
 				err = nil
 			}
+
 			return
 		}
 
@@ -494,8 +557,6 @@ func (r *reqScannerImpl) scanXMLBody(bodyReader io.Reader, results *ScanResults)
 		case xml.CharData:
 			r.scanTarget(target, string(v), results)
 		}
-
-		// TODO abort if there were too many fields
 	}
 
 	return

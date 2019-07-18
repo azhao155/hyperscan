@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"azwaf/waf"
+	"fmt"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"time"
@@ -23,9 +24,28 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		}()
 	}
 
+	triggeredCb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		action := "Matched"
+		if isDisruptive {
+			action = "Blocked"
+		}
+
+		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
+	}
+
 	scanResults, err := s.reqScanner.Scan(req)
 	if err != nil {
-		log.Debug().Err(err).Msg("SecRule engine got scanning error")
+		lengthLimits := s.reqScanner.LengthLimits()
+		if err == errFieldBytesLimitExceeded {
+			triggeredCb(nil, true, fmt.Sprintf("Request body contained a field longer than the limit (%d bytes)", lengthLimits.MaxLengthField), "")
+		} else if err == errPausableBytesLimitExceeded {
+			triggeredCb(nil, true, fmt.Sprintf("Request body length (excluding file upload fields) exceeded the limit (%d bytes)", lengthLimits.MaxLengthPausable), "")
+		} else if err == errTotalBytesLimitExceeded {
+			triggeredCb(nil, true, fmt.Sprintf("Request body length exceeded the limit (%d bytes)", lengthLimits.MaxLengthTotal), "")
+		} else {
+			triggeredCb(nil, true, "Request body scanning error", err.Error())
+		}
+
 		return false
 	}
 
@@ -38,15 +58,6 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 				Str("matchedData", string(match.Data)).
 				Msg("Request scanning found a match")
 		}
-	}
-
-	triggeredCb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
-		action := "Matched"
-		if isDisruptive {
-			action = "Blocked"
-		}
-
-		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
 	}
 
 	// TODO: populate initial values as part of TxState task

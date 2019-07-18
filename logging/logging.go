@@ -40,12 +40,12 @@ func NewZerologResultsLogger() secrule.ResultsLogger {
 type zerologResultsLogger struct{}
 
 func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+	// TODO probably dont take msg as a param as we can extract it from stmt instead. Maybe only take logData as param.
+
 	var ruleID int
-	var message string
 	switch stmt := stmt.(type) {
 	case *secrule.Rule:
 		ruleID = stmt.ID
-		message = msg
 	case *secrule.ActionStmt:
 		ruleID = stmt.ID
 	}
@@ -54,8 +54,11 @@ func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 	c := &customerFirewallLogEntry{
 		RequestURI: request.URI(),
 		RuleID:     strconv.Itoa(ruleID),
-		Message:    message,
+		Message:    msg,
 		Action:     action,
+		Details: customerFirewallLogDetailsEntry{
+			Message: logData,
+		},
 	}
 
 	bb, err := json.MarshalIndent(c, "", "  ")

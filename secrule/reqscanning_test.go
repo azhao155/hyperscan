@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"regexp"
+	"strconv"
 	"testing"
 )
 
@@ -190,7 +191,7 @@ func TestGetExprsPmf(t *testing.T) {
 
 func TestReqScannerBodyMultipart1(t *testing.T) {
 	// Arrange
-	body := `--------------------------1aa6ce6559102
+	body := bytes.NewBufferString(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 
 hello world 1
@@ -199,7 +200,7 @@ content-disposition: form-data; name="b"
 
 aaaaaaabccc
 --------------------------1aa6ce6559102--
-`
+`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
 
 	// Act
@@ -227,7 +228,7 @@ aaaaaaabccc
 
 func TestReqScannerBodyMultipart1Negative(t *testing.T) {
 	// Arrange
-	body := `--------------------------1aa6ce6559102
+	body := bytes.NewBufferString(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 
 hello world 1
@@ -236,7 +237,7 @@ content-disposition: form-data; name="b"
 
 hello world 2
 --------------------------1aa6ce6559102--
-`
+`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
 
 	// Act
@@ -255,7 +256,7 @@ hello world 2
 
 func TestReqScannerBodyMultipartSkipFile(t *testing.T) {
 	// Arrange
-	body := `--------------------------1aa6ce6559102
+	body := bytes.NewBufferString(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 
 hello world 1
@@ -264,7 +265,7 @@ content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 
 aaaaaaabccc
 --------------------------1aa6ce6559102--
-`
+`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
 
 	// Act
@@ -283,12 +284,12 @@ aaaaaaabccc
 
 func TestReqScannerBodyJSON1(t *testing.T) {
 	// Arrange
-	body := `
+	body := bytes.NewBufferString(`
 		{
 			"a": [1,2,3],
 			"b": "aaaaaaabccc"
 		}
-	`
+	`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "application/json", body)
 
 	// Act
@@ -316,12 +317,12 @@ func TestReqScannerBodyJSON1(t *testing.T) {
 
 func TestReqScannerBodyJSON1Negative(t *testing.T) {
 	// Arrange
-	body := `
+	body := bytes.NewBufferString(`
 		{
 			"a": [1,2,3],
 			"b": "hello world"
 		}
-	`
+	`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "application/json", body)
 
 	// Act
@@ -340,13 +341,13 @@ func TestReqScannerBodyJSON1Negative(t *testing.T) {
 
 func TestReqScannerBodyJSONParseErr(t *testing.T) {
 	// Arrange
-	body := `
+	body := bytes.NewBufferString(`
 		{
 			"a": [1,2,3],
 			"b": "hello world",
 			nonsense
 		}
-	`
+	`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "application/json", body)
 
 	// Act
@@ -360,11 +361,11 @@ func TestReqScannerBodyJSONParseErr(t *testing.T) {
 
 func TestReqScannerBodyXML1(t *testing.T) {
 	// Arrange
-	body := `
+	body := bytes.NewBufferString(`
 		<hello>
 			<world>aaaaaaabccc</world>
 		</hello>
-	`
+	`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "text/xml", body)
 
 	// Act
@@ -392,11 +393,11 @@ func TestReqScannerBodyXML1(t *testing.T) {
 
 func TestReqScannerBodyXML1Negative(t *testing.T) {
 	// Arrange
-	body := `
+	body := bytes.NewBufferString(`
 		<hello>
 			<world>hello world</world>
 		</hello>
-	`
+	`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "text/xml", body)
 
 	// Act
@@ -415,11 +416,11 @@ func TestReqScannerBodyXML1Negative(t *testing.T) {
 
 func TestReqScannerBodyXMLParseError(t *testing.T) {
 	// Arrange
-	body := `
+	body := bytes.NewBufferString(`
 		<hello>
 			<world>hello world</nonsense>
 		</hello>
-	`
+	`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "text/xml", body)
 
 	// Act
@@ -431,7 +432,7 @@ func TestReqScannerBodyXMLParseError(t *testing.T) {
 	}
 }
 
-func arrangeReqScannerForBodyParsing(t *testing.T, target string, contentType string, body string) (rs ReqScanner, req waf.HTTPRequest) {
+func arrangeReqScannerForBodyParsing(t *testing.T, target string, contentType string, body io.Reader) (rs ReqScanner, req *mockWafHTTPRequest) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rules := []Statement{
@@ -446,7 +447,7 @@ func arrangeReqScannerForBodyParsing(t *testing.T, target string, contentType st
 	headers := []waf.HeaderPair{
 		&mockHeaderPair{k: "Content-Type", v: contentType},
 	}
-	req = &mockWafHTTPRequest{uri: uri, headers: headers, bodyReader: bytes.NewBufferString(body)}
+	req = &mockWafHTTPRequest{uri: uri, headers: headers, bodyReader: body}
 	rs, err := rsf.NewReqScanner(rules)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -457,7 +458,7 @@ func arrangeReqScannerForBodyParsing(t *testing.T, target string, contentType st
 
 func TestReqScannerBodyUrlencode1(t *testing.T) {
 	// Arrange
-	body := `a=helloworld1&b=aaaaaaabccc`
+	body := bytes.NewBufferString(`a=helloworld1&b=aaaaaaabccc`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "application/x-www-form-urlencoded", body)
 
 	// Act
@@ -485,7 +486,7 @@ func TestReqScannerBodyUrlencode1(t *testing.T) {
 
 func TestReqScannerBodyUrlencode1Negative(t *testing.T) {
 	// Arrange
-	body := `a=helloworld1&b=helloworld2`
+	body := bytes.NewBufferString(`a=helloworld1&b=helloworld2`)
 	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "application/x-www-form-urlencoded", body)
 
 	// Act
@@ -499,6 +500,222 @@ func TestReqScannerBodyUrlencode1Negative(t *testing.T) {
 	_, ok := sr.GetRxResultsFor(200, 0, "ARGS")
 	if ok {
 		t.Fatalf("Unexpected match found")
+	}
+}
+
+func TestReqScannerBodyMultipartNofileLimit1(t *testing.T) {
+	// Arrange
+	body1 := &mockReader{Length: 1024 * 256, Content: []byte(`--------------------------1aa6ce6559102
+content-disposition: form-data; name="a"
+
+aaaaaaaaaa
+`)}
+	body2 := bytes.NewBufferString("--------------------------1aa6ce6559102--\r\n")
+	body := io.MultiReader(body1, body2)
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errPausableBytesLimitExceeded {
+		t.Fatalf("Expected a errPausableBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyMultipartFilesDoNotCount(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`--------------------------1aa6ce6559102
+content-disposition: form-data; name="a"
+
+aaaaaaaaaa
+--------------------------1aa6ce6559102
+content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
+
+`)
+	body2 := &mockReader{Length: 1024 * 1024 * 200} // 200 MiB
+	body3 := bytes.NewBufferString(`
+--------------------------1aa6ce6559102--
+`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+}
+
+func TestReqScannerBodyMultipartFilesTotalLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`--------------------------1aa6ce6559102
+content-disposition: form-data; name="a"
+
+aaaaaaaaaa
+--------------------------1aa6ce6559102
+content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
+
+`)
+	body2 := &mockReader{Length: 1024 * 1024 * 1024} // 1 GiB
+	body3 := bytes.NewBufferString(`
+--------------------------1aa6ce6559102--
+`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errTotalBytesLimitExceeded {
+		t.Fatalf("Expected a errTotalBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyMultipartSingleFieldLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`--------------------------1aa6ce6559102
+content-disposition: form-data; name="a"
+
+`)
+	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
+	body3 := bytes.NewBufferString(`
+--------------------------1aa6ce6559102--
+`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errFieldBytesLimitExceeded {
+		t.Fatalf("Expected a errFieldBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyMultipartHeadersLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`--------------------------1aa6ce6559102
+content-disposition: form-data; name="a"
+`)
+	body2 := &mockReader{Length: 1024 * 30, Content: []byte("some-header: aaaaaaaaaaaaaa\r\n")} // 30 KiB
+	body3 := bytes.NewBufferString(`
+
+some content
+--------------------------1aa6ce6559102--
+`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "multipart/form-data; boundary=------------------------1aa6ce6559102", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errFieldBytesLimitExceeded {
+		t.Fatalf("Expected a errTotalBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyJSONLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`{"myarray": [`)
+	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`"hello world", `)} // 1 MiB
+	body3 := bytes.NewBufferString(`"hello world"]}`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "application/json", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errPausableBytesLimitExceeded {
+		t.Fatalf("Expected a errPausableBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyJSONSingleFieldLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`{"myarray": "`)
+	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
+	body3 := bytes.NewBufferString(`"}`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "application/json", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errFieldBytesLimitExceeded {
+		t.Fatalf("Expected a errPausableBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyXMLLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`<hello>`)
+	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`<world>something</world>`)} // 1 MiB
+	body3 := bytes.NewBufferString(`</hello>`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "text/xml", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errPausableBytesLimitExceeded {
+		t.Fatalf("Expected a errPausableBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyXMLSingleFieldLimit(t *testing.T) {
+	// Arrange
+	body1 := bytes.NewBufferString(`<hello>`)
+	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
+	body3 := bytes.NewBufferString(`</hello>`)
+	body := io.MultiReader(body1, body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "XML:/*", "text/xml", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errFieldBytesLimitExceeded {
+		t.Fatalf("Expected a errPausableBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyUrlEncodeLimit(t *testing.T) {
+	// Arrange
+	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`a=helloworld1&`)} // 1 MiB
+	body3 := bytes.NewBufferString(`a=helloworld1`)
+	body := io.MultiReader(body2, body3)
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "application/x-www-form-urlencoded", body)
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errPausableBytesLimitExceeded {
+		t.Fatalf("Expected a errPausableBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerContentLengthHeaderSaysTooLong(t *testing.T) {
+	// Arrange
+	body := bytes.NewBufferString(`a=helloworld1`) // Note that the body in reality isn't actually very long
+	rs, req := arrangeReqScannerForBodyParsing(t, "ARGS", "application/x-www-form-urlencoded", body)
+	req.headers = append(req.headers, &mockHeaderPair{k: "CoNtEnT-LeNgTh", v: strconv.Itoa(1024 * 1024 * 1024)}) // 1 GiB
+
+	// Act
+	_, err := rs.Scan(req)
+
+	// Assert
+	if err != errTotalBytesLimitExceeded {
+		t.Fatalf("Expected a errTotalBytesLimitExceeded but got %T: %v", err, err)
 	}
 }
 
@@ -522,3 +739,59 @@ type mockHeaderPair struct {
 
 func (h *mockHeaderPair) Key() string   { return h.k }
 func (h *mockHeaderPair) Value() string { return h.v }
+
+// A io.Reader implementation that that just fills up the given buffer with copies of the Content byte slice until Length is reached.
+type mockReader struct {
+	Pos     int
+	Length  int
+	Content []byte
+}
+
+// Fills up the given buffer with 'a'-chars on each call until Length is reached.
+func (m *mockReader) Read(p []byte) (n int, err error) {
+	if m.Content == nil {
+		m.Content = []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	}
+
+	if m.Pos >= m.Length {
+		err = io.EOF
+		return
+	}
+
+	for {
+		if n+len(m.Content) > len(p) {
+			break
+		}
+
+		copy(p[n:], m.Content)
+		n += len(m.Content)
+		m.Pos += len(m.Content)
+
+		if m.Pos >= m.Length {
+			err = io.EOF
+			return
+		}
+	}
+
+	return
+}
+
+// Tests that the mockReader works, which itself is just used for other tests.
+func TestMockReader(t *testing.T) {
+	// Arrange
+	m := &mockReader{Length: 1024 * 1024 * 2, Content: []byte("hello,")}
+	b := &bytes.Buffer{}
+
+	// Act
+	_, err := b.ReadFrom(m)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Unexpected err %T: %v", err, err)
+	}
+
+	if b.Len() != 2097156 { // A little more than 2 MiB
+		t.Fatalf("Unexpected length: %v", b.Len())
+
+	}
+}
