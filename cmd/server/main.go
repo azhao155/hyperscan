@@ -33,6 +33,7 @@ func (c *mockConfig) IPReputationConfigs() []waf.IPReputationConfig { return []w
 func main() {
 	logLevel := flag.String("loglevel", "error", "sets log level. Can be one of: debug, info, warn, error, fatal, panic.")
 	profiling := flag.Bool("profiling", false, "whether to enable the :6060/debug/pprof/ endpoint")
+	var usedefaultwafconfig = flag.Bool("usedefaultwafconfig", false, "whether to use a default builtin WAF config instead of using ConfigMgr")
 	flag.Parse()
 
 	if *profiling {
@@ -60,6 +61,12 @@ func main() {
 	cm, c, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error while creating config manager")
+	}
+
+	// TODO consider if this should be removed once config management is fully functional e2e
+	if *usedefaultwafconfig {
+		c = make(map[int64]waf.Config)
+		c[0] = &mockConfig{}
 	}
 
 	w, err := waf.NewServer(c, sref)

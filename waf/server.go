@@ -49,6 +49,12 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	version := req.Version()
 	ruleSetID := req.RuleSetID()
 
+	// TODO consider if this should be removed once config management is fully functional e2e
+	if ruleSetID == "" && version == 0 {
+		version = 0
+		ruleSetID = "SecRuleConfig1"
+	}
+
 	// TODO Decide which site this request belongs to. version and id will be contained in the req and configured by nginx
 	if _, ok := s.secRuleEngines[version]; !ok {
 		err = fmt.Errorf("not found config for the request, version %v", version)
