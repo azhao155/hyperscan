@@ -7,6 +7,7 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"flag"
+	"net/http"
 	"os"
 
 	"github.com/rs/zerolog"
@@ -31,7 +32,14 @@ func (c *mockConfig) IPReputationConfigs() []waf.IPReputationConfig { return []w
 
 func main() {
 	logLevel := flag.String("loglevel", "error", "sets log level. Can be one of: debug, info, warn, error, fatal, panic.")
+	profiling := flag.Bool("profiling", false, "whether to enable the :6060/debug/pprof/ endpoint")
 	flag.Parse()
+
+	if *profiling {
+		go func() {
+			http.ListenAndServe(":6060", nil)
+		}()
+	}
 
 	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 	l, _ := zerolog.ParseLevel(*logLevel)
