@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -14,7 +13,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 )
 
 // ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
@@ -75,8 +73,6 @@ type reqScannerImpl struct {
 
 // NewReqScanner creates a ReqScanner.
 func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScanner, err error) {
-	startTime := time.Now()
-
 	scanPatterns := make(map[string][]*scanGroup)
 
 	// Construct a inverted view of the rules that maps from targets to rules
@@ -141,8 +137,6 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 
 			scanPatterns[target][scanGroupIdx].backRefs = backRefs
 
-			log.Debug().Str("target", target).Interface("transformations", scanGroup.transformations).Int("patternCount", len(patterns)).Msg("Initializing multi-regex engine")
-
 			scanPatterns[target][scanGroupIdx].rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
 			if err != nil {
 				err = fmt.Errorf("failed to create multi-regex engine: %v", err)
@@ -162,8 +156,6 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 		lengthLimits: lengthLimits,
 	}
 
-	log.Info().Dur("timeTaken", time.Since(startTime)).Msg("Done initializing scan targets")
-
 	return
 }
 
@@ -172,13 +164,11 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 		rxMatches: make(map[rxMatchKey]RxMatch),
 	}
 
-	log.Debug().Msg("Scanning URI")
 	err = r.scanURI(req.URI(), results)
 	if err != nil {
 		return
 	}
 
-	log.Debug().Msg("Scanning headers")
 	contentType, contentLength, err := r.scanHeaders(req.Headers(), results)
 	if err != nil {
 		return
@@ -196,8 +186,6 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 
 	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
 	mediatype, mediaTypeParams, _ := mime.ParseMediaType(contentType)
-
-	log.Debug().Str("mediatype", mediatype).Msg("Starting body parsing")
 
 	switch mediatype {
 
@@ -218,9 +206,6 @@ func (r *reqScannerImpl) Scan(req waf.HTTPRequest) (results *ScanResults, err er
 	default:
 		// Unsupported type of body. Not scanning for now.
 		// TODO consider doing something sensible even for unknown request body types. ModSec doesn't though.
-
-		log.Debug().Str("mediatype", mediatype).Msg("Unsupported request body type")
-
 	}
 
 	if err != nil {
@@ -249,8 +234,6 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
 
-	log.Debug().Str("targetName", targetName).Str("content", content).Msg("Starting target content scan")
-
 	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
 	for _, sg := range r.scanPatterns[targetName] {
 		if len(sg.patterns) == 0 {
@@ -258,8 +241,6 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		}
 
 		contentTransformed := applyTransformations(content, sg.transformations)
-
-		log.Debug().Str("contentOrig", content).Str("contentTransformed", contentTransformed).Interface("transformations", sg.transformations).Msg("Scanning transformed content")
 
 		var matches []MultiRegexEngineMatch
 		matches, err = sg.rxEngine.Scan([]byte(contentTransformed))
@@ -389,8 +370,6 @@ func (r *reqScannerImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorator,
 	var buf bytes.Buffer
 	m := multipart.NewReader(bodyReader, mediaTypeParams["boundary"])
 	for i := 0; ; i++ {
-		log.Debug().Int("partNumber", i).Msg("Getting next multipart part")
-
 		bodyReader.ResetFieldReadCount() // Even though the part headers are not strictly a "field", they still may be a significant number of bytes, so we'll treat them as a field.
 		var part *multipart.Part
 		part, err = m.NextPart()
@@ -430,7 +409,6 @@ func (r *reqScannerImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorator,
 			// File parts are not scanned.
 			// Space for this file part will not be allocated.
 			bodyReader.PauseCounting = true
-			log.Debug().Int("partNumber", i).Msg("Skipping file part")
 			continue
 		}
 

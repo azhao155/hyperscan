@@ -1,17 +1,20 @@
 package secrule
 
 import (
+	"azwaf/testutils"
 	"azwaf/waf"
+	"github.com/rs/zerolog"
 	"testing"
 )
 
 func TestSecRuleEngineEvalRequest(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	rsf := &mockReqScannerFactory{}
 	rl := newMockRuleLoader()
 	re := &mockRuleEvaluator{}
 	reslog := &mockResultsLogger{}
-	ef := NewEngineFactory(rl, rsf, re, reslog)
+	ef := NewEngineFactory(logger, rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -19,7 +22,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	r := e.EvalRequest(req)
+	r := e.EvalRequest(logger, req)
 
 	// Assert
 	if r != true {
@@ -29,6 +32,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 
 func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	rsf := &mockReqScannerFactory{scanCb: func(req waf.HTTPRequest) (results *ScanResults, err error) {
 		results = &ScanResults{}
 		err = errFieldBytesLimitExceeded
@@ -43,7 +47,7 @@ func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
 			t.Fatalf("Unexpected results logger msg: %v", msg)
 		}
 	}}
-	ef := NewEngineFactory(rl, rsf, re, reslog)
+	ef := NewEngineFactory(logger, rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -51,7 +55,7 @@ func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	r := e.EvalRequest(req)
+	r := e.EvalRequest(logger, req)
 
 	// Assert
 	if r != false {
@@ -65,6 +69,7 @@ func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
 
 func TestSecRuleEngineEvalRequestTooLongBodyExcludingFiles(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	rsf := &mockReqScannerFactory{scanCb: func(req waf.HTTPRequest) (results *ScanResults, err error) {
 		results = &ScanResults{}
 		err = errPausableBytesLimitExceeded
@@ -79,7 +84,7 @@ func TestSecRuleEngineEvalRequestTooLongBodyExcludingFiles(t *testing.T) {
 			t.Fatalf("Unexpected results logger msg: %v", msg)
 		}
 	}}
-	ef := NewEngineFactory(rl, rsf, re, reslog)
+	ef := NewEngineFactory(logger, rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -87,7 +92,7 @@ func TestSecRuleEngineEvalRequestTooLongBodyExcludingFiles(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	r := e.EvalRequest(req)
+	r := e.EvalRequest(logger, req)
 
 	// Assert
 	if r != false {
@@ -101,6 +106,7 @@ func TestSecRuleEngineEvalRequestTooLongBodyExcludingFiles(t *testing.T) {
 
 func TestSecRuleEngineEvalRequestTooLongTotal(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	rsf := &mockReqScannerFactory{scanCb: func(req waf.HTTPRequest) (results *ScanResults, err error) {
 		results = &ScanResults{}
 		err = errTotalBytesLimitExceeded
@@ -115,7 +121,7 @@ func TestSecRuleEngineEvalRequestTooLongTotal(t *testing.T) {
 			t.Fatalf("Unexpected results logger msg: %v", msg)
 		}
 	}}
-	ef := NewEngineFactory(rl, rsf, re, reslog)
+	ef := NewEngineFactory(logger, rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -123,7 +129,7 @@ func TestSecRuleEngineEvalRequestTooLongTotal(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	r := e.EvalRequest(req)
+	r := e.EvalRequest(logger, req)
 
 	// Assert
 	if r != false {
@@ -181,7 +187,7 @@ func (f *mockReqScannerFactory) NewReqScanner(statements []Statement) (r ReqScan
 
 type mockRuleEvaluator struct{}
 
-func (r *mockRuleEvaluator) Process(perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
+func (r *mockRuleEvaluator) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
 	allow = true
 	return
 }

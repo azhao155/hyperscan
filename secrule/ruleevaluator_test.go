@@ -1,11 +1,13 @@
 package secrule
 
 import (
+	"azwaf/testutils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
+	logger := testutils.NewTestLogger(t)
 	sv, _ := parseSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Statement{
 		&Rule{
@@ -28,13 +30,14 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 
 	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
 	assert.True(pass)
 	assert.Equal(200, code)
 }
 
 func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
+	logger := testutils.NewTestLogger(t)
 	sv, _ := parseSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Statement{
 		&Rule{
@@ -57,13 +60,14 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 
 	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
 	assert.False(pass)
 	assert.Equal(403, code)
 }
 
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	p := RulePredicate{Targets: []string{"TX:ANOMALY_SCORE"}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}", OpFunc: toOperatorFunc(Ge)}
 	p.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(p.Val, -1)
@@ -85,7 +89,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
 	re := NewRuleEvaluator()
 
-	allow, code, err := re.Process(em, rules, &ScanResults{}, nil)
+	allow, code, err := re.Process(logger, em, rules, &ScanResults{}, nil)
 	assert.Nil(err)
 	assert.False(allow)
 	assert.Equal(403, code)
@@ -93,6 +97,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 
 func TestRuleEvaluatorChain(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -115,7 +120,7 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -125,6 +130,7 @@ func TestRuleEvaluatorChain(t *testing.T) {
 
 func TestRuleEvaluatorChainNegative(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -146,7 +152,7 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -156,6 +162,7 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 
 func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -177,7 +184,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -187,7 +194,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 
 func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) {
 	// Arrange
-
+	logger := testutils.NewTestLogger(t)
 	sv1, _ := parseSetVarAction("tx.somevar=123")
 	assert := assert.New(t)
 	rules := []Statement{
@@ -214,7 +221,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(env, rules, sr, nil)
+	pass, code, err := re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -228,6 +235,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 
 func TestRuleEvaluatorSecAction(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv, _ := parseSetVarAction("tx.somevar=123")
 	rules := []Statement{
@@ -240,7 +248,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(env, rules, sr, nil)
+	pass, code, err := re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -254,6 +262,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 
 func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=123")
 	sv2, _ := parseSetVarAction("tx.somevar=+1")
@@ -267,7 +276,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(env, rules, sr, nil)
+	pass, code, err := re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -281,6 +290,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 
 func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -299,7 +309,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -309,6 +319,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 
 func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -327,7 +338,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(newEnvMap(), rules, sr, nil)
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
@@ -337,6 +348,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 
 func TestRuleEvaluatorNolog(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -359,7 +371,7 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	}
 
 	// Act
-	re.Process(newEnvMap(), rules, sr, cb)
+	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.False(cbCalled)
@@ -367,6 +379,7 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 
 func TestRuleEvaluatorNologOverride(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -389,7 +402,7 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 	}
 
 	// Act
-	re.Process(newEnvMap(), rules, sr, cb)
+	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.True(cbCalled)
@@ -397,6 +410,7 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 
 func TestRuleEvaluatorNologChain(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -436,7 +450,7 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 	}
 
 	// Act
-	re.Process(newEnvMap(), rules, sr, cb)
+	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.False(cbCalled)
@@ -444,6 +458,7 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 
 func TestRuleEvaluatorNologNegative(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	rules := []Statement{
 		&Rule{
@@ -465,7 +480,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	}
 
 	// Act
-	re.Process(newEnvMap(), rules, sr, cb)
+	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.True(cbCalled)
@@ -473,6 +488,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 
 func TestRuleEvaluatorPhases(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=10")
 	sv2, _ := parseSetVarAction("tx.somevar=20")
@@ -487,7 +503,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -498,6 +514,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 
 func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=10")
 	sv2, _ := parseSetVarAction("tx.somevar=20")
@@ -512,7 +529,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -523,6 +540,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 
 func TestSkipAfter(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=10")
 	sv2, _ := parseSetVarAction("tx.somevar=20")
@@ -540,7 +558,7 @@ func TestSkipAfter(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -556,6 +574,7 @@ func TestSkipAfter(t *testing.T) {
 
 func TestSkipAfterWithinPhase(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=10")
 	sv2, _ := parseSetVarAction("tx.somevar=20")
@@ -573,7 +592,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -584,6 +603,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 
 func TestMarkerCaseSensitive(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=10")
 	rules := []Statement{
@@ -598,7 +618,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.False(env.hasKey("tx.somevar"))
@@ -606,6 +626,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 
 func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
 	sv1, _ := parseSetVarAction("tx.somevar=10")
 	rules := []Statement{
@@ -620,7 +641,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	re.Process(env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))

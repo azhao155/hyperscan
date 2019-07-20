@@ -3,15 +3,22 @@ package secrule
 import (
 	"azwaf/waf"
 	"fmt"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 )
 
 // NewEngineFactory creates a factory that can create SecRule engines.
-func NewEngineFactory(rl RuleLoader, rsf ReqScannerFactory, re RuleEvaluator, reslog ResultsLogger) waf.SecRuleEngineFactory {
-	return &engineFactoryImpl{rl, rsf, re, reslog}
+func NewEngineFactory(logger zerolog.Logger, rl RuleLoader, rsf ReqScannerFactory, re RuleEvaluator, reslog ResultsLogger) waf.SecRuleEngineFactory {
+	return &engineFactoryImpl{
+		logger:            logger,
+		ruleLoader:        rl,
+		reqScannerFactory: rsf,
+		ruleEvaluator:     re,
+		resultsLogger:     reslog,
+	}
 }
 
 type engineFactoryImpl struct {
+	logger            zerolog.Logger
 	ruleLoader        RuleLoader
 	reqScannerFactory ReqScannerFactory
 	ruleEvaluator     RuleEvaluator
@@ -20,7 +27,7 @@ type engineFactoryImpl struct {
 
 func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecRuleEngine, err error) {
 	ruleSetID := waf.RuleSetID(config.RuleSetID())
-	log.Info().Str("ruleSet", string(ruleSetID)).Msg("Loading rules")
+	f.logger.Info().Str("ruleSet", string(ruleSetID)).Msg("Loading rules")
 
 	statements, err := f.ruleLoader.Rules(ruleSetID)
 	if err != nil {
@@ -34,6 +41,12 @@ func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecR
 		return
 	}
 
-	engine = &engineImpl{statements, reqScanner, f.ruleEvaluator, f.resultsLogger}
+	engine = &engineImpl{
+		statements:    statements,
+		reqScanner:    reqScanner,
+		ruleEvaluator: f.ruleEvaluator,
+		resultsLogger: f.resultsLogger,
+	}
+
 	return
 }

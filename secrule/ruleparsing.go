@@ -2,7 +2,6 @@ package secrule
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -435,7 +434,6 @@ func parseActions(rawActions []RawAction) (
 
 		default:
 			// TODO support all actions and do a proper error here for unknown actions
-			log.Debug().Str("action", a.Key).Msg("Unknown action")
 			actions = append(actions, &a)
 
 		}

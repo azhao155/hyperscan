@@ -7,11 +7,12 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"flag"
+	"math/rand"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 type mockSecRuleConfig struct{}
@@ -42,11 +43,12 @@ func main() {
 		}()
 	}
 
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
-	l, _ := zerolog.ParseLevel(*logLevel)
-	zerolog.SetGlobalLevel(l)
+	loglevel, _ := zerolog.ParseLevel(*logLevel)
+
+	rand.Seed(time.Now().UnixNano())
 
 	// Depedency injection composition root
+	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
 	p := secrule.NewRuleParser()
 	rl := secrule.NewCrsRuleLoader(p)
 	hsfs := hyperscan.NewCacheFileSystem()
@@ -54,13 +56,13 @@ func main() {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
-	reslog := logging.NewZerologResultsLogger()
-	sref := secrule.NewEngineFactory(rl, rsf, re, reslog)
+	reslog := logging.NewZerologResultsLogger(logger)
+	sref := secrule.NewEngineFactory(logger, rl, rsf, re, reslog)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	cm, c, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error while creating config manager")
+		logger.Fatal().Err(err).Msg("Error while creating config manager")
 	}
 
 	// TODO consider if this should be removed once config management is fully functional e2e
@@ -69,15 +71,15 @@ func main() {
 		c[0] = &mockConfig{}
 	}
 
-	w, err := waf.NewServer(c, sref)
+	w, err := waf.NewServer(logger, c, sref)
 	if err != nil {
-		log.Fatal().Err(err).Msg("Error while creating service manager")
+		logger.Fatal().Err(err).Msg("Error while creating service manager")
 	}
 
 	s := grpc.NewServer(w, cm)
 
-	log.Print("Starting WAF server")
+	logger.Info().Msg("Starting WAF server")
 	if err := s.Serve(); err != nil {
-		log.Fatal().Err(err).Msg("Error while running WAF server")
+		logger.Fatal().Err(err).Msg("Error while running WAF server")
 	}
 }

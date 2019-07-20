@@ -1,18 +1,21 @@
 package waf
 
 import (
+	"azwaf/testutils"
 	"bytes"
+	"github.com/rs/zerolog"
 	"io"
 	"testing"
 )
 
 func TestWafServerEvalRequest(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	msre := &mockSecRuleEngine{}
 	msref := &mockSecRuleEngineFactory{msre: msre}
 	c := make(map[int64]Config)
 	c[0] = &mockConfig{}
-	s, err := NewServer(c, msref)
+	s, err := NewServer(logger, c, msref)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -35,7 +38,7 @@ type mockSecRuleEngine struct {
 	evalRequestCalled int
 }
 
-func (m *mockSecRuleEngine) EvalRequest(req HTTPRequest) bool {
+func (m *mockSecRuleEngine) EvalRequest(logger zerolog.Logger, req HTTPRequest) bool {
 	m.evalRequestCalled++
 	return true
 }

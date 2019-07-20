@@ -2,7 +2,7 @@
 
 cd $CDP_USER_SOURCE_FOLDER_CONTAINER_PATH
 
-go test -covermode=count -coverprofile=coverage.out azwaf/... -v
+go test -covermode=count -coverprofile=coverage.out azwaf/...
 rc1=$?
 
 echo

@@ -2,7 +2,6 @@ package secrule
 
 import (
 	"fmt"
-	"github.com/rs/zerolog/log"
 	"strconv"
 )
 
@@ -33,9 +32,6 @@ func executeSetVarAction(sv *SetVarAction, perRequestEnv envMap) (err error) {
 		err = fmt.Errorf("Unsupported operator:%d for setvar operation", sv.operator)
 		return
 	}
-
-	newValue, _ := perRequestEnv.get(variable)
-	log.Debug().Str("variable", variable).Interface("newValue", newValue).Msg("Executed setVarAction")
 
 	return
 }

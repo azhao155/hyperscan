@@ -3,7 +3,7 @@ package waf
 import (
 	"fmt"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
+	"math/rand"
 	"time"
 )
 
@@ -14,13 +14,16 @@ type Server interface {
 }
 
 type serverImpl struct {
+	logger         zerolog.Logger
 	secRuleEngines map[int64]map[string]SecRuleEngine
 	factory        SecRuleEngineFactory
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(c map[int64]Config, sref SecRuleEngineFactory) (server Server, err error) {
-	s := &serverImpl{}
+func NewServer(logger zerolog.Logger, c map[int64]Config, sref SecRuleEngineFactory) (server Server, err error) {
+	s := &serverImpl{
+		logger: logger,
+	}
 
 	s.factory = sref
 	s.secRuleEngines = make(map[int64]map[string]SecRuleEngine)
@@ -38,11 +41,15 @@ func NewServer(c map[int64]Config, sref SecRuleEngineFactory) (server Server, er
 }
 
 func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
-	if zerolog.GlobalLevel() >= zerolog.InfoLevel {
-		log.Info().Str("uri", req.URI()).Msg("WAF got request")
+	// Create a sub-logger with a transaction ID
+	txid := fmt.Sprintf("%X", rand.Int())[:7] // TODO pass a txid down with the request from Nginx
+	logger := s.logger.With().Str("txid", txid).Logger()
+
+	if logger.Info() != nil {
+		logger.Info().Str("uri", req.URI()).Msg("WAF got request")
 		startTime := time.Now()
 		defer func() {
-			log.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Bool("allow", allow).Msg("WAF completed request")
+			logger.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Bool("allow", allow).Msg("WAF completed request")
 		}()
 	}
 
@@ -68,7 +75,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 
 	// TODO add other engine
 
-	allow = s.secRuleEngines[version][ruleSetID].EvalRequest(req)
+	allow = s.secRuleEngines[version][ruleSetID].EvalRequest(logger, req)
 
 	return
 }

@@ -3,6 +3,7 @@ package main
 import (
 	"azwaf/hyperscan"
 	"azwaf/secrule"
+	"azwaf/testutils"
 	"azwaf/waf"
 	"bytes"
 	"github.com/rs/zerolog"
@@ -12,6 +13,7 @@ import (
 
 func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	// Arrange
+	logger := testutils.NewTestLogger(t)
 	origLogLevel := zerolog.GlobalLevel()
 	zerolog.SetGlobalLevel(zerolog.DebugLevel)
 	defer zerolog.SetGlobalLevel(origLogLevel)
@@ -23,7 +25,7 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
 	reslog := &mockResultsLogger{}
-	ef := secrule.NewEngineFactory(rl, rsf, re, reslog)
+	ef := secrule.NewEngineFactory(logger, rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -31,7 +33,7 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	req := &mockWafHTTPRequest{uri: "http://localhost:8080/"}
 
 	// Act
-	r := e.EvalRequest(req)
+	r := e.EvalRequest(logger, req)
 
 	// Assert
 	if !r {

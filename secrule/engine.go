@@ -4,7 +4,6 @@ import (
 	"azwaf/waf"
 	"fmt"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"time"
 )
 
@@ -15,12 +14,12 @@ type engineImpl struct {
 	resultsLogger ResultsLogger
 }
 
-func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
-	if zerolog.GlobalLevel() >= zerolog.InfoLevel {
-		log.Info().Str("uri", req.URI()).Msg("SecRule engine got EvalRequest")
+func (s *engineImpl) EvalRequest(logger zerolog.Logger, req waf.HTTPRequest) bool {
+	if logger.Info() != nil {
+		logger.Info().Str("uri", req.URI()).Msg("SecRule engine got EvalRequest")
 		startTime := time.Now()
 		defer func() {
-			log.Info().Dur("timeTaken", time.Since(startTime)).Msg("SecRule EvalRequest done")
+			logger.Info().Dur("timeTaken", time.Since(startTime)).Msg("SecRule EvalRequest done")
 		}()
 	}
 
@@ -49,9 +48,9 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 		return false
 	}
 
-	if zerolog.GlobalLevel() >= zerolog.DebugLevel {
+	if logger.Debug() != nil {
 		for key, match := range scanResults.rxMatches {
-			log.Debug().
+			logger.Debug().
 				Int("ruleID", key.ruleID).
 				Int("ruleItemIdx", key.ruleItemIdx).
 				Str("target", key.target).
@@ -63,13 +62,13 @@ func (s *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
 	// TODO: populate initial values as part of TxState task
 	perRequestEnv := newEnvMap()
 
-	allow, statusCode, err := s.ruleEvaluator.Process(perRequestEnv, s.statements, scanResults, triggeredCb)
+	allow, statusCode, err := s.ruleEvaluator.Process(logger, perRequestEnv, s.statements, scanResults, triggeredCb)
 	if err != nil {
-		log.Debug().Err(err).Msg("SecRule engine got rule evaluation error")
+		logger.Debug().Err(err).Msg("SecRule engine got rule evaluation error")
 		return false
 	}
 
-	log.Debug().Bool("allow", allow).Int("statusCode", statusCode).Msg("SecRule engine rule evaluation decision")
+	logger.Debug().Bool("allow", allow).Int("statusCode", statusCode).Msg("SecRule engine rule evaluation decision")
 
 	// TODO return status code
 	if !allow {

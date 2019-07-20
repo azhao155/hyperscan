@@ -4,7 +4,7 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"encoding/json"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"strconv"
 )
 
@@ -33,11 +33,13 @@ type customerFirewallLogDetailsEntry struct {
 }
 
 // NewZerologResultsLogger creates a results logger that creates log messages like the ones we want to send to the customer, but just outputs them to Zerolog.
-func NewZerologResultsLogger() secrule.ResultsLogger {
-	return &zerologResultsLogger{}
+func NewZerologResultsLogger(logger zerolog.Logger) secrule.ResultsLogger {
+	return &zerologResultsLogger{logger: logger}
 }
 
-type zerologResultsLogger struct{}
+type zerologResultsLogger struct {
+	logger zerolog.Logger
+}
 
 func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	// TODO probably dont take msg as a param as we can extract it from stmt instead. Maybe only take logData as param.
@@ -63,8 +65,8 @@ func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 
 	bb, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
-		log.Error().Err(err).Msg("Error while marshaling JSON results log")
+		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}
 
-	log.Info().Msgf("Customer facing log: %s\n", bb)
+	l.logger.Info().Msgf("Customer facing log: %s\n", bb)
 }
