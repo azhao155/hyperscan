@@ -1,13 +1,10 @@
-package main
+package integrationtesting
 
 import (
 	"azwaf/hyperscan"
 	"azwaf/secrule"
 	"azwaf/testutils"
-	"azwaf/waf"
-	"bytes"
 	"github.com/rs/zerolog"
-	"io"
 	"testing"
 )
 
@@ -30,7 +27,7 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	req := &mockWafHTTPRequest{uri: "http://localhost:8080/"}
+	req := &mockWafHTTPRequest{uri: "http://localhost:8080/", method: "GET"}
 
 	// Act
 	r := e.EvalRequest(logger, req)
@@ -39,21 +36,4 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	if !r {
 		t.Fatalf("EvalRequest did not return true")
 	}
-}
-
-type mockWafHTTPRequest struct {
-	uri string
-}
-
-func (r *mockWafHTTPRequest) Method() string            { return "GET" }
-func (r *mockWafHTTPRequest) URI() string               { return r.uri }
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
-func (r *mockWafHTTPRequest) RuleSetID() string         { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) Version() int64            { return 0 }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }
-
-type mockResultsLogger struct{}
-
-func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
-	return
 }
