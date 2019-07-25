@@ -156,7 +156,7 @@ func getCrsRulesPath() string {
 	dir := filepath.Join(filepath.Dir(execPath), "rulesetfiles")
 
 	// Was this a tmp bin file started by "go run" or "dlv"?
-	startedByDlv := strings.HasSuffix(execPath, "/debug")
+	startedByDlv := strings.HasSuffix(execPath, "/debug") || strings.HasSuffix(execPath, "/debug.test")
 	startedByGoRun := strings.Contains(strings.Replace(dir, "\\", "/", -1), "/go-build")
 	if startedByDlv || startedByGoRun {
 		// Instead use the rule files in the source tree

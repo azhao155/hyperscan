@@ -3,19 +3,16 @@ package integrationtesting
 import (
 	"bytes"
 	"github.com/stretchr/testify/assert"
-	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
 func TestGetTests(t *testing.T) {
 	assert := assert.New(t)
 
-	d, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Error getting working dir %v", err)
-		return
-	}
-
+	_, thissrcfilename, _, _ := runtime.Caller(0)
+	d := filepath.Dir(thissrcfilename)
 	tt, err := GetTests(d, "")
 	assert.Nil(err)
 	assert.Equal(3, len(tt))
