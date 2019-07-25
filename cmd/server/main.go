@@ -67,7 +67,7 @@ func main() {
 
 	// TODO consider if this should be removed once config management is fully functional e2e
 	if *usedefaultwafconfig {
-		c = make(map[int64]waf.Config)
+		c = make(map[int]waf.Config)
 		c[0] = &mockConfig{}
 	}
 

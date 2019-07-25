@@ -3,11 +3,12 @@ package secrule
 import (
 	"azwaf/waf"
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"io"
 	"regexp"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestReqScanner1(t *testing.T) {
@@ -727,8 +728,7 @@ type mockWafHTTPRequest struct {
 
 func (r *mockWafHTTPRequest) Method() string            { return "GET" }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
-func (r *mockWafHTTPRequest) RuleSetID() string         { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) Version() int64            { return 0 }
+func (r *mockWafHTTPRequest) SecRuleConfigID() string   { return "SecRuleConfig1" }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return r.bodyReader }
 

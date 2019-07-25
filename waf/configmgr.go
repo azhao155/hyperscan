@@ -14,19 +14,19 @@ const prefix = "AzWAFConfig"
 
 // ConfigMgr is the top level configuration management interface to AzWaf.
 type ConfigMgr interface {
-	PutConfig(c Config) (int64, error)
+	PutConfig(c Config) error
 	DisposeConfig(int) error
 }
 
 type configMgrImpl struct {
-	curVersion int64
+	curVersion int
 	fileSystem ConfigFileSystem
 	converter  ConfigConverter
 	mux        sync.Mutex
 }
 
 // NewConfigMgr create a configuration manager instance.
-func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (ConfigMgr, map[int64]Config, error) {
+func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (ConfigMgr, map[int]Config, error) {
 	c := &configMgrImpl{}
 
 	c.fileSystem = fileSystem
@@ -46,22 +46,22 @@ func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (Confi
 }
 
 // PutConfig writes the config protobuf into disk.
-func (c *configMgrImpl) PutConfig(config Config) (int64, error) {
+func (c *configMgrImpl) PutConfig(config Config) error {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	str, err := c.converter.SerializeToJSON(config)
 	if err != nil {
-		return -1, err
+		return err
 	}
 
-	err = c.fileSystem.WriteFile(Path+prefix+strconv.FormatInt(c.curVersion, 10), str)
+	err = c.fileSystem.WriteFile(Path+prefix+strconv.Itoa(c.curVersion), str)
 	if err != nil {
-		return -1, err
+		return err
 	}
 
 	c.curVersion++
-	return c.curVersion - 1, nil
+	return nil
 }
 
 func (c *configMgrImpl) DisposeConfig(version int) error {
@@ -77,12 +77,12 @@ func (c *configMgrImpl) DisposeConfig(version int) error {
 	return nil
 }
 
-func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
+func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
 	c.curVersion = 0
-	m := make(map[int64]Config)
+	m := make(map[int]Config)
 	files, err := c.fileSystem.ReadDir(Path)
 	if err != nil {
 		return m, err
@@ -104,7 +104,7 @@ func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 			return m, fmt.Errorf("Decode config file version  %v has error: %v", f, err)
 		}
 
-		v, err := strconv.ParseInt(f[len(prefix):], 10, 64)
+		v, err := strconv.Atoi(f[len(prefix):])
 		if err != nil {
 			return m, fmt.Errorf("Processing file %v has error: %v", f, err)
 		}
@@ -121,7 +121,7 @@ func (c *configMgrImpl) restoreConfig() (map[int64]Config, error) {
 	return m, nil
 }
 
-func max(x, y int64) int64 {
+func max(x, y int) int {
 	if x < y {
 		return y
 	}

@@ -25,9 +25,8 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 }
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 
-// TODO once protobuf has version and config id, need to be implemented
-func (r *wafHTTPRequestPbWrapper) RuleSetID() string { return r.pb.RuleSetID }
-func (r *wafHTTPRequestPbWrapper) Version() int64    { return r.pb.Version }
+// TODO once protobuf has config id, need to be implemented
+func (r *wafHTTPRequestPbWrapper) SecRuleConfigID() string { return r.pb.SecRuleConfigID }
 
 type headerPairPbWrapper struct{ pb *pb.HeaderPair }
 

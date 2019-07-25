@@ -7,18 +7,17 @@ import (
 )
 
 type mockWafHTTPRequest struct {
-	uri       string
-	method    string
-	headers   []waf.HeaderPair
-	ruleSetID string
-	body      string
+	uri             string
+	method          string
+	headers         []waf.HeaderPair
+	secRuleConfigID string
+	body            string
 }
 
 func (r *mockWafHTTPRequest) Method() string            { return r.method }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
-func (r *mockWafHTTPRequest) RuleSetID() string         { return r.ruleSetID }
-func (r *mockWafHTTPRequest) Version() int64            { return 0 }
+func (r *mockWafHTTPRequest) SecRuleConfigID() string   { return r.secRuleConfigID }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader {
 	var b bytes.Buffer
 	b.WriteString(r.body)

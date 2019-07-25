@@ -6,10 +6,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/reflection"
 	"io"
 	"net"
+
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/reflection"
 )
 
 // Server is an AzWaf gRPC server.
@@ -127,20 +128,19 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 }
 
 func (s *serverImpl) PutConfig(ctx context.Context, in *pb.WAFConfig) (d *pb.PutConfigResponse, err error) {
-	var version int64
 	config := &configPbWrapper{pb: in}
 
-	version, err = s.cm.PutConfig(config)
+	err = s.cm.PutConfig(config)
 	if err != nil {
 		return
 	}
 
-	err = s.ws.PutConfig(config, version)
+	err = s.ws.PutConfig(config)
 	if err != nil {
 		return
 	}
 
-	d = &pb.PutConfigResponse{Version: version}
+	d = &pb.PutConfigResponse{}
 	return
 }
 

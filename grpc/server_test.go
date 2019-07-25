@@ -415,10 +415,6 @@ func TestGrpcServerPutConfig(t *testing.T) {
 		t.Fatalf("Unexpected number of calls to mockWafServer.PutConfig")
 	}
 
-	if mw.versionSet != 0 {
-		t.Fatalf("Unexpected version set to mockWafServer.PutConfig")
-	}
-
 	if mc.putConfigCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockConfigMgr.PutConfig")
 	}
@@ -427,7 +423,6 @@ func TestGrpcServerPutConfig(t *testing.T) {
 type mockWafServer struct {
 	evalRequestCalled int
 	putConfigCalled   int
-	versionSet        int64
 	receivedBody      strings.Builder
 	receivedBodyErr   error
 	bodyReadBufSize   int
@@ -476,19 +471,18 @@ func (m *mockWafServiceEvalRequestServer) SendAndClose(*pb.WafDecision) error {
 	return nil
 }
 
-func (m *mockWafServer) PutConfig(c waf.Config, v int64) error {
+func (m *mockWafServer) PutConfig(c waf.Config) error {
 	m.putConfigCalled++
-	m.versionSet = v
 	return nil
 }
 
 type mockConfigMgr struct {
-	putConfigCalled int64
+	putConfigCalled int
 }
 
-func (m *mockConfigMgr) PutConfig(c waf.Config) (int64, error) {
+func (m *mockConfigMgr) PutConfig(c waf.Config) error {
 	m.putConfigCalled++
-	return m.putConfigCalled - 1, nil
+	return nil
 }
 
 func (m *mockConfigMgr) DisposeConfig(int) error {
