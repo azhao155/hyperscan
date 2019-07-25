@@ -15,7 +15,7 @@ import (
 )
 
 var testRootDir = map[string]string{
-	"OWASP CRS 3.0": "crs3.0/util/regression-tests/tests",
+	"OWASP CRS 3.0 with config for regression tests": "crs3.0/util/regression-tests/tests",
 }
 
 var ruleID = flag.String("ruleID", "", "Rule Id for CRS tests")
@@ -42,7 +42,7 @@ func TestCrsRules(t *testing.T) {
 	resLog := &mockResultsLogger{}
 	ef := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
 
-	c := &mockSecRuleConfig{}
+	c := &mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0 with config for regression tests"}
 	e, err := ef.NewEngine(c)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -93,8 +93,10 @@ func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secru
 	return
 }
 
-type mockSecRuleConfig struct{}
+type mockSecRuleConfig struct {
+	ruleSetID string
+}
 
 func (c *mockSecRuleConfig) ID() string        { return "SecRuleConfig1" }
 func (c *mockSecRuleConfig) Enabled() bool     { return false }
-func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
+func (c *mockSecRuleConfig) RuleSetID() string { return c.ruleSetID }

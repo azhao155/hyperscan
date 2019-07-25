@@ -23,7 +23,7 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	re := secrule.NewRuleEvaluator()
 	reslog := &mockResultsLogger{}
 	ef := secrule.NewEngineFactory(logger, rl, rsf, re, reslog)
-	e, err := ef.NewEngine(&mockSecRuleConfig{})
+	e, err := ef.NewEngine(&mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}

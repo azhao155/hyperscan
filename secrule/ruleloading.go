@@ -50,6 +50,27 @@ var ruleSetPathsMap = map[waf.RuleSetID][]string{
 		"crs3.0/rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf",
 		"crs3.0/rules/REQUEST-949-BLOCKING-EVALUATION.conf",
 	},
+	"OWASP CRS 3.0 with config for regression tests": {
+		"crs3.0/crs-setup.regressiontesting.conf",
+		"crs3.0/rules/REQUEST-901-INITIALIZATION.conf",
+		"crs3.0/rules/REQUEST-903.9001-DRUPAL-EXCLUSION-RULES.conf",
+		"crs3.0/rules/REQUEST-903.9002-WORDPRESS-EXCLUSION-RULES.conf",
+		"crs3.0/rules/REQUEST-905-COMMON-EXCEPTIONS.conf",
+		"crs3.0/rules/REQUEST-910-IP-REPUTATION.conf",
+		"crs3.0/rules/REQUEST-911-METHOD-ENFORCEMENT.conf",
+		"crs3.0/rules/REQUEST-912-DOS-PROTECTION.conf",
+		"crs3.0/rules/REQUEST-913-SCANNER-DETECTION.conf",
+		"crs3.0/rules/REQUEST-920-PROTOCOL-ENFORCEMENT.conf",
+		"crs3.0/rules/REQUEST-921-PROTOCOL-ATTACK.conf",
+		"crs3.0/rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf",
+		"crs3.0/rules/REQUEST-931-APPLICATION-ATTACK-RFI.conf",
+		"crs3.0/rules/REQUEST-932-APPLICATION-ATTACK-RCE.conf",
+		"crs3.0/rules/REQUEST-933-APPLICATION-ATTACK-PHP.conf",
+		"crs3.0/rules/REQUEST-941-APPLICATION-ATTACK-XSS.conf",
+		"crs3.0/rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf",
+		"crs3.0/rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf",
+		"crs3.0/rules/REQUEST-949-BLOCKING-EVALUATION.conf",
+	},
 }
 
 // GetRules loads and parses CRS files from disk.
