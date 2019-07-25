@@ -31,7 +31,7 @@ type input struct {
 	URI      string            `yaml:"uri"`
 	Version  string            `yaml:"version"`
 	Headers  map[string]string `yaml:"headers"`
-	Data     string            `yaml:"data"`
+	Data     interface{}       `yaml:"data"`
 }
 
 type stage struct {
@@ -105,7 +105,7 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 
 		for _, s := range t.Stages {
 			input := s.Stage.Input
-			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: input.Data}
+			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: getBody(input.Data)}
 			for k, v := range s.Stage.Input.Headers {
 				req.headers = append(req.headers, &mockHeaderPair{k: k, v: v})
 			}
@@ -129,5 +129,21 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 		testCases = append(testCases, tc)
 	}
 
+	return
+}
+
+// The data field in the YAML files can be either a single string, or a list of lines. This function returns a string from either.
+func getBody(inputData interface{}) (body string) {
+	switch d := inputData.(type) {
+	case string:
+		body = d
+	case []interface{}:
+		for _, line := range d {
+			if line, ok := line.(string); ok {
+				body = body + line + "\n"
+			}
+		}
+		body = strings.Trim(body, "\n")
+	}
 	return
 }

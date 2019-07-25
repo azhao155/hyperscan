@@ -18,7 +18,7 @@ func TestGetTests(t *testing.T) {
 
 	tt, err := GetTests(d, "")
 	assert.Nil(err)
-	assert.Equal(2, len(tt))
+	assert.Equal(3, len(tt))
 
 	t0 := tt[0]
 	assert.Equal(1, len(t0.Requests))
@@ -41,4 +41,15 @@ func TestGetTests(t *testing.T) {
 	assert.Equal("911100-2", secondTestCase.TestTitle)
 	assert.False(secondTestCase.MatchExpected)
 	assert.Equal(911100, secondTestCase.ExpectedRuleID)
+
+	t2 := tt[2]
+	expectedBody := `--------------------------1aa6ce6559102
+content-disposition: form-data; name="a"
+
+hello world 1
+--------------------------1aa6ce6559102--`
+	buf.Reset()
+	r = t2.Requests[0].(*mockWafHTTPRequest)
+	_, _ = buf.ReadFrom(r.BodyReader())
+	assert.Equal(expectedBody, buf.String())
 }

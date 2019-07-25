@@ -1,33 +1,51 @@
 ---
-  meta: 
+  meta:
     author: "csanders-git"
     enabled: true
     name: "911100.yaml"
     description: "Description"
-  tests: 
-    - 
+  tests:
+    -
       test_title: 911100-1
-      stages: 
-        - 
-          stage: 
+      stages:
+        -
+          stage:
             input:
               dest_addr: "127.0.0.1"
               port: 80
               headers:
                   User-Agent: "ModSecurity CRS 3 Tests"
               data: "test=value"
-            output: 
+            output:
               log_contains: "id \"911100\""
-    - 
+    -
       test_title: 911100-2
-      stages: 
-        - 
-          stage: 
+      stages:
+        -
+          stage:
             input:
               dest_addr: "127.0.0.1"
               port: 80
               method: "OPTIONS"
               headers:
                   User-Agent: "ModSecurity CRS 3 Tests"
-            output: 
+            output:
               no_log_contains: "id \"911100\""
+    -
+      test_title: testWithMultilineBody
+      stages:
+        -
+          stage:
+            input:
+              dest_addr: "127.0.0.1"
+              port: 80
+              method: "POST"
+              headers:
+                Content-Type: "multipart/form-data; boundary=--------397236876"
+              data:
+                - '--------------------------1aa6ce6559102'
+                - 'content-disposition: form-data; name="a"'
+                - ''
+                - 'hello world 1'
+                - '--------------------------1aa6ce6559102--'
+            output:
