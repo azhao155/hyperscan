@@ -137,6 +137,29 @@ aaaaaaabccc
 	}
 }
 
+func TestReqScannerBodyMultipart0Length(t *testing.T) {
+	// Arrange
+	var calls []parsedBodyFieldCbCall
+	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
+		return
+	}
+	body := bytes.NewBufferString(``)
+	contentTypeStr := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+
+	// Act
+	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(calls) != 0 {
+		t.Fatalf("Got unexpected len(calls): %v. Calls were: %v", len(calls), calls)
+	}
+}
+
 func TestReqScannerBodyJSON1(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
@@ -209,6 +232,29 @@ func TestReqScannerBodyJSONParseErr(t *testing.T) {
 
 	if err.Error() != "application/json body scanning error: invalid character 'n'  looking for beginning of object key string" {
 		t.Fatalf("Unexpected error message: %v", err.Error())
+	}
+}
+
+func TestReqScannerBodyJSON0Length(t *testing.T) {
+	// Arrange
+	var calls []parsedBodyFieldCbCall
+	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
+		return
+	}
+	body := bytes.NewBufferString(``)
+	contentTypeStr := "application/json"
+
+	// Act
+	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(calls) != 0 {
+		t.Fatalf("Got unexpected len(calls): %v. Calls were: %v", len(calls), calls)
 	}
 }
 
@@ -286,6 +332,29 @@ func TestReqScannerBodyXMLParseError(t *testing.T) {
 	}
 }
 
+func TestReqScannerBodyXML0Length(t *testing.T) {
+	// Arrange
+	var calls []parsedBodyFieldCbCall
+	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
+		return
+	}
+	body := bytes.NewBufferString(``)
+	contentTypeStr := "text/xml"
+
+	// Act
+	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(calls) != 0 {
+		t.Fatalf("Got unexpected len(calls): %v. Calls were: %v", len(calls), calls)
+	}
+}
+
 func TestReqScannerBodyUrlencode1(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
@@ -328,6 +397,29 @@ func TestReqScannerBodyUrlencode1(t *testing.T) {
 		if call.data != expectedCalls[i].data {
 			t.Fatalf("Unexpected data for call %v: %v", i, call.data)
 		}
+	}
+}
+
+func TestReqScannerBodyUrlencode0Length(t *testing.T) {
+	// Arrange
+	var calls []parsedBodyFieldCbCall
+	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
+		return
+	}
+	body := bytes.NewBufferString(``)
+	contentTypeStr := "application/x-www-form-urlencoded"
+
+	// Act
+	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(calls) != 0 {
+		t.Fatalf("Got unexpected len(calls): %v. Calls were: %v", len(calls), calls)
 	}
 }
 

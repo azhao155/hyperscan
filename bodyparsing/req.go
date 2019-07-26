@@ -108,28 +108,27 @@ func (r *reqBodyParserImpl) getLengthAndTypeFromHeaders(req waf.HTTPRequest) (co
 func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorator, mediaTypeParams map[string]string, cb waf.ParsedBodyFieldCb) (err error) {
 	var buf bytes.Buffer
 	m := multipart.NewReader(bodyReader, mediaTypeParams["boundary"])
-	for i := 0; ; i++ {
+	done := false
+	for i := 0; !done; i++ {
 		bodyReader.ResetFieldReadCount() // Even though the part headers are not strictly a "field", they still may be a significant number of bytes, so we'll treat them as a field.
 		var part *multipart.Part
 		part, err = m.NextPart()
 		if err != nil {
-			// Unfortunately NextPart() doesn't return the raw err, but wraps it.
-			if bodyReader.IsFieldLimitReached() {
-				err = waf.ErrFieldBytesLimitExceeded
-				return
-			}
-			if bodyReader.IsPausableReached() {
-				err = waf.ErrPausableBytesLimitExceeded
-				return
-			}
-			if bodyReader.IsTotalLimitReached() {
-				err = waf.ErrTotalBytesLimitExceeded
+			if err == io.EOF {
+				err = nil
 				return
 			}
 
-			if err == io.EOF {
+			// NextPart() doesn't return the raw err, but wraps it. Therefore we must check the state of the underlying reader.
+			if bodyReader.LastErr == waf.ErrFieldBytesLimitExceeded || bodyReader.LastErr == waf.ErrPausableBytesLimitExceeded || bodyReader.LastErr == waf.ErrTotalBytesLimitExceeded {
+				err = bodyReader.LastErr
+				return
+			}
+
+			// We allow 0 length bodies
+			if bodyReader.LastErr == io.EOF && bodyReader.ReadCountTotal == 0 {
 				err = nil
-				break
+				return
 			}
 
 			err = fmt.Errorf("body parsing error while reading part headers: %v", err)
