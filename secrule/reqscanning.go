@@ -154,9 +154,26 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 		return
 	}
 
-	err = r.scanHeaders(req.Headers(), results)
-	if err != nil {
-		return
+	headers := req.Headers()
+	for _, h := range headers {
+		k := h.Key()
+		v := h.Value()
+
+		r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
+		if err != nil {
+			return
+		}
+
+		r.scanTarget("REQUEST_HEADERS", v, results)
+		if err != nil {
+			return
+		}
+
+		r.scanTarget("REQUEST_HEADERS:"+k, v, results)
+		if err != nil {
+			return
+		}
+
 	}
 
 	return
@@ -174,6 +191,11 @@ func (r *reqScannerImpl) ScanBodyField(contentType waf.ContentType, fieldName st
 		}
 
 		r.scanTarget("ARGS", data, results)
+		if err != nil {
+			return
+		}
+
+		r.scanTarget("ARGS:"+fieldName, data, results)
 		if err != nil {
 			return
 		}
@@ -269,25 +291,6 @@ func getRxExprs(ruleItem *RuleItem) []string {
 	return nil
 }
 
-func (r *reqScannerImpl) scanHeaders(headers []waf.HeaderPair, results *ScanResults) (err error) {
-	for _, h := range headers {
-		k := h.Key()
-		v := h.Value()
-
-		r.scanTarget("REQUEST_HEADERS", v, results)
-		if err != nil {
-			return
-		}
-
-		r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
-		if err != nil {
-			return
-		}
-	}
-
-	return
-}
-
 func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	r.scanTarget("REQUEST_URI_RAW", URI, results)
 	if err != nil {
@@ -314,6 +317,11 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 
 		for _, v := range vv {
 			r.scanTarget("ARGS", v, results)
+			if err != nil {
+				return
+			}
+
+			r.scanTarget("ARGS:"+k, v, results)
 			if err != nil {
 				return
 			}

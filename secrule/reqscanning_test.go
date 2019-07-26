@@ -237,6 +237,131 @@ func TestReqScannerBodyField(t *testing.T) {
 	}
 }
 
+func TestReqScannerSimpleSelectorUrl(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS:myarg"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php?myarg=aaaaaaabccc"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+
+	_, ok = sr.GetRxResultsFor(100, 0, "ARGS:myarg")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
+func TestReqScannerSimpleSelectorBody(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS:myarg"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+	err3 := rs.ScanBodyField(waf.URLEncodedContent, "myarg", "aaaaaaabccc", sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	if err3 != nil {
+		t.Fatalf("Got unexpected error: %s", err3)
+	}
+
+	_, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+
+	_, ok = sr.GetRxResultsFor(100, 0, "ARGS:myarg")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
+func TestReqScannerSimpleSelectorHeader(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_HEADERS:My-Header"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "My-Header", v: "aaaaaaabccc"})
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetRxResultsFor(100, 0, "REQUEST_HEADERS")
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+
+	_, ok = sr.GetRxResultsFor(100, 0, "REQUEST_HEADERS:My-Header")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader
