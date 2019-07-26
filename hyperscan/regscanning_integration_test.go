@@ -23,7 +23,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
-	sr, err2 := rs.Scan(req)
+	sr, err2 := rs.ScanHeaders(req)
 
 	// Assert
 	if err1 != nil {
@@ -78,7 +78,7 @@ func TestReqScannerPmfRule(t *testing.T) {
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
-	sr, err2 := rs.Scan(req)
+	sr, err2 := rs.ScanHeaders(req)
 
 	// Assert
 	if err1 != nil {

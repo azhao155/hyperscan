@@ -4,6 +4,7 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"encoding/json"
+	"fmt"
 	"github.com/rs/zerolog"
 	"strconv"
 )
@@ -33,8 +34,9 @@ type customerFirewallLogDetailsEntry struct {
 }
 
 // NewZerologResultsLogger creates a results logger that creates log messages like the ones we want to send to the customer, but just outputs them to Zerolog.
-func NewZerologResultsLogger(logger zerolog.Logger) secrule.ResultsLogger {
-	return &zerologResultsLogger{logger: logger}
+func NewZerologResultsLogger(logger zerolog.Logger) (secrule.ResultsLogger, waf.ResultsLogger) {
+	r := &zerologResultsLogger{logger: logger}
+	return r, r
 }
 
 type zerologResultsLogger struct {
@@ -52,7 +54,6 @@ func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 		ruleID = stmt.ID
 	}
 
-	// TODO fill entire struct
 	c := &customerFirewallLogEntry{
 		RequestURI: request.URI(),
 		RuleID:     strconv.Itoa(ruleID),
@@ -60,6 +61,50 @@ func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 		Action:     action,
 		Details: customerFirewallLogDetailsEntry{
 			Message: logData,
+		},
+	}
+
+	bb, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
+	}
+
+	l.logger.Info().Msgf("Customer facing log: %s\n", bb)
+}
+
+func (l *zerologResultsLogger) FieldBytesLimitExceeded(request waf.HTTPRequest, limit int) {
+	l.bytesLimitExceeded(request, fmt.Sprintf("Request body contained a field longer than the limit (%d bytes)", limit))
+}
+func (l *zerologResultsLogger) PausableBytesLimitExceeded(request waf.HTTPRequest, limit int) {
+	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length (excluding file upload fields) exceeded the limit (%d bytes)", limit))
+}
+func (l *zerologResultsLogger) TotalBytesLimitExceeded(request waf.HTTPRequest, limit int) {
+	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes)", limit))
+}
+
+func (l *zerologResultsLogger) bytesLimitExceeded(request waf.HTTPRequest, msg string) {
+	c := &customerFirewallLogEntry{
+		RequestURI: request.URI(),
+		Message:    msg,
+		Action:     "Blocked",
+		Details:    customerFirewallLogDetailsEntry{},
+	}
+
+	bb, err := json.MarshalIndent(c, "", "  ")
+	if err != nil {
+		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
+	}
+
+	l.logger.Info().Msgf("Customer facing log: %s\n", bb)
+}
+
+func (l *zerologResultsLogger) BodyParseError(request waf.HTTPRequest, err error) {
+	c := &customerFirewallLogEntry{
+		RequestURI: request.URI(),
+		Message:    fmt.Sprintf("Request body scanning error"),
+		Action:     "Blocked",
+		Details: customerFirewallLogDetailsEntry{
+			Message: err.Error(),
 		},
 	}
 

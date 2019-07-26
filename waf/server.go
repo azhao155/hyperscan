@@ -16,18 +16,22 @@ type Server interface {
 }
 
 type serverImpl struct {
-	logger         zerolog.Logger
-	secRuleEngines map[string]SecRuleEngine
-	factory        SecRuleEngineFactory
+	logger               zerolog.Logger
+	secRuleEngines       map[string]SecRuleEngine
+	secRuleEngineFactory SecRuleEngineFactory
+	requestBodyParser    RequestBodyParser
+	resultsLogger        ResultsLogger
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, c map[int]Config, sref SecRuleEngineFactory) (server Server, err error) {
+func NewServer(logger zerolog.Logger, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger) (server Server, err error) {
 	s := &serverImpl{
-		logger: logger,
+		logger:               logger,
+		secRuleEngineFactory: sref,
+		requestBodyParser:    rbp,
+		resultsLogger:        rl,
 	}
 
-	s.factory = sref
 	s.secRuleEngines = make(map[string]SecRuleEngine)
 
 	var versions []int
@@ -46,6 +50,7 @@ func NewServer(logger zerolog.Logger, c map[int]Config, sref SecRuleEngineFactor
 	}
 
 	server = s
+
 	return
 }
 
@@ -76,7 +81,34 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 
 	// TODO add other engine
 
-	allow = s.secRuleEngines[secRuleConfigID].EvalRequest(logger, req)
+	secRuleEvaluation := s.secRuleEngines[secRuleConfigID].NewEvaluation(logger, req)
+	err = secRuleEvaluation.ScanHeaders()
+	if err != nil {
+		return
+	}
+
+	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
+		err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+		// TODO add other engines who also need to do body scanning here
+		return
+	})
+	if err != nil {
+		lengthLimits := s.requestBodyParser.LengthLimits()
+		if err == ErrFieldBytesLimitExceeded {
+			s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
+		} else if err == ErrPausableBytesLimitExceeded {
+			s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
+		} else if err == ErrTotalBytesLimitExceeded {
+			s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
+		} else {
+			s.resultsLogger.BodyParseError(req, err)
+		}
+
+		allow = false
+		return
+	}
+
+	allow = secRuleEvaluation.EvalRules()
 
 	return
 }
@@ -84,7 +116,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 func (s *serverImpl) PutConfig(c Config) (err error) {
 	for _, secRuleConfig := range c.SecRuleConfigs() {
 		var engine SecRuleEngine
-		engine, err = s.factory.NewEngine(secRuleConfig)
+		engine, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)
 
 		if err != nil {
 			err = fmt.Errorf("failed to create SecRule engine for configID %v, error %v", secRuleConfig.ID(), err)

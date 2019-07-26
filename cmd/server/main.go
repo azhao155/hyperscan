@@ -1,6 +1,7 @@
 package main
 
 import (
+	"azwaf/bodyparsing"
 	"azwaf/grpc"
 	"azwaf/hyperscan"
 	"azwaf/logging"
@@ -47,6 +48,12 @@ func main() {
 
 	rand.Seed(time.Now().UnixNano())
 
+	lengthLimits := waf.LengthLimits{
+		MaxLengthField:    1024 * 20,         // 20 KiB
+		MaxLengthPausable: 1024 * 128,        // 128 KiB
+		MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
+	}
+
 	// Depedency injection composition root
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
 	p := secrule.NewRuleParser()
@@ -56,8 +63,9 @@ func main() {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
-	reslog := logging.NewZerologResultsLogger(logger)
-	sref := secrule.NewEngineFactory(logger, rl, rsf, re, reslog)
+	secruleResLog, wafResLog := logging.NewZerologResultsLogger(logger)
+	sref := secrule.NewEngineFactory(logger, rl, rsf, re, secruleResLog)
+	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
 	cm, c, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
@@ -71,7 +79,7 @@ func main() {
 		c[0] = &mockConfig{}
 	}
 
-	w, err := waf.NewServer(logger, c, sref)
+	w, err := waf.NewServer(logger, c, sref, rbp, wafResLog)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating service manager")
 	}

@@ -7,9 +7,16 @@ type SecRuleEngineFactory interface {
 	NewEngine(c SecRuleConfig) (SecRuleEngine, error)
 }
 
-// SecRuleEngine is compatible with a subset of the ModSecurity SecRule language.
+// SecRuleEngine is a WAF engine compatible with a subset of the ModSecurity SecRule language.
 type SecRuleEngine interface {
-	EvalRequest(logger zerolog.Logger, req HTTPRequest) bool
+	NewEvaluation(logger zerolog.Logger, req HTTPRequest) SecRuleEvaluation
+}
+
+// SecRuleEvaluation is a run session of the SecRule engine for a single specific HTTP request.
+type SecRuleEvaluation interface {
+	ScanHeaders() error
+	ScanBodyField(contentType ContentType, fieldName string, data string) error
+	EvalRules() bool
 }
 
 // RuleSetID identifies which rule set to initialize the engine with.

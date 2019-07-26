@@ -89,7 +89,7 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 		rs, err1 := rsf.NewReqScanner(rules)
 
 		// Act
-		_, err2 := rs.Scan(req)
+		_, err2 := rs.ScanHeaders(req)
 
 		// Assert
 		if err1 != nil {

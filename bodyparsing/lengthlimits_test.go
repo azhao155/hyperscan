@@ -1,6 +1,7 @@
-package secrule
+package bodyparsing
 
 import (
+	"azwaf/waf"
 	"bytes"
 	"strings"
 	"testing"
@@ -10,7 +11,7 @@ func TestMaxLengthReader(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 10000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
 
 	// Act
 	n := 0
@@ -27,7 +28,7 @@ func TestMaxLengthReader(t *testing.T) {
 	}
 
 	// Assert
-	if err != errPausableBytesLimitExceeded {
+	if err != waf.ErrPausableBytesLimitExceeded {
 		t.Fatalf("Expected errPausableBytesLimitExceeded error, but got: %v", err)
 	}
 
@@ -40,7 +41,7 @@ func TestMaxLengthReaderFieldLimit(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 10000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
 
 	// Act
 	n := 0
@@ -57,7 +58,7 @@ func TestMaxLengthReaderFieldLimit(t *testing.T) {
 	}
 
 	// Assert
-	if err != errFieldBytesLimitExceeded {
+	if err != waf.ErrFieldBytesLimitExceeded {
 		t.Fatalf("Expected errFieldBytesLimitExceeded error, but got: %v", err)
 	}
 
@@ -70,7 +71,7 @@ func TestMaxLengthReaderWithPause(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 10000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
 
 	// Act and assert
 	for i := 0; i < 5; i++ {
@@ -99,7 +100,7 @@ func TestMaxLengthReaderTotalLimit(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 20000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
 
 	// Act and assert
 	n := 0
@@ -123,7 +124,7 @@ func TestMaxLengthReaderTotalLimit(t *testing.T) {
 	}
 
 	// Assert
-	if err != errTotalBytesLimitExceeded {
+	if err != waf.ErrTotalBytesLimitExceeded {
 		t.Fatalf("Expected errFieldBytesLimitExceeded error, but got: %v", err)
 	}
 

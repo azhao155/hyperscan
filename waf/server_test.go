@@ -12,11 +12,14 @@ import (
 func TestWafServerEvalRequest(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
-	msre := &mockSecRuleEngine{}
+	mrl := &mockResultsLogger{}
+	msrev := &mockSecRuleEvaluation{}
+	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
-	s, err := NewServer(logger, c, msref)
+	mrbp := &mockRequestBodyParser{}
+	s, err := NewServer(logger, c, msref, mrbp, mrl)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -27,21 +30,135 @@ func TestWafServerEvalRequest(t *testing.T) {
 
 	// Assert
 	if msref.newEngineCalled != 1 {
-		t.Fatalf("Unexpected number of calls to mockSecRuleEngineFactory.NewEngine")
+		t.Fatalf("Unexpected number of calls to mockSecRuleEngineFactory.NewEngine: %v", msref.newEngineCalled)
 	}
 
-	if msre.evalRequestCalled != 1 {
-		t.Fatalf("Unexpected number of calls to mockSecRuleEngine.EvalRequest")
+	if msre.newEvaluationCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEngine.NewEvaluation: %v", msre.newEvaluationCalled)
 	}
+
+	if msrev.scanHeadersCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.ScanHeaders: %v", msrev.scanHeadersCalled)
+	}
+
+	if msrev.scanBodyFieldCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.ScanBodyField: %v", msrev.scanBodyFieldCalled)
+	}
+
+	if msrev.evalRulesCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.EvalRules: %v", msrev.evalRulesCalled)
+	}
+}
+
+func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
+	testBytesLimit(t, ErrFieldBytesLimitExceeded, 1, 0, 0)
+}
+
+func TestSecRuleEngineEvalRequestTooLongBodyExcludingFiles(t *testing.T) {
+	testBytesLimit(t, ErrPausableBytesLimitExceeded, 0, 1, 0)
+}
+
+func TestSecRuleEngineEvalRequestTooLongTotal(t *testing.T) {
+	testBytesLimit(t, ErrTotalBytesLimitExceeded, 0, 0, 1)
+}
+
+func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExceededCalled int, expectedPausableBytesLimitExceededCalled int, expectedTotalBytesLimitExceededCalled int) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	msrev := &mockSecRuleEvaluation{}
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+	c := make(map[int]Config)
+	c[0] = &mockConfig{}
+	mrbp := &mockRequestBodyParser{
+		parseCb: func(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) (err error) {
+			err = expectedErr
+			return
+		},
+	}
+
+	s, err := NewServer(logger, c, msref, mrbp, mrl)
+	if err != nil {
+		t.Fatalf("Unexpected error from NewServer: %s", err)
+	}
+
+	req := &mockWafHTTPRequest{}
+
+	// Act
+	r, err := s.EvalRequest(req)
+
+	// Assert
+	if err != expectedErr {
+		t.Fatalf("Unexpected error from EvalRequest: %s", err)
+	}
+
+	if r != false {
+		t.Fatalf("EvalRequest did not return false")
+	}
+
+	if mrl.fieldBytesLimitExceededCalled != expectedFieldBytesLimitExceededCalled {
+		t.Fatalf("Unexpected number of calls to mockResultsLogger.FieldBytesLimitExceeded: %v", mrl.fieldBytesLimitExceededCalled)
+	}
+
+	if mrl.pausableBytesLimitExceededCalled != expectedPausableBytesLimitExceededCalled {
+		t.Fatalf("Unexpected number of calls to mockResultsLogger.PausableBytesLimitExceeded: %v", mrl.pausableBytesLimitExceededCalled)
+	}
+
+	if mrl.totalBytesLimitExceededCalled != expectedTotalBytesLimitExceededCalled {
+		t.Fatalf("Unexpected number of calls to mockResultsLogger.TotalBytesLimitExceeded: %v", mrl.totalBytesLimitExceededCalled)
+	}
+
+	if mrl.bodyParseErrorCalled != 0 {
+		t.Fatalf("Unexpected number of calls to mockResultsLogger.BodyParseError: %v", mrl.bodyParseErrorCalled)
+	}
+}
+
+type mockRequestBodyParser struct {
+	parseCb func(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) error
+}
+
+func (r *mockRequestBodyParser) Parse(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) (err error) {
+	if r.parseCb != nil {
+		err = r.parseCb(logger, req, cb)
+	} else {
+		cb(MultipartFormDataContent, "somearg", "somevalue")
+	}
+
+	return
+}
+
+func (r *mockRequestBodyParser) LengthLimits() LengthLimits {
+	return LengthLimits{1000, 2000, 3000}
+}
+
+type mockSecRuleEvaluation struct {
+	scanHeadersCalled   int
+	scanBodyFieldCalled int
+	evalRulesCalled     int
+}
+
+func (m *mockSecRuleEvaluation) ScanHeaders() (err error) {
+	m.scanHeadersCalled++
+	return
+}
+func (m *mockSecRuleEvaluation) ScanBodyField(contentType ContentType, fieldName string, data string) (err error) {
+	m.scanBodyFieldCalled++
+	return
+}
+func (m *mockSecRuleEvaluation) EvalRules() bool {
+	m.evalRulesCalled++
+	return true
 }
 
 type mockSecRuleEngine struct {
-	evalRequestCalled int
+	newEvaluationCalled int
+	msrev               *mockSecRuleEvaluation
 }
 
-func (m *mockSecRuleEngine) EvalRequest(logger zerolog.Logger, req HTTPRequest) bool {
-	m.evalRequestCalled++
-	return true
+func (m *mockSecRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) SecRuleEvaluation {
+	m.newEvaluationCalled++
+	return m.msrev
 }
 
 type mockSecRuleEngineFactory struct {
@@ -61,4 +178,25 @@ func (r *mockWafHTTPRequest) Method() string          { return "GET" }
 func (r *mockWafHTTPRequest) URI() string             { return "/hello.php?arg1=aaaaaaabccc" }
 func (r *mockWafHTTPRequest) Headers() []HeaderPair   { return nil }
 func (r *mockWafHTTPRequest) SecRuleConfigID() string { return "SecRuleConfig1" }
+func (r *mockWafHTTPRequest) Version() int64          { return 0 }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader   { return &bytes.Buffer{} }
+
+type mockResultsLogger struct {
+	fieldBytesLimitExceededCalled    int
+	pausableBytesLimitExceededCalled int
+	totalBytesLimitExceededCalled    int
+	bodyParseErrorCalled             int
+}
+
+func (r *mockResultsLogger) FieldBytesLimitExceeded(request HTTPRequest, limit int) {
+	r.fieldBytesLimitExceededCalled++
+}
+func (r *mockResultsLogger) PausableBytesLimitExceeded(request HTTPRequest, limit int) {
+	r.pausableBytesLimitExceededCalled++
+}
+func (r *mockResultsLogger) TotalBytesLimitExceeded(request HTTPRequest, limit int) {
+	r.totalBytesLimitExceededCalled++
+}
+func (r *mockResultsLogger) BodyParseError(request HTTPRequest, err error) {
+	r.bodyParseErrorCalled++
+}

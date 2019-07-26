@@ -1,51 +1,39 @@
-package secrule
+package bodyparsing
 
 import (
-	"errors"
+	"azwaf/waf"
 	"io"
 )
-
-// LengthLimits states limitations we will enforce regarding the lengths of different parts of the request.
-type LengthLimits struct {
-	MaxLengthField    int // Number of bytes read before returning an error, respecting the PauseCounting flag. The count can be reset whenever a field has been consumed .
-	MaxLengthPausable int // Number of bytes read before returning an error, respecting the PauseCounting flag.
-	MaxLengthTotal    int // Number of bytes read, ignoring whether the PauseCounting flag was set.
-}
 
 // maxLengthReaderDecorator is an io.Reader decorator, which enforces a max number of bytes to be read.
 type maxLengthReaderDecorator struct {
 	PauseCounting     bool
-	Limits            LengthLimits
+	Limits            waf.LengthLimits
 	ReadCountField    int
 	ReadCountPausable int
 	ReadCountTotal    int
 	reader            io.Reader
 }
 
-func newMaxLengthReaderDecorator(reader io.Reader, limits LengthLimits) *maxLengthReaderDecorator {
+func newMaxLengthReaderDecorator(reader io.Reader, limits waf.LengthLimits) *maxLengthReaderDecorator {
 	return &maxLengthReaderDecorator{reader: reader, Limits: limits}
 }
-
-//maxLengthReaderFieldLimitExceeded
-var errFieldBytesLimitExceeded = errors.New("field length limit exceeded")
-var errPausableBytesLimitExceeded = errors.New("request length limit exceeded")
-var errTotalBytesLimitExceeded = errors.New("total request length limit exceeded")
 
 // Read behaves like io.Reader.Read, but returns errors on the call after the call where the max number of bytes was exceeded.
 // If the PauseCounting flag is set, the bytes read is not counted.
 func (m *maxLengthReaderDecorator) Read(p []byte) (n int, err error) {
 	if m.IsTotalLimitReached() {
-		err = errTotalBytesLimitExceeded
+		err = waf.ErrTotalBytesLimitExceeded
 		return
 	}
 
 	if m.IsPausableReached() {
-		err = errPausableBytesLimitExceeded
+		err = waf.ErrPausableBytesLimitExceeded
 		return
 	}
 
 	if m.IsFieldLimitReached() {
-		err = errFieldBytesLimitExceeded
+		err = waf.ErrFieldBytesLimitExceeded
 		return
 	}
 

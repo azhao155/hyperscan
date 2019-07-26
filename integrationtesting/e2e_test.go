@@ -30,7 +30,12 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	req := &mockWafHTTPRequest{uri: "http://localhost:8080/", method: "GET"}
 
 	// Act
-	r := e.EvalRequest(logger, req)
+	ev := e.NewEvaluation(logger, req)
+	err = ev.ScanHeaders()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r := ev.EvalRules()
 
 	// Assert
 	if !r {
