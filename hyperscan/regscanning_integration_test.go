@@ -19,7 +19,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		SecRule REQUEST_URI_RAW "a+bc" "id:300,t:lowercase,t:removewhitespace,x"
 	`, nil)
 
-	req := &mockWafHTTPRequest{}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
@@ -73,8 +73,12 @@ func TestReqScannerPmfRule(t *testing.T) {
 	rf := secrule.NewReqScannerFactory(mf)
 	rules, _ := secrule.NewRuleParser().Parse(`
 		SecRule REQUEST_URI_RAW "@pmf test.data" "id:100"
-		`, mockPhraseFunc)
-	req := &mockWafHTTPRequest{}
+		`,
+		func(fileName string) (phrases []string, err error) {
+			return []string{"abc", "def"}, nil
+		},
+	)
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
@@ -97,14 +101,46 @@ func TestReqScannerPmfRule(t *testing.T) {
 	}
 }
 
-type mockWafHTTPRequest struct{}
+func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
+	// Arrange
+	mf := NewMultiRegexEngineFactory(nil)
+	rf := secrule.NewReqScannerFactory(mf)
+	rules, _ := secrule.NewRuleParser().Parse(`
+		SecRule REQUEST_URI_RAW "@pmf test.data" "id:100"
+		`,
+		func(fileName string) (phrases []string, err error) {
+			return []string{"abC", "def"}, nil
+		},
+	)
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaaBccc&arg2=helloworld"}
+
+	// Act
+	rs, err1 := rf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_URI_RAW")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "aBc" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
+type mockWafHTTPRequest struct {
+	uri string
+}
 
 func (r *mockWafHTTPRequest) Method() string            { return "GET" }
-func (r *mockWafHTTPRequest) URI() string               { return "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld" }
+func (r *mockWafHTTPRequest) URI() string               { return r.uri }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
 func (r *mockWafHTTPRequest) SecRuleConfigID() string   { return "SecRuleConfig1" }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }
-
-func mockPhraseFunc(fileName string) (phrases []string, err error) {
-	return []string{"abc", "def"}, nil
-}

@@ -266,7 +266,7 @@ func getRxExprs(ruleItem *RuleItem) []string {
 	case Pm, Pmf, PmFromFile:
 		var phrases []string
 		for _, p := range ruleItem.PmPhrases {
-			phrases = append(phrases, regexp.QuoteMeta(p))
+			phrases = append(phrases, "(?i:"+regexp.QuoteMeta(p)+")")
 		}
 		return phrases
 	case BeginsWith:

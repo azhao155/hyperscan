@@ -179,11 +179,11 @@ func TestGetExprsPmf(t *testing.T) {
 		t.Fatalf("Unexpected expression count %d", len(ee))
 	}
 
-	if ee[0] != "abc" {
+	if ee[0] != "(?i:abc)" {
 		t.Fatalf("Invalid expression %s", ee[0])
 	}
 
-	if ee[1] != "def" {
+	if ee[1] != "(?i:def)" {
 		t.Fatalf("Invalid expression %s", ee[1])
 	}
 }
