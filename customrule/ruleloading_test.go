@@ -1,12 +1,13 @@
 package customrule
 
 import (
+	"azwaf/secrule"
 	"azwaf/testutils"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestGetRulesUnmarshal(t *testing.T) {
+func TestLoadCustomRulesUnmarshal(t *testing.T) {
 	assert := assert.New(t)
 	logger := testutils.NewTestLogger(t)
 	rl := ruleLoader{}
@@ -35,7 +36,7 @@ func TestGetRulesUnmarshal(t *testing.T) {
 		}
 	]}]`
 
-	rr, err := rl.GetRules(logger, cr)
+	rr, err := rl.loadCustomRules(logger, cr)
 	assert.Nil(err)
 
 	expected := CustomRule{
@@ -69,7 +70,7 @@ func TestGetRulesUnmarshal(t *testing.T) {
 
 }
 
-func TestGetRulesReorder(t *testing.T) {
+func TestLoadCustomRulesReorder(t *testing.T) {
 	assert := assert.New(t)
 	logger := testutils.NewTestLogger(t)
 
@@ -124,14 +125,14 @@ func TestGetRulesReorder(t *testing.T) {
 	]}
 	]`
 
-	rr, err := rl.GetRules(logger, cr)
+	rr, err := rl.loadCustomRules(logger, cr)
 	assert.Nil(err)
 
 	assert.Equal(1, rr[0].Priority)
 	assert.Equal(2, rr[1].Priority)
 }
 
-func TestGetRulesNegative(t *testing.T) {
+func TestLoadCustomRulesNegative(t *testing.T) {
 	assert := assert.New(t)
 	logger := testutils.NewTestLogger(t)
 	rl := ruleLoader{}
@@ -143,6 +144,73 @@ func TestGetRulesNegative(t *testing.T) {
 		"action": "Block",
 		"matchConditions": `
 
-	_, err := rl.GetRules(logger, cr)
+	_, err := rl.loadCustomRules(logger, cr)
 	assert.NotNil(err)
+}
+
+func TestGetSecRules(t *testing.T) {
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+	rl := ruleLoader{}
+	cr := `[
+	{
+		"name": "blockEvilBot",
+		"priority": 1,
+		"ruleType": "MatchRule",
+		"action": "Block",
+		"matchConditions": [
+		{
+			"matchVariables": [
+			{
+				"variableName": "RequestHeaders",
+				"selector": "User-Agent"
+			}
+			],
+			"operator": "Contains",
+			"negationConditon": false,
+			"matchValues": [
+			"evilbot"
+			],
+			"transforms": [
+			"Lowercase"
+			]
+		}
+	]},
+
+		{
+		"name": "blockEvilBot",
+		"priority": 2,
+		"ruleType": "MatchRule",
+		"action": "Block",
+		"matchConditions": [
+		{
+			"matchVariables": [
+			{
+				"variableName": "RequestHeaders",
+				"selector": "User-Agent"
+			}
+		],
+			"operator": "Contains",
+			"negationConditon": false,
+			"matchValues": [
+			"evilbot"
+			],
+			"transforms": [
+			"Lowercase"
+			]
+		}
+	]}
+	]`
+
+	ss, err := rl.GetSecRules(logger, cr)
+	assert.Nil(err)
+	assert.Equal(2, len(ss))
+
+	r1 := ss[0].(*secrule.Rule)
+	assert.NotNil(r1)
+	assert.Equal(1, r1.ID)
+
+	r2 := ss[1].(*secrule.Rule)
+	assert.NotNil(r2)
+	assert.Equal(2, r2.ID)
 }

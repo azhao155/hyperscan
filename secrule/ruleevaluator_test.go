@@ -69,7 +69,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	p := RulePredicate{Targets: []string{"TX:ANOMALY_SCORE"}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}", OpFunc: toOperatorFunc(Ge)}
+	p := RulePredicate{Targets: []string{"TX:ANOMALY_SCORE"}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}"}
 	p.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(p.Val, -1)
 	rules := []Statement{
 		&Rule{

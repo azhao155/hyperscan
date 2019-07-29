@@ -159,17 +159,17 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 		k := h.Key()
 		v := h.Value()
 
-		r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
+		err = r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
 		if err != nil {
 			return
 		}
 
-		r.scanTarget("REQUEST_HEADERS", v, results)
+		err = r.scanTarget("REQUEST_HEADERS", v, results)
 		if err != nil {
 			return
 		}
 
-		r.scanTarget("REQUEST_HEADERS:"+k, v, results)
+		err = r.scanTarget("REQUEST_HEADERS:"+k, v, results)
 		if err != nil {
 			return
 		}
@@ -185,23 +185,23 @@ func (r *reqScannerImpl) ScanBodyField(contentType waf.ContentType, fieldName st
 	switch contentType {
 
 	case waf.MultipartFormDataContent, waf.URLEncodedContent:
-		r.scanTarget("ARGS_NAMES", fieldName, results)
+		err = r.scanTarget("ARGS_NAMES", fieldName, results)
 		if err != nil {
 			return
 		}
 
-		r.scanTarget("ARGS", data, results)
+		err = r.scanTarget("ARGS", data, results)
 		if err != nil {
 			return
 		}
 
-		r.scanTarget("ARGS:"+fieldName, data, results)
+		err = r.scanTarget("ARGS:"+fieldName, data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.XMLContent, waf.JSONContent:
-		r.scanTarget("XML:/*", data, results)
+		err = r.scanTarget("XML:/*", data, results)
 		if err != nil {
 			return
 		}
@@ -292,7 +292,7 @@ func getRxExprs(ruleItem *RuleItem) []string {
 }
 
 func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
-	r.scanTarget("REQUEST_URI_RAW", URI, results)
+	err = r.scanTarget("REQUEST_URI_RAW", URI, results)
 	if err != nil {
 		return
 	}
@@ -310,18 +310,18 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	}
 
 	for k, vv := range qvals {
-		r.scanTarget("ARGS_NAMES", k, results)
+		err = r.scanTarget("ARGS_NAMES", k, results)
 		if err != nil {
 			return
 		}
 
 		for _, v := range vv {
-			r.scanTarget("ARGS", v, results)
+			err = r.scanTarget("ARGS", v, results)
 			if err != nil {
 				return
 			}
 
-			r.scanTarget("ARGS:"+k, v, results)
+			err = r.scanTarget("ARGS:"+k, v, results)
 			if err != nil {
 				return
 			}

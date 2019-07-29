@@ -155,8 +155,6 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		return
 	}
 
-	ru.Predicate.OpFunc = toOperatorFunc(ru.Predicate.Op)
-
 	switch ru.Predicate.Op {
 	case Pm:
 		ru.PmPhrases = strings.Split(ru.Predicate.Val, " ")

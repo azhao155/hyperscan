@@ -34,6 +34,12 @@ type RawAction struct {
 	Val string
 }
 
+// AllowAction is an action that instructs to stop processing and allow the request.
+type AllowAction struct{}
+
+// BlockAction is an action that instructs to block the request based on the definition of SecDefaultAction.
+type BlockAction struct{}
+
 // DenyAction is an action that instructs to stop processing and deny the request.
 type DenyAction struct{}
 
@@ -122,7 +128,9 @@ const (
 	Sha1
 	URLDecode
 	URLDecodeUni
+	URLEncode
 	Utf8toUnicode
+	Trim
 )
 
 // Marker is a SecMarker, used by skipAfter-actions.

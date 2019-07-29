@@ -10,7 +10,6 @@ type RulePredicate struct {
 	Targets         []string
 	ExceptTargets   []string // ExceptTargets are the targets that are exempt/excluded from being matched.
 	Op              Operator
-	OpFunc          operatorFunc
 	Neg             bool
 	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
 	valMacroMatches [][]string
@@ -48,7 +47,8 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (bool, string, error) {
 			variable = varObj.ToString()
 		}
 
-		result, output, err := rp.OpFunc(variable, val)
+		opFunc := toOperatorFunc(rp.Op)
+		result, output, err := opFunc(variable, val)
 		if err != nil {
 			return result, "", err
 		}

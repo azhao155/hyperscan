@@ -13,7 +13,6 @@ func TestVarCounting(t *testing.T) {
 		Op:      Gt,
 		Val:     "0",
 	}
-	rp.OpFunc = toOperatorFunc(rp.Op)
 
 	em := newEnvMap()
 	result, _, err := rp.eval(em)
