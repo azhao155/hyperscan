@@ -105,10 +105,23 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 
 		for _, s := range t.Stages {
 			input := s.Stage.Input
-			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: getBody(input.Data)}
+
+			body := getBody(input.Data)
+			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: body}
+
+			hasContentType := false
 			for k, v := range s.Stage.Input.Headers {
 				req.headers = append(req.headers, &mockHeaderPair{k: k, v: v})
+				if strings.EqualFold("content-type", k) {
+					hasContentType = true
+				}
 			}
+
+			// Default content type
+			if len(body) > 0 && !hasContentType {
+				req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"})
+			}
+
 			tc.Requests = append(tc.Requests, req)
 
 			// Output processing
