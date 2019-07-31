@@ -20,6 +20,9 @@ type engineImpl struct {
 
 	// Precompiled Go regexes used to re-validate matches.
 	goregexes map[int]*regexp.Regexp // TODO could this have been just a list rather than map?
+
+	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
+	emptyStringPatternIDs []int
 }
 
 // NewMultiRegexEngineFactory creates a MultiRegexEngineFactory which will create Hyperscan based MultiRegexEngines. DbCache is used to speed up initializing databases that was previously already built. This can be nil if you do not want to use a cache.
@@ -33,6 +36,12 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 
 	patterns := []*hs.Pattern{}
 	for _, m := range mm {
+		// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
+		if m.Expr == "^$" {
+			h.emptyStringPatternIDs = append(h.emptyStringPatternIDs, m.ID)
+			continue
+		}
+
 		p := hs.NewPattern(m.Expr, 0)
 		p.Id = m.ID
 
@@ -41,6 +50,11 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 		p.Flags = hs.SingleMatch | hs.PrefilterMode
 
 		patterns = append(patterns, p)
+	}
+
+	if len(patterns) == 0 {
+		engine = h
+		return
 	}
 
 	// Try to load precompiled database from cache.
@@ -93,6 +107,24 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 
 // Scan scans the given input for all expressions that this engine was initialized with.
 func (h *engineImpl) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch, err error) {
+	matches = []secrule.MultiRegexEngineMatch{}
+
+	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
+	if len(input) == 0 {
+		for _, ID := range h.emptyStringPatternIDs {
+			m := secrule.MultiRegexEngineMatch{ID: ID}
+			matches = append(matches, m)
+		}
+		return
+	}
+
+	if h.db == nil {
+		if len(h.goregexes) > 0 {
+			panic("multi regex engine in inconsistent state. Hyperscan DB was nil but there were Go regexes.")
+		}
+		return
+	}
+
 	// Use Hyperscan to find the potential matches
 	potentialMatches := []int{}
 	handler := func(id uint, from, to uint64, flags uint, context interface{}) error {
@@ -103,8 +135,6 @@ func (h *engineImpl) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch
 	if err != nil {
 		err = fmt.Errorf("failed to invoke Hyperscan: %v", err)
 	}
-
-	matches = []secrule.MultiRegexEngineMatch{}
 
 	// Re-validate the potential matches using Go regexp
 	for _, pmID := range potentialMatches {

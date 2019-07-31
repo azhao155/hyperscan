@@ -45,6 +45,42 @@ func TestHyperscanStandalone(t *testing.T) {
 	db.Close()
 }
 
+func TestHyperscanStandaloneEmptyStringBehaviour(t *testing.T) {
+	// Arrange
+	patterns := []*hs.Pattern{}
+	p := hs.NewPattern(".+", 0)
+	p.Id = 100
+	p.Flags = hs.SingleMatch | hs.PrefilterMode
+	patterns = append(patterns, p)
+	db, err := hs.NewBlockDatabase(patterns...)
+	if err != nil {
+		t.Fatalf("got unexpected error: %s", err)
+	}
+	scratch, err := hs.NewScratch(db)
+	if err != nil {
+		db.Close()
+		t.Fatalf("failed to create Hyperscan scratch space: %v", err)
+	}
+
+	// Act
+	handler := func(id uint, from, to uint64, flags uint, context interface{}) error {
+		return nil
+	}
+	err = db.Scan([]byte(""), scratch, handler, nil)
+
+	// Assert
+	if err == nil {
+		t.Fatalf("Expected error but got nil")
+	}
+
+	// This is not a cool way to react on an empty string on Hyperscan's part, but it is what it is...
+	if err.Error() != "A parameter passed to this function was invalid." {
+		t.Fatalf("Unexpected error: %v", err.Error())
+	}
+
+	db.Close()
+}
+
 func TestHyperscanSimple(t *testing.T) {
 	// Arrange
 	patterns := []secrule.MultiRegexEnginePattern{
@@ -181,5 +217,42 @@ func TestExpressionWithPCREPossessiveQuantifier(t *testing.T) {
 
 	if r[0].EndPos != 8 {
 		t.Fatalf("Unexpected EndPos: %d", r[0].EndPos)
+	}
+}
+
+func TestHyperscanEmptyString(t *testing.T) {
+	// Arrange
+	patterns := []secrule.MultiRegexEnginePattern{
+		{ID: 100, Expr: "^$"},
+	}
+
+	// Act
+	f := NewMultiRegexEngineFactory(nil)
+	m, err := f.NewMultiRegexEngine(patterns)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte(""))
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	m.Close()
+	m.Close() // Ensure that it doesn't fail on second close
+
+	// Assert
+	if len(r) != 1 {
+		t.Fatalf("Got unexpected number of matches: %d", len(r))
+	}
+	if r[0].ID != 100 {
+		t.Fatalf("Unexpected id: %d", r[0].ID)
+	}
+	if string(r[0].Data) != "" {
+		t.Fatalf("Unexpected data: %s", string(r[0].Data))
+	}
+	if r[0].StartPos != 0 {
+		t.Fatalf("Unexpected StartPos: %d", r[0].EndPos)
+	}
+	if r[0].EndPos != 0 {
+		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
 	}
 }
