@@ -362,6 +362,123 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 	}
 }
 
+func TestReqScannerFilename(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_FILENAME"}, Op: Rx, Val: "/p1/a%20bc.php"}, // REQUEST_FILENAME should not URL-decode
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/p1/a%20bc.php?arg1=something"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_FILENAME")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+
+	if string(m.Data) != "/p1/a%20bc.php" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
+func TestReqScannerFilename2(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_FILENAME"}, Op: Rx, Val: "/"}, // REQUEST_FILENAME should not URL-decode
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_FILENAME")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+
+	if string(m.Data) != "/" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
+func TestReqScannerRequestLine(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_LINE"}, Op: Rx, Val: "a%20bc"}, // REQUEST_LINE should not URL-decode
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/a%20bc.php?arg1=something"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_LINE")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+
+	if string(m.Data) != "a%20bc" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader

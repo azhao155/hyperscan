@@ -90,7 +90,6 @@ func TestCrsRules(t *testing.T) {
 				continue
 			}
 
-			resLog.ruleMatched = make(map[int]bool)
 			for _, req := range tc.Requests {
 				// Act
 				ev := e.NewEvaluation(logger, req)
@@ -129,6 +128,10 @@ type mockResultsLogger struct {
 }
 
 func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+	if l.ruleMatched == nil {
+		l.ruleMatched = make(map[int]bool)
+	}
+
 	r, ok := stmt.(*secrule.Rule)
 	if ok {
 		l.ruleMatched[r.ID] = true

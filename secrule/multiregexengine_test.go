@@ -25,6 +25,10 @@ func newMockMultiRegexEngineFactory() MultiRegexEngineFactory {
 						{"ab+c", "aaaaaaabccc", 0, 9, []byte("aaaaaaabc")},
 						{"abc+", "aaaaaaabccc", 6, 11, []byte("abccc")},
 						{"a+bc", "/hello.php?arg1=aaaaaaabccc", 16, 25, []byte("aaaaaaabc")},
+						{"a%20bc", "/a%20bc.php", 1, 7, []byte("a%20bc")},
+						{"a%20bc", "GET /a%20bc.php?arg1=something HTTP/1.1", 5, 11, []byte("a%20bc")},
+						{"/p1/a%20bc.php", "/p1/a%20bc.php", 0, 14, []byte("/p1/a%20bc.php")},
+						{"/", "/", 0, 1, []byte("/")},
 					}
 
 					r := []MultiRegexEngineMatch{}

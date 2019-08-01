@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"azwaf/waf"
+	"bytes"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -149,6 +150,15 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 		rxMatches: make(map[rxMatchKey]RxMatch),
 	}
 
+	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
+	// TODO consider passing the raw request line from Nginx if available.
+	var reqLine bytes.Buffer
+	reqLine.WriteString(req.Method())
+	reqLine.WriteString(" ")
+	reqLine.WriteString(req.URI())
+	reqLine.WriteString(" HTTP/1.1") // TODO pass actual HTTP version through.
+	r.scanTarget("REQUEST_LINE", reqLine.String(), results)
+
 	err = r.scanURI(req.URI(), results)
 	if err != nil {
 		return
@@ -293,6 +303,18 @@ func getRxExprs(ruleItem *RuleItem) []string {
 
 func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	err = r.scanTarget("REQUEST_URI_RAW", URI, results)
+	if err != nil {
+		return
+	}
+
+	// The "filename" is the part before the question mark.
+	// Not using url.ParseRequestURI, because REQUEST_FILENAME should be raw, and not URL-decoded.
+	reqFilename := URI
+	n := strings.IndexByte(URI, '?')
+	if n != -1 {
+		reqFilename = URI[:n]
+	}
+	r.scanTarget("REQUEST_FILENAME", reqFilename, results)
 	if err != nil {
 		return
 	}
