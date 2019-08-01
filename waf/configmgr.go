@@ -8,7 +8,7 @@ import (
 )
 
 // Path is the config file directory path
-const Path = "/azure/appgw/config/"
+const Path = "/appgwroot/config/azwaf/"
 
 const prefix = "AzWAFConfig"
 
