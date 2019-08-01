@@ -53,10 +53,6 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (bool, string, error) {
 			return result, "", err
 		}
 
-		if rp.Neg {
-			result = !result
-		}
-
 		if result {
 			return result, output, nil
 		}

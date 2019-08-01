@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"github.com/rs/zerolog"
+	"strings"
 )
 
 // RuleEvaluator processes the incoming request against all parsed rules
@@ -77,6 +78,7 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 		switch stmt := stmt.(type) {
 		case *Rule:
 			triggered = true
+
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				if !evalPredicate(perRequestEnv, ruleItem, scanResults, stmt, curRuleItemIdx) {
 					triggered = false
@@ -174,29 +176,62 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 }
 
 func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
+	anyMatched := false
+	anyChecked := false
+
 	for _, target := range ruleItem.Predicate.Targets {
+		isCount := target[0] == '&'
+		isTxTarget := strings.EqualFold(target[:3], "tx:")
+		isTxTargetPresent := isTxTarget && env.hasKey(strings.Replace(target, ":", ".", 1))
+
+		// For targets that we never even came across, we just always skip the predicate like ModSec does
+		if isCount {
+			// Count-targets are special. They can be used to check in SecRule-lang whether a target was present. Therefore don't skip for now.
+			// TODO fully handle count-targets
+		} else if isTxTarget {
+			if !isTxTargetPresent {
+				continue
+			}
+		} else {
+			if !scanResults.targetsPresent[target] {
+				continue
+			}
+		}
+
+		anyChecked = true
+
 		switch ruleItem.Predicate.Op {
 		case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within:
 			_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
 			if ok {
-				return true
+				anyMatched = true
+				break
 			}
 
 			if len(ruleItem.Predicate.valMacroMatches) > 0 {
 				matchFound, _, _ := ruleItem.Predicate.eval(env)
 				if matchFound {
-					return true
+					anyMatched = true
+					break
 				}
 			}
 		case Eq, Ge, Gt, Le, Lt:
 			matchFound, _, _ := ruleItem.Predicate.eval(env)
+			anyMatched = anyMatched || matchFound
 			if matchFound {
-				return true
+				break
 			}
 		}
 	}
 
-	return false
+	if !anyChecked {
+		return false
+	}
+
+	if ruleItem.Predicate.Neg {
+		return !anyMatched
+	}
+	return anyMatched
 }
 
 func (r *ruleEvaluatorImpl) runActions(perRequestEnv envMap, actions []Action, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {

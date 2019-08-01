@@ -26,7 +26,9 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	key := rxMatchKey{100, 0, "ARGS"}
 	m := make(map[rxMatchKey]RxMatch)
 	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 
 	re := NewRuleEvaluator()
 
@@ -56,8 +58,9 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	key := rxMatchKey{100, 0, "ARGS"}
 	m := make(map[rxMatchKey]RxMatch)
 	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	sr := &ScanResults{m}
-
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
 	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
@@ -89,7 +92,10 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
 	re := NewRuleEvaluator()
 
-	allow, code, err := re.Process(logger, em, rules, &ScanResults{}, nil)
+	tp := make(map[string]bool)
+	sr := &ScanResults{targetsPresent: tp}
+
+	allow, code, err := re.Process(logger, em, rules, sr, nil)
 	assert.Nil(err)
 	assert.False(allow)
 	assert.Equal(403, code)
@@ -116,7 +122,9 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
 	// Act
@@ -148,7 +156,9 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
 	// Act
@@ -180,7 +190,9 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
 	// Act
@@ -215,7 +227,9 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
 	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -242,7 +256,8 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 		&ActionStmt{ID: 100, Actions: []Action{&sv}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -270,7 +285,8 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 		&ActionStmt{ID: 100, Actions: []Action{&sv1, &sv2}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -305,7 +321,9 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
 	// Act
@@ -334,7 +352,9 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
 	// Act
@@ -363,7 +383,10 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	tp["REQUEST_COOKIES"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -394,7 +417,10 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	tp["REQUEST_COOKIES"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -442,7 +468,10 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	tp["REQUEST_COOKIES"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -472,7 +501,10 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	}
 	m := make(map[rxMatchKey]RxMatch)
 	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	tp["REQUEST_COOKIES"] = true
+	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -497,7 +529,8 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -523,7 +556,8 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -552,7 +586,8 @@ func TestSkipAfter(t *testing.T) {
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -586,7 +621,8 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}, Phase: 1},
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -612,7 +648,8 @@ func TestMarkerCaseSensitive(t *testing.T) {
 		&ActionStmt{ID: 200, Actions: []Action{&sv1}},
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -635,7 +672,8 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 		&ActionStmt{ID: 200},
 	}
 	m := make(map[rxMatchKey]RxMatch)
-	sr := &ScanResults{m}
+	tp := make(map[string]bool)
+	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
@@ -648,4 +686,192 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"10"}, v)
+}
+
+func TestRuleEvaluatorNegate(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	// Act
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
+
+func TestRuleEvaluatorNegateNegative(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	// Act
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.False(pass)
+	assert.Equal(403, code)
+}
+
+func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS", "ARGS_NAMES"}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	m[rxMatchKey{100, 0, "ARGS_NAMES"}] = RxMatch{}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	tp["ARGS_NAMES"] = true
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	// Act
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
+
+func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS", "ARGS_NAMES"}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
+	m[rxMatchKey{100, 0, "ARGS_NAMES"}] = RxMatch{}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true // Note: only ARGS, not ARGS_NAMES in this negative test
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	// Act
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
+
+func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS:myarg1", "ARGS:myarg2"}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS:myarg1"}] = RxMatch{} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
+	tp := make(map[string]bool)
+	tp["ARGS:myarg1"] = true
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	// Act
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
+
+func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []string{"ARGS:myarg1", "ARGS:myarg2"}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[rxMatchKey]RxMatch)
+	m[rxMatchKey{100, 0, "ARGS:myarg2"}] = RxMatch{} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
+	tp := make(map[string]bool)
+	tp["ARGS:myarg2"] = true
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	// Act
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
 }

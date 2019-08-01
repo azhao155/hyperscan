@@ -28,6 +28,14 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
+	if !sr.targetsPresent["REQUEST_URI_RAW"] {
+		t.Fatalf("Target REQUEST_URI_RAW not present")
+	}
+
+	if sr.targetsPresent["XML:/*"] {
+		t.Fatalf("Unexpected target XML:/* present")
+	}
+
 	m, ok := sr.GetRxResultsFor(300, 0, "REQUEST_URI_RAW")
 	if !ok {
 		t.Fatalf("Match not found")

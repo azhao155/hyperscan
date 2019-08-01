@@ -24,7 +24,8 @@ type RxMatch struct {
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
-	rxMatches map[rxMatchKey]RxMatch
+	rxMatches      map[rxMatchKey]RxMatch
+	targetsPresent map[string]bool
 }
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
@@ -147,7 +148,8 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 
 func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
 	results = &ScanResults{
-		rxMatches: make(map[rxMatchKey]RxMatch),
+		rxMatches:      make(map[rxMatchKey]RxMatch),
+		targetsPresent: make(map[string]bool),
 	}
 
 	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
@@ -235,6 +237,8 @@ func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string
 func (r *reqScannerImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
+
+	results.targetsPresent[targetName] = true
 
 	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
 	for _, sg := range r.scanPatterns[targetName] {
