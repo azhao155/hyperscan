@@ -69,23 +69,26 @@ func main() {
 	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
 
 	// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
-	cm, c, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Error while creating config manager")
-	}
-
-	// TODO consider if this should be removed once config management is fully functional e2e
+	var cm waf.ConfigMgr
+	var c map[int]waf.Config
 	if *usedefaultwafconfig {
+		// TODO consider if this should be removed once config management is fully functional e2e
 		c = make(map[int]waf.Config)
 		c[0] = &mockConfig{}
+	} else {
+		var err error
+		cm, c, err = waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error while creating config manager")
+		}
 	}
 
-	w, err := waf.NewServer(logger, c, sref, rbp, wafResLog)
+	w, err := waf.NewServer(logger, cm, c, sref, rbp, wafResLog)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating service manager")
 	}
 
-	s := grpc.NewServer(w, cm)
+	s := grpc.NewServer(w)
 
 	logger.Info().Msg("Starting WAF server")
 	if err := s.Serve(); err != nil {

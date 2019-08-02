@@ -19,7 +19,8 @@ func TestWafServerEvalRequest(t *testing.T) {
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{}
-	s, err := NewServer(logger, c, msref, mrbp, mrl)
+	mcm := &mockConfigMgr{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -77,8 +78,8 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 			return
 		},
 	}
-
-	s, err := NewServer(logger, c, msref, mrbp, mrl)
+	mcm := &mockConfigMgr{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
@@ -199,4 +200,17 @@ func (r *mockResultsLogger) TotalBytesLimitExceeded(request HTTPRequest, limit i
 }
 func (r *mockResultsLogger) BodyParseError(request HTTPRequest, err error) {
 	r.bodyParseErrorCalled++
+}
+
+type mockConfigMgr struct {
+	putConfigCalled int
+}
+
+func (m *mockConfigMgr) PutConfig(c Config) error {
+	m.putConfigCalled++
+	return nil
+}
+
+func (m *mockConfigMgr) DisposeConfig(int) error {
+	return nil
 }

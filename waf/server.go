@@ -17,6 +17,7 @@ type Server interface {
 
 type serverImpl struct {
 	logger               zerolog.Logger
+	configMgr            ConfigMgr
 	secRuleEngines       map[string]SecRuleEngine
 	secRuleEngineFactory SecRuleEngineFactory
 	requestBodyParser    RequestBodyParser
@@ -24,9 +25,10 @@ type serverImpl struct {
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger) (server Server, err error) {
 	s := &serverImpl{
 		logger:               logger,
+		configMgr:            cm,
 		secRuleEngineFactory: sref,
 		requestBodyParser:    rbp,
 		resultsLogger:        rl,
@@ -114,6 +116,13 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 }
 
 func (s *serverImpl) PutConfig(c Config) (err error) {
+	if s.configMgr != nil {
+		err = s.configMgr.PutConfig(c)
+		if err != nil {
+			return
+		}
+	}
+
 	for _, secRuleConfig := range c.SecRuleConfigs() {
 		var engine SecRuleEngine
 		engine, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)

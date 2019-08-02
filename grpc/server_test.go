@@ -14,8 +14,7 @@ import (
 func TestGrpcServerEvalRequestSimple(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -57,8 +56,7 @@ func TestGrpcServerEvalRequestSimple(t *testing.T) {
 func TestGrpcServerEvalRequestBodyInFirstMsg(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -102,8 +100,7 @@ func TestGrpcServerEvalRequestBodyInFirstMsg(t *testing.T) {
 func TestGrpcServerEvalRequestStreamingBody(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -156,8 +153,7 @@ func TestGrpcServerEvalRequestStreamingBody(t *testing.T) {
 func TestGrpcServerEvalRequestStreamingBodyManyChunks(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -217,8 +213,7 @@ func TestGrpcServerEvalRequestStreamingBodyManyChunks(t *testing.T) {
 func TestGrpcServerEvalRequestStreamingBodyLyingLastChunk(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -269,8 +264,7 @@ func TestGrpcServerEvalRequestStreamingBodySmallBuffer(t *testing.T) {
 	mw := &mockWafServer{
 		bodyReadBufSize: 10,
 	}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -321,8 +315,7 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation1(t *testing.T) {
 	mw := &mockWafServer{
 		bodyReadBufSize: 10,
 	}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -366,8 +359,7 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation2(t *testing.T) {
 	mw := &mockWafServer{
 		bodyReadBufSize: 10,
 	}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	stream := &mockWafServiceEvalRequestServer{
 		messages: []*pb.WafHttpRequest{
 			&pb.WafHttpRequest{
@@ -403,8 +395,7 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation2(t *testing.T) {
 func TestGrpcServerPutConfig(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
-	mc := &mockConfigMgr{}
-	s := &serverImpl{ws: mw, cm: mc}
+	s := &serverImpl{ws: mw}
 	config := &pb.WAFConfig{}
 
 	// Act
@@ -413,10 +404,6 @@ func TestGrpcServerPutConfig(t *testing.T) {
 	// Assert
 	if mw.putConfigCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockWafServer.PutConfig")
-	}
-
-	if mc.putConfigCalled != 1 {
-		t.Fatalf("Unexpected number of calls to mockConfigMgr.PutConfig")
 	}
 }
 
@@ -473,18 +460,5 @@ func (m *mockWafServiceEvalRequestServer) SendAndClose(*pb.WafDecision) error {
 
 func (m *mockWafServer) PutConfig(c waf.Config) error {
 	m.putConfigCalled++
-	return nil
-}
-
-type mockConfigMgr struct {
-	putConfigCalled int
-}
-
-func (m *mockConfigMgr) PutConfig(c waf.Config) error {
-	m.putConfigCalled++
-	return nil
-}
-
-func (m *mockConfigMgr) DisposeConfig(int) error {
 	return nil
 }
