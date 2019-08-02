@@ -73,7 +73,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 
 	// TODO consider if this should be removed once config management is fully functional e2e
 	if secRuleConfigID == "" {
-		secRuleConfigID = "SecRuleConfig1"
+		secRuleConfigID = "default"
 	}
 
 	if _, ok := s.secRuleEngines[secRuleConfigID]; !ok {
@@ -128,7 +128,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		engine, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)
 
 		if err != nil {
-			err = fmt.Errorf("failed to create SecRule engine for configID %v, error %v", secRuleConfig.ID(), err)
+			err = fmt.Errorf("failed to create SecRule engine for configID %v: %v", secRuleConfig.ID(), err)
 			return
 		}
 

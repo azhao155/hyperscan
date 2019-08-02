@@ -15,6 +15,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 	// Arrange
 	f := NewMultiRegexEngineFactory(nil)
 	p := secrule.NewRuleParser()
+
 	// TODO Add more rulesets when they become supported
 	files := []string{
 		"crs3.0/crs-setup.appgw.conf",
@@ -51,7 +52,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
 		}
 
-		rr, err := p.Parse(string(b), phraseLoaderCb)
+		rr, err := p.Parse(string(b), phraseLoaderCb, nil)
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", fullPath, err)

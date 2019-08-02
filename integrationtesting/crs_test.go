@@ -48,7 +48,8 @@ func TestCrsRules(t *testing.T) {
 
 	logger = logger.Level(zerolog.ErrorLevel)
 	p := secrule.NewRuleParser()
-	rl := secrule.NewCrsRuleLoader(p)
+	rlfs := secrule.NewRuleLoaderFileSystem()
+	rl := secrule.NewCrsRuleLoader(p, rlfs)
 	hsfs := hyperscan.NewCacheFileSystem()
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)

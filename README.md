@@ -17,34 +17,33 @@ docker-compose build --no-cache azwafdev
 
 Within the container you can run the following commands:
 ```
-# To run main function
-go run azwaf/cmd/server
+# To run the main server
+go run azwaf/cmd/server -secruleconf=secrule/rulesetfiles/crs3.0/main.conf -loglevel=info
 
 # To run all tests
 go test -cover azwaf/...
-
-# To generate a detailed code coverage report
-rm -fr hyperscancache
-go test -count=1 -covermode=count -coverprofile=coverage.out azwaf/...
-go tool cover -html=coverage.out -o coverage.html
-
-# To run code style analysis
-go install golang.org/x/lint/golint
-golint ./...
 
 # To wait for a remote debugger to attach and debug tests
 dlv test --api-version=2 --headless --listen=:2345 "azwaf/somepackage" -- -test.run TestSomeFunction
 
 # To wait for a remote debugger to attach to the main function
-dlv debug --api-version=2 --headless --listen=:2345 "azwaf/cmd/server"
+dlv debug --api-version=2 --headless --listen=:2345 "azwaf/cmd/server" --
+
+# To run all CRS regression tests
+RUN_CRS_REGRESSION_TESTS=1 go test azwaf/integrationtesting -run TestCrsRules
+
+# To run CRS regression tests for a specific rule
+RUN_CRS_REGRESSION_TESTS=1 go test azwaf/integrationtesting -run TestCrsRules --ruleID=941100
+
+# To run code style analysis
+go install golang.org/x/lint/golint
+golint ./...
+
+# To generate a detailed code coverage report
+go test -count=1 -covermode=count -coverprofile=coverage.out azwaf/...
+go tool cover -html=coverage.out -o coverage.html
 
 # To regenerate the gRPC stubs
 protoc -I./proto/ waf.proto --go_out=plugins=grpc:proto
 protoc -I./proto/ config.proto --go_out=plugins=grpc:proto
-
-# To run all CRS regression tests
-RUN_CRS_REGRESSION_TESTS=1 go test -run TestCrsRules
-
-# To run CRS regression tests for a specific rule
- RUN_CRS_REGRESSION_TESTS=1 go test -run TestCrsRules --ruleID=941100
 ```

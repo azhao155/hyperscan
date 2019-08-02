@@ -9,7 +9,7 @@ import (
 
 // RuleParser parses SecRule language files.
 type RuleParser interface {
-	Parse(input string, pf phraseLoaderCb) (statements []Statement, err error)
+	Parse(input string, pf phraseLoaderCb, ilcb includeLoaderCb) (statements []Statement, err error)
 }
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
@@ -84,7 +84,7 @@ func NewRuleParser() RuleParser {
 }
 
 // Parse a ruleset.
-func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb) (statements []Statement, err error) {
+func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoaderCb) (statements []Statement, err error) {
 	statements = []Statement{}
 	curRule := &Rule{}
 	rest := input
@@ -104,32 +104,48 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb) (statements []St
 
 		statementName, rest := r.findConsume(statementNameRegex, stmt)
 		statementName = strings.Trim(statementName, " \\\t\r\n")
+		statementName = strings.ToLower(statementName)
 
 		switch statementName {
-		case "SecRule":
+		case "secrule":
 			err = r.parseSecRule(rest, &curRule, &statements, pf)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecRule on line %d: %s", lineNumber, err)
 				return
 			}
-		case "SecAction":
+		case "secaction":
 			err = r.parseSecActionStmt(rest, &curRule, &statements)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecAction on line %d: %s", lineNumber, err)
 				return
 			}
-		case "SecMarker":
+		case "secmarker":
 			err = r.parseSecMarker(rest, &curRule, &statements)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecMarker on line %d: %s", lineNumber, err)
 				return
 			}
-		case "SecDefaultAction":
+		case "secdefaultaction":
 			// No-op for now.
-		case "SecCollectionTimeout":
+		case "seccollectiontimeout":
 			// No-op for now.
-		case "SecComponentSignature":
+		case "seccomponentsignature":
 			// No-op for now.
+		case "include":
+			if ilcb == nil {
+				err = fmt.Errorf("rules include statement, but no loader callback was given")
+				return
+			}
+
+			includeFilePath := strings.Trim(rest, " \\\t\r\n")
+			var rr []Statement
+			rr, err = ilcb(includeFilePath)
+			if err != nil {
+				err = fmt.Errorf("error in file included from line number %v: %v", lineNumber, err)
+				return
+			}
+			statements = append(statements, rr...)
+
 		default:
 			err = fmt.Errorf("unknown statement on line %d: %s", lineNumber, stmt)
 			return

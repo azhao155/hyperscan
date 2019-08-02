@@ -18,60 +18,23 @@ type RuleLoader interface {
 
 type crsRuleLoader struct {
 	parser RuleParser
+	fs     RuleLoaderFileSystem
 }
 
 // NewCrsRuleLoader loads and parses CRS files from disk.
-func NewCrsRuleLoader(parser RuleParser) RuleLoader {
-	return &crsRuleLoader{parser}
+func NewCrsRuleLoader(parser RuleParser, fs RuleLoaderFileSystem) RuleLoader {
+	return &crsRuleLoader{
+		parser: parser,
+		fs:     fs,
+	}
 }
 
 var ruleSetPathsMap = map[waf.RuleSetID][]string{
-	"testruleset": {
-		"testruleset/testruleset.conf",
-	},
-	"OWASP CRS 3.0": {
-		"crs3.0/crs-setup.appgw.conf",
-		"crs3.0/rules/REQUEST-901-INITIALIZATION.conf",
-		"crs3.0/rules/REQUEST-903.9001-DRUPAL-EXCLUSION-RULES.conf",
-		"crs3.0/rules/REQUEST-903.9002-WORDPRESS-EXCLUSION-RULES.conf",
-		"crs3.0/rules/REQUEST-905-COMMON-EXCEPTIONS.conf",
-		"crs3.0/rules/REQUEST-910-IP-REPUTATION.conf",
-		"crs3.0/rules/REQUEST-911-METHOD-ENFORCEMENT.conf",
-		"crs3.0/rules/REQUEST-912-DOS-PROTECTION.conf",
-		"crs3.0/rules/REQUEST-913-SCANNER-DETECTION.conf",
-		"crs3.0/rules/REQUEST-920-PROTOCOL-ENFORCEMENT.conf",
-		"crs3.0/rules/REQUEST-921-PROTOCOL-ATTACK.conf",
-		"crs3.0/rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf",
-		"crs3.0/rules/REQUEST-931-APPLICATION-ATTACK-RFI.conf",
-		"crs3.0/rules/REQUEST-932-APPLICATION-ATTACK-RCE.conf",
-		"crs3.0/rules/REQUEST-933-APPLICATION-ATTACK-PHP.conf",
-		"crs3.0/rules/REQUEST-941-APPLICATION-ATTACK-XSS.conf",
-		"crs3.0/rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf",
-		"crs3.0/rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf",
-		"crs3.0/rules/REQUEST-949-BLOCKING-EVALUATION.conf",
-	},
-	"OWASP CRS 3.0 with config for regression tests": {
-		"crs3.0/crs-setup.regressiontesting.conf",
-		"crs3.0/rules/REQUEST-901-INITIALIZATION.conf",
-		"crs3.0/rules/REQUEST-903.9001-DRUPAL-EXCLUSION-RULES.conf",
-		"crs3.0/rules/REQUEST-903.9002-WORDPRESS-EXCLUSION-RULES.conf",
-		"crs3.0/rules/REQUEST-905-COMMON-EXCEPTIONS.conf",
-		"crs3.0/rules/REQUEST-910-IP-REPUTATION.conf",
-		"crs3.0/rules/REQUEST-911-METHOD-ENFORCEMENT.conf",
-		"crs3.0/rules/REQUEST-912-DOS-PROTECTION.conf",
-		"crs3.0/rules/REQUEST-913-SCANNER-DETECTION.conf",
-		"crs3.0/rules/REQUEST-920-PROTOCOL-ENFORCEMENT.conf",
-		"crs3.0/rules/REQUEST-921-PROTOCOL-ATTACK.conf",
-		"crs3.0/rules/REQUEST-930-APPLICATION-ATTACK-LFI.conf",
-		"crs3.0/rules/REQUEST-931-APPLICATION-ATTACK-RFI.conf",
-		"crs3.0/rules/REQUEST-932-APPLICATION-ATTACK-RCE.conf",
-		"crs3.0/rules/REQUEST-933-APPLICATION-ATTACK-PHP.conf",
-		"crs3.0/rules/REQUEST-941-APPLICATION-ATTACK-XSS.conf",
-		"crs3.0/rules/REQUEST-942-APPLICATION-ATTACK-SQLI.conf",
-		"crs3.0/rules/REQUEST-943-APPLICATION-ATTACK-SESSION-FIXATION.conf",
-		"crs3.0/rules/REQUEST-949-BLOCKING-EVALUATION.conf",
-	},
+	"OWASP CRS 3.0": {"crs3.0/main.conf"},
+	"OWASP CRS 3.0 with config for regression tests": {"crs3.0/main.regressiontesting.conf"},
 }
+
+type includeLoaderCb func(filePath string) (statements []Statement, err error)
 
 // GetRules loads and parses CRS files from disk.
 func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, err error) {
@@ -84,68 +47,110 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, 
 	crsRulesPath := getCrsRulesPath()
 	for _, crsFile := range paths {
 		fullPath := filepath.Join(crsRulesPath, crsFile)
-		var bb []byte
-		bb, err = ioutil.ReadFile(fullPath)
-		if err != nil {
-			err = fmt.Errorf("Failed to load rule file %s. Error: %s", fullPath, err)
-			return
-		}
-
 		var rr []Statement
-		phraseLoaderCb := func(fileName string) ([]string, error) {
-			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
-		}
-		rr, err = c.parser.Parse(string(bb), phraseLoaderCb)
+		rr, err = loadRulesFromPath(fullPath, c.parser, c.fs, nil)
 		if err != nil {
-			err = fmt.Errorf("Got unexpected error while loading rule file %s. Error: %s", fullPath, err)
 			return
 		}
+		statements = append(statements, filterUnsupportedRules(rr)...)
+	}
 
-		var filteredStatements []Statement
-		for _, r := range rr {
-			rule, ok := r.(*Rule)
-			if ok {
-				// Skip this rule until we add support for backreferences
-				// TODO add support for backreferences
-				if rule.ID == 942130 {
-					continue
-				}
+	return
+}
 
-				// Skip this rule until we add support for stripping embedded anchors
-				// TODO add support for stripping embedded anchors
-				if rule.ID == 942330 {
-					continue
-				}
+func loadRulesFromPath(filePath string, parser RuleParser, fs RuleLoaderFileSystem, parentIncludeFiles []string) (statements []Statement, err error) {
+	// Guard against cyclic includes
+	filePath, err = fs.Abs(filePath)
+	if err != nil {
+		err = fmt.Errorf("failed get absolute path for %s: %s", filePath, err)
+		return
+	}
+	filePath, err = fs.EvalSymlinks(filePath)
+	if err != nil {
+		err = fmt.Errorf("failed to eval symlinks for %s: %s", filePath, err)
+		return
+	}
+	for _, f := range parentIncludeFiles {
+		if filePath == f {
+			err = fmt.Errorf("cyclic include detect in config file %s", filePath)
+			return
+		}
+	}
+	parentIncludeFiles = append(parentIncludeFiles, filePath)
 
-				// Skip this rule until we add full support numerical operations
-				// TODO add full support numerical operations
-				if rule.ID == 920130 {
-					continue
-				}
+	// Actual read from disk
+	var bb []byte
+	bb, err = fs.ReadFile(filePath)
+	if err != nil {
+		err = fmt.Errorf("failed to read rule file %s: %s", filePath, err)
+		return
+	}
 
-				// Skip this rule until we add full support numerical operations
-				// TODO add full support numerical operations
-				if rule.ID == 920140 {
-					continue
-				}
+	phraseLoaderCb := func(fileName string) ([]string, error) {
+		return loadPhraseFile(path.Join(path.Dir(filePath), fileName))
+	}
 
-				// Skip this rule until we add support for target REQUEST_PROTOCOL
-				// TODO add support for target REQUEST_PROTOCOL
-				if rule.ID == 920430 {
-					continue
-				}
+	includeLoaderCb := func(includeFilePath string) (statements []Statement, err error) {
+		p := includeFilePath
+		if !filepath.IsAbs(includeFilePath) {
+			p = path.Join(path.Dir(filePath), includeFilePath)
+		}
+		return loadRulesFromPath(p, parser, fs, parentIncludeFiles)
+	}
 
-				// Skip this rule until we add support for target REQUEST_METHOD
-				// TODO add support for target REQUEST_METHOD
-				if rule.ID == 911100 {
-					continue
-				}
+	rr, err := parser.Parse(string(bb), phraseLoaderCb, includeLoaderCb)
+	if err != nil {
+		err = fmt.Errorf("error while parsing rule file %s: %s", filePath, err)
+		return
+	}
+
+	statements = append(statements, filterUnsupportedRules(rr)...)
+
+	return
+}
+
+func filterUnsupportedRules(stmts []Statement) (filteredStmts []Statement) {
+	for _, r := range stmts {
+		rule, ok := r.(*Rule)
+		if ok {
+			// Skip this rule until we add support for backreferences
+			// TODO add support for backreferences
+			if rule.ID == 942130 {
+				continue
 			}
 
-			filteredStatements = append(filteredStatements, r)
+			// Skip this rule until we add support for stripping embedded anchors
+			// TODO add support for stripping embedded anchors
+			if rule.ID == 942330 {
+				continue
+			}
+
+			// Skip this rule until we add full support numerical operations
+			// TODO add full support numerical operations
+			if rule.ID == 920130 {
+				continue
+			}
+
+			// Skip this rule until we add full support numerical operations
+			// TODO add full support numerical operations
+			if rule.ID == 920140 {
+				continue
+			}
+
+			// Skip this rule until we add support for target REQUEST_PROTOCOL
+			// TODO add support for target REQUEST_PROTOCOL
+			if rule.ID == 920430 {
+				continue
+			}
+
+			// Skip this rule until we add support for target REQUEST_METHOD
+			// TODO add support for target REQUEST_METHOD
+			if rule.ID == 911100 {
+				continue
+			}
 		}
 
-		statements = append(statements, filteredStatements...)
+		filteredStmts = append(filteredStmts, r)
 	}
 
 	return
@@ -186,4 +191,53 @@ func loadPhraseFile(fullPath string) (phrases []string, err error) {
 		}
 	}
 	return
+}
+
+type standaloneRuleLoader struct {
+	parser                RuleParser
+	fs                    RuleLoaderFileSystem
+	secRuleConfigFilePath string
+}
+
+// NewStandaloneRuleLoader loads and parses SecRule files from disk, given a SecRule file path.
+func NewStandaloneRuleLoader(parser RuleParser, fs RuleLoaderFileSystem, secRuleConfigFilePath string) RuleLoader {
+	return &standaloneRuleLoader{
+		parser:                parser,
+		fs:                    fs,
+		secRuleConfigFilePath: secRuleConfigFilePath,
+	}
+}
+
+// GetRules loads and parses a SecRule config file from disk (given in the constructor).
+func (c *standaloneRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, err error) {
+	statements, err = loadRulesFromPath(c.secRuleConfigFilePath, c.parser, c.fs, nil)
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+// RuleLoaderFileSystem is the file system functions the rule loader needs. Needed for mocking.
+type RuleLoaderFileSystem interface {
+	ReadFile(filename string) ([]byte, error)
+	Abs(path string) (string, error)
+	EvalSymlinks(path string) (string, error)
+}
+
+// NewRuleLoaderFileSystem creates a RuleLoaderFileSystem that uses the real OS file system.
+func NewRuleLoaderFileSystem() RuleLoaderFileSystem {
+	return &ruleLoaderFileSystemImpl{}
+}
+
+type ruleLoaderFileSystemImpl struct{}
+
+func (f *ruleLoaderFileSystemImpl) ReadFile(filename string) ([]byte, error) {
+	return ioutil.ReadFile(filename)
+}
+func (f *ruleLoaderFileSystemImpl) Abs(path string) (string, error) {
+	return filepath.Abs(path)
+}
+func (f *ruleLoaderFileSystemImpl) EvalSymlinks(path string) (string, error) {
+	return filepath.EvalSymlinks(path)
 }

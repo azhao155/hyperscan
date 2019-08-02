@@ -17,7 +17,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		SecRule ARGS "abc+" "id:200,chain"
 			SecRule ARGS "xyz" "t:lowercase"
 		SecRule REQUEST_URI_RAW "a+bc" "id:300,t:lowercase,t:removewhitespace,x"
-	`, nil)
+	`, nil, nil)
 
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
 
@@ -77,6 +77,7 @@ func TestReqScannerPmfRule(t *testing.T) {
 		func(fileName string) (phrases []string, err error) {
 			return []string{"abc", "def"}, nil
 		},
+		nil,
 	)
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
 
@@ -111,6 +112,7 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 		func(fileName string) (phrases []string, err error) {
 			return []string{"abC", "def"}, nil
 		},
+		nil,
 	)
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaaBccc&arg2=helloworld"}
 

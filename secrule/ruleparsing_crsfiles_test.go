@@ -153,7 +153,7 @@ func parseAndCompareRuleCounts(t *testing.T, testrulefiles []testrulefile) {
 		phraseLoaderCb := func(fileName string) ([]string, error) {
 			return loadPhraseFile(path.Join(path.Dir(fullPath), fileName))
 		}
-		rr, err := p.Parse(string(b), phraseLoaderCb)
+		rr, err := p.Parse(string(b), phraseLoaderCb, nil)
 
 		if err != nil {
 			t.Fatalf("Got unexpected error while loading rule file: %s. Error: %s", trf.filename, err)

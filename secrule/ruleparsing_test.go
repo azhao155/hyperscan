@@ -17,7 +17,7 @@ func TestTwoRules(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -57,7 +57,7 @@ func TestSecRuleSecActionMixed(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -111,7 +111,7 @@ func TestInvalidStatement(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if err == nil {
@@ -141,7 +141,7 @@ func TestCommentedRuleWithDanglingArg(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -162,7 +162,7 @@ func TestMissingId(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if len(rr) != 0 {
@@ -187,7 +187,7 @@ func TestSecRuleTrailingArg(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if len(rr) != 0 {
@@ -214,7 +214,7 @@ func TestMissingChain(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if len(rr) != 1 {
@@ -243,7 +243,7 @@ func TestChaining(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -295,7 +295,7 @@ func TestNoActions(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rules, nil)
+	rr, err := p.Parse(rules, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -363,7 +363,7 @@ func TestSecRuleTargets(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil)
+		rr, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -424,7 +424,7 @@ func TestSecRuleTargetExclusions(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil)
+		rr, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -492,7 +492,7 @@ func TestSecRuleTargetErrors(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		_, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil)
+		_, err := p.Parse("SecRule "+test.input+` "<script>" "id:'950902'"`, nil, nil)
 
 		if err == nil {
 			t.Fatalf("Expected error, but err was nil")
@@ -536,7 +536,7 @@ func TestSecRuleOperators(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule ARGS "+test.input+` "id:'950902'"`, nil)
+		rr, err := p.Parse("SecRule ARGS "+test.input+` "id:'950902'"`, nil, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -626,7 +626,7 @@ func TestSecRuleActions(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		rr, err := p.Parse("SecRule ARGS helloworld "+test.input, nil)
+		rr, err := p.Parse("SecRule ARGS helloworld "+test.input, nil, nil)
 
 		if err != nil {
 			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
@@ -788,7 +788,7 @@ func TestTransformationCaseInsensitive(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -832,7 +832,7 @@ func TestSecAction900990(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -906,7 +906,7 @@ func TestRule942320(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1049,7 +1049,7 @@ func TestRule901001(t *testing.T) {
     `
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1119,19 +1119,46 @@ func TestRule901001(t *testing.T) {
 }
 
 func TestPhraseFunc(t *testing.T) {
+	// Arrange
 	callbackArg := ""
 	p := NewRuleParser()
-	_, err := p.Parse(`SecRule ARGS "@pmf test.data" "deny,msg:'SQL Injection Attack',id:'950901'"`, func(f string) ([]string, error) {
+	cb := func(f string) ([]string, error) {
 		callbackArg = f
 		return []string{}, nil
-	})
+	}
 
+	// Act
+	_, err := p.Parse(`SecRule ARGS "@pmf test.data" "deny,msg:'SQL Injection Attack',id:'950901'"`, cb, nil)
+
+	// Assert
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	if callbackArg != "test.data" {
-		t.Fatalf("...")
+		t.Fatalf("callback got unexpected arg: %v", callbackArg)
+	}
+}
+
+func TestInclude(t *testing.T) {
+	// Arrange
+	callbackArg := ""
+	p := NewRuleParser()
+	cb := func(filePath string) (statements []Statement, err error) {
+		callbackArg = filePath
+		return []Statement{}, nil
+	}
+
+	// Act
+	_, err := p.Parse(`iNcLuDe hello.conf`, nil, cb)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if callbackArg != "hello.conf" {
+		t.Fatalf("callback got unexpected arg: %v", callbackArg)
 	}
 }
 
@@ -1141,7 +1168,7 @@ func TestNolog(t *testing.T) {
 	rule := `SecRule ARGS "hello" "id:901001,nolog"`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1172,7 +1199,7 @@ func TestPhase(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1207,7 +1234,7 @@ func TestPhaseChain1(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1233,7 +1260,7 @@ func TestPhaseChain2(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1259,7 +1286,7 @@ func TestPhaseChainConflicting(t *testing.T) {
 	`
 
 	// Act
-	_, err := p.Parse(rule, nil)
+	_, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err.Error() != "parse error in SecRule on line 3: rule chain has conflicting phases" {
@@ -1277,7 +1304,7 @@ func TestMarker(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {
@@ -1324,7 +1351,7 @@ func TestParseSkipAfter(t *testing.T) {
 	`
 
 	// Act
-	rr, err := p.Parse(rule, nil)
+	rr, err := p.Parse(rule, nil, nil)
 
 	// Assert
 	if err != nil {

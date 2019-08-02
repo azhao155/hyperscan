@@ -69,7 +69,7 @@ func (l *zerologResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}
 
-	l.logger.Info().Msgf("Customer facing log: %s\n", bb)
+	l.logger.Info().Msgf("Customer facing log:\n%s\n", bb)
 }
 
 func (l *zerologResultsLogger) FieldBytesLimitExceeded(request waf.HTTPRequest, limit int) {
@@ -95,7 +95,7 @@ func (l *zerologResultsLogger) bytesLimitExceeded(request waf.HTTPRequest, msg s
 		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}
 
-	l.logger.Info().Msgf("Customer facing log: %s\n", bb)
+	l.logger.Info().Msgf("Customer facing log:\n%s\n", bb)
 }
 
 func (l *zerologResultsLogger) BodyParseError(request waf.HTTPRequest, err error) {
@@ -113,5 +113,5 @@ func (l *zerologResultsLogger) BodyParseError(request waf.HTTPRequest, err error
 		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}
 
-	l.logger.Info().Msgf("Customer facing log: %s\n", bb)
+	l.logger.Info().Msgf("Customer facing log:\n%s\n", bb)
 }

@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/rs/zerolog"
 	"io"
 	"net"
 
@@ -19,12 +20,16 @@ type Server interface {
 }
 
 type serverImpl struct {
-	ws waf.Server
+	logger zerolog.Logger
+	ws     waf.Server
 }
 
 // NewServer creates a new AzWaf gRPC server.
-func NewServer(ws waf.Server) Server {
-	return &serverImpl{ws: ws}
+func NewServer(logger zerolog.Logger, ws waf.Server) Server {
+	return &serverImpl{
+		logger: logger,
+		ws:     ws,
+	}
 }
 
 func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
@@ -33,6 +38,7 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 	r, err := stream.Recv()
 	if err != nil {
 		stream.SendAndClose(&pb.WafDecision{Allow: false})
+		s.logger.Warn().Err(err).Msg("Error from stream.Recv()")
 		return err
 	}
 
@@ -40,7 +46,9 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 	m, ok := r.Content.(*pb.WafHttpRequest_HeadersAndFirstChunk)
 	if !ok {
 		stream.SendAndClose(&pb.WafDecision{Allow: false})
-		return fmt.Errorf("first gRPC stream message was not HeadersAndFirstChunk")
+		err = fmt.Errorf("first gRPC stream message was not HeadersAndFirstChunk")
+		s.logger.Warn().Msg(err.Error())
+		return err
 	}
 
 	// A callback used to get the rest of the body chunks that we'll get from the gRPC stream
@@ -120,6 +128,8 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 
 	allow, err = s.ws.EvalRequest(w)
 	if err != nil {
+		stream.SendAndClose(&pb.WafDecision{Allow: false})
+		s.logger.Warn().Err(err).Msg("Error from s.ws.EvalRequest(w)")
 		return err
 	}
 
