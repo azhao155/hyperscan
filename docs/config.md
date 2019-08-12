@@ -65,3 +65,16 @@ Create_Service:
 Create_Service will create one to one mapping service from the config map. The service and config is one to one mapping, which means, even multiple prefix has the same config, the service created by this config will handle concurrency requests with different prefix. So in service manager, we don't need to worry about handling the concurrency.
 Dispose_Service:
 Dispose_Service will free the service not needed and clean up the internal service map.
+
+# Garbage Collection
+Grpc Server doesn't have the information to track the client connection, so config manager needs to explicitly define the garbage collection grpc api.
+The whole process is like following:
+    1. When nginx worker exits, in the nginx module handler, it will send a dispose config grpc call to the config manager and attach all the config IDs that need to be disposed.
+    2. Config manager validates the config IDs, and sends the IDs to the service manager.
+    3. Service manager gets the id and deletes all corresponding engines in its routing map.
+    4. Config IDs are garbage collected by the expiration will be logged for debugging purpose.
+
+In case there is a crash in the nginx worker and the nginx module handler never got called, config manager still should be able to garbage collect the services.
+In order to do that, config manager will operate a timeout for the old configIDs. So after the PutConfig grpc call, config manager will start the timeout countdown, once it times out, config manager will send all the old config IDs(except config IDs in the current putconfig call)
+to the service manager and service manager will delete the corresponding engines in its routing map.
+For the timeout value, it should be similar to the nginx worker shutdown timeout.
