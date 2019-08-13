@@ -4,6 +4,7 @@ import (
 	"azwaf/waf"
 	"bytes"
 	"fmt"
+	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -171,6 +172,10 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 		k := h.Key()
 		v := h.Value()
 
+		if strings.EqualFold(k, "cookie") {
+			r.scanCookies(v, results)
+		}
+
 		err = r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
 		if err != nil {
 			return
@@ -181,6 +186,7 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 			return
 		}
 
+		// TODO selector probably should not be case sensitive
 		err = r.scanTarget("REQUEST_HEADERS:"+k, v, results)
 		if err != nil {
 			return
@@ -351,6 +357,31 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 			if err != nil {
 				return
 			}
+		}
+	}
+
+	return
+}
+
+func (r *reqScannerImpl) scanCookies(c string, results *ScanResults) (err error) {
+	// Use Go's http.Request to parse the cookies.
+	goReq := &http.Request{Header: http.Header{"Cookie": []string{c}}}
+	cookies := goReq.Cookies()
+	for _, cookie := range cookies {
+
+		err = r.scanTarget("REQUEST_COOKIES_NAMES", cookie.Name, results)
+		if err != nil {
+			return
+		}
+
+		err = r.scanTarget("REQUEST_COOKIES", cookie.Value, results)
+		if err != nil {
+			return
+		}
+
+		err = r.scanTarget("REQUEST_COOKIES:"+cookie.Name, cookie.Value, results)
+		if err != nil {
+			return
 		}
 	}
 

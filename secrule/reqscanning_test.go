@@ -487,6 +487,76 @@ func TestReqScannerRequestLine(t *testing.T) {
 	}
 }
 
+func TestReqCookies(t *testing.T) {
+    // Arrange
+    mf := newMockMultiRegexEngineFactory()
+    rsf := NewReqScannerFactory(mf)
+    rules := []Statement{
+        &Rule{
+            ID: 100,
+            Items: []RuleItem{
+                {
+                    Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "ab+c"},
+                    Transformations: []Transformation{},
+                },
+            },
+        },
+    }
+    req := &mockWafHTTPRequest{uri: "/hello.php"}
+    req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
+    // Act
+    rs, err1 := rsf.NewReqScanner(rules)
+    sr, err2 := rs.ScanHeaders(req)
+    // Assert
+    if err1 != nil {
+        t.Fatalf("Got unexpected error: %s", err1)
+    }
+    if err2 != nil {
+        t.Fatalf("Got unexpected error: %s", err2)
+    }
+    _, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
+    if !ok {
+        t.Fatalf("Match not found")
+    }
+}
+
+func TestReqCookiesSelectors(t *testing.T) {
+    // Arrange
+    mf := newMockMultiRegexEngineFactory()
+    rsf := NewReqScannerFactory(mf)
+    rules := []Statement{
+        &Rule{
+            ID: 100,
+            Items: []RuleItem{
+                {
+                    Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES:mycookie1"}, Op: Rx, Val: "ab+c"},
+                    Transformations: []Transformation{},
+                },
+            },
+        },
+    }
+    req := &mockWafHTTPRequest{uri: "/hello.php"}
+    req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
+    // Act
+    rs, err1 := rsf.NewReqScanner(rules)
+    sr, err2 := rs.ScanHeaders(req)
+    // Assert
+    if err1 != nil {
+        t.Fatalf("Got unexpected error: %s", err1)
+    }
+    if err2 != nil {
+        t.Fatalf("Got unexpected error: %s", err2)
+    }
+    _, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
+    if ok {
+        t.Fatalf("Unexpected match found")
+    }
+    _, ok = sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES:mycookie1")
+    if !ok {
+        t.Fatalf("Match not found")
+    }
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader
