@@ -29,6 +29,11 @@ func newMockMultiRegexEngineFactory() MultiRegexEngineFactory {
 						{"a%20bc", "GET /a%20bc.php?arg1=something HTTP/1.1", 5, 11, []byte("a%20bc")},
 						{"/p1/a%20bc.php", "/p1/a%20bc.php", 0, 14, []byte("/p1/a%20bc.php")},
 						{"/", "/", 0, 1, []byte("/")},
+						{"xyz", "xxyzz", 1, 4, []byte("xyz")},
+						{"ab+c", "aaaaaaabccc;something=xxyzz", 0, 9, []byte("aaaaaaabc")},
+						{"xyz", "aaaaaaabccc;something=xxyzz", 23, 26, []byte("xyz")},
+						{"arg1", "arg1", 0, 5, []byte("arg1")},
+						{"arg2", "arg2", 0, 5, []byte("arg2")},
 					}
 
 					r := []MultiRegexEngineMatch{}

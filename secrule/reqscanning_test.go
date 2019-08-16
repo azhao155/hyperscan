@@ -488,73 +488,292 @@ func TestReqScannerRequestLine(t *testing.T) {
 }
 
 func TestReqCookies(t *testing.T) {
-    // Arrange
-    mf := newMockMultiRegexEngineFactory()
-    rsf := NewReqScannerFactory(mf)
-    rules := []Statement{
-        &Rule{
-            ID: 100,
-            Items: []RuleItem{
-                {
-                    Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "ab+c"},
-                    Transformations: []Transformation{},
-                },
-            },
-        },
-    }
-    req := &mockWafHTTPRequest{uri: "/hello.php"}
-    req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
-    // Act
-    rs, err1 := rsf.NewReqScanner(rules)
-    sr, err2 := rs.ScanHeaders(req)
-    // Assert
-    if err1 != nil {
-        t.Fatalf("Got unexpected error: %s", err1)
-    }
-    if err2 != nil {
-        t.Fatalf("Got unexpected error: %s", err2)
-    }
-    _, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
-    if !ok {
-        t.Fatalf("Match not found")
-    }
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
 }
 
 func TestReqCookiesSelectors(t *testing.T) {
-    // Arrange
-    mf := newMockMultiRegexEngineFactory()
-    rsf := NewReqScannerFactory(mf)
-    rules := []Statement{
-        &Rule{
-            ID: 100,
-            Items: []RuleItem{
-                {
-                    Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES:mycookie1"}, Op: Rx, Val: "ab+c"},
-                    Transformations: []Transformation{},
-                },
-            },
-        },
-    }
-    req := &mockWafHTTPRequest{uri: "/hello.php"}
-    req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
-    // Act
-    rs, err1 := rsf.NewReqScanner(rules)
-    sr, err2 := rs.ScanHeaders(req)
-    // Assert
-    if err1 != nil {
-        t.Fatalf("Got unexpected error: %s", err1)
-    }
-    if err2 != nil {
-        t.Fatalf("Got unexpected error: %s", err2)
-    }
-    _, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
-    if ok {
-        t.Fatalf("Unexpected match found")
-    }
-    _, ok = sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES:mycookie1")
-    if !ok {
-        t.Fatalf("Match not found")
-    }
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES:mycookie1"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+	_, ok = sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES:mycookie1")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
+func TestReqScannerMultiArgs(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc&arg2=xxyzz"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(200, 0, "ARGS")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+
+	m, ok = sr.GetRxResultsFor(200, 1, "ARGS")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "xyz" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
+func TestReqScannerMultiArgsNoVals(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg1"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg2"},
+					Transformations: []Transformation{},
+				},
+			},
+		}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=&arg2="}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "ARGS_NAMES")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "arg1" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+
+	m, ok = sr.GetRxResultsFor(200, 0, "ARGS_NAMES")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "arg2" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
+func TestReqScannerMultiArgsNoVals2(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg1"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg2"},
+					Transformations: []Transformation{},
+				},
+			},
+		}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1&arg2"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "ARGS_NAMES")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "arg1" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+
+	m, ok = sr.GetRxResultsFor(200, 0, "ARGS_NAMES")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "arg2" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+}
+
+// Ensure that semicolon is NOT treated as delimiter in query strings.
+func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc;something=xxyzz"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "aaaaaaabc" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+	if m.StartPos != 0 {
+		t.Fatalf("Unexpected match pos: %d", m.StartPos)
+	}
+	if m.EndPos != 9 {
+		t.Fatalf("Unexpected match pos: %d", m.EndPos)
+	}
+
+	m, ok = sr.GetRxResultsFor(200, 1, "ARGS")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if string(m.Data) != "xyz" {
+		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	}
+
+	// Note: the positions here are expected to be relative to what comes after arg1=, because the semicolon is not an acceptable delimiter here
+	if m.StartPos != 23 {
+		t.Fatalf("Unexpected match pos: %d", m.StartPos)
+	}
+	if m.EndPos != 26 {
+		t.Fatalf("Unexpected match pos: %d", m.EndPos)
+	}
+}
+
+func TestReqScannerInvalidUrlEncoding(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=a%xxb"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	_, err2 := rs.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 == nil {
+		t.Fatalf("Expected an error, but got nil")
+	}
+	if err2.Error() != "invalid URL escape \"%xx\"" {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
 }
 
 type mockWafHTTPRequest struct {

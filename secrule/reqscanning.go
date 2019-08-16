@@ -336,7 +336,7 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	}
 
 	var qvals url.Values
-	qvals, err = url.ParseQuery(uriParsed.RawQuery)
+	qvals, err = parseQuery(uriParsed.RawQuery)
 	if err != nil {
 		return
 	}
@@ -383,6 +383,39 @@ func (r *reqScannerImpl) scanCookies(c string, results *ScanResults) (err error)
 		if err != nil {
 			return
 		}
+	}
+
+	return
+}
+
+// Similar to url.ParseQuery, but does not consider semicolon as a delimiter. ModSecurity also does not consider semicolon a delimiter.
+func parseQuery(query string) (values url.Values, err error) {
+	values = make(url.Values)
+	for _, arg := range strings.Split(query, "&") {
+		var key, val string
+
+		eqPos := strings.IndexByte(arg, '=')
+		if eqPos != -1 {
+			key, err = url.QueryUnescape(arg[:eqPos])
+			if err != nil {
+				// TODO consider whether we should tolerate errors here and instead the SecRule's to do their work. Perhaps do something similar to jsUnescape() to best-effort handle URL-decoding and ignore errors.
+				return
+			}
+
+			if eqPos+1 < len(arg) {
+				val, err = url.QueryUnescape(arg[eqPos+1:])
+				if err != nil {
+					return
+				}
+			}
+		} else {
+			key, err = url.QueryUnescape(arg)
+			if err != nil {
+				return
+			}
+		}
+
+		values.Add(key, val)
 	}
 
 	return
