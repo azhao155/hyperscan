@@ -776,6 +776,38 @@ func TestReqScannerInvalidUrlEncoding(t *testing.T) {
 
 }
 
+func TestDetectXssOperator(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: DetectXSS, Val: ""},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/char_test?mime=text/xml&body=%3Cx:script%20xmlns:x=%22http://www.w3.org/1999/xhtml%22%20src=%22data:,alert(1)%22%20/%3E"}
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	sr, err2 := rs.ScanHeaders(req)
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader

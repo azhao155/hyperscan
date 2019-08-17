@@ -62,13 +62,20 @@ type scanGroup struct {
 	backRefs        []patternRef
 }
 
+type detectXSSGroup struct {
+	transformations []Transformation
+	backRefs        []patternRef
+}
+
 type reqScannerImpl struct {
 	scanPatterns map[string][]*scanGroup
+	detectXSSPatterns map[string][]*detectXSSGroup
 }
 
 // NewReqScanner creates a ReqScanner.
 func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScanner, err error) {
 	scanPatterns := make(map[string][]*scanGroup)
+	detectXSSPatterns := make(map[string][]*detectXSSGroup)
 
 	// Construct a inverted view of the rules that maps from targets to rules
 	for _, curStmt := range statements {
@@ -96,14 +103,21 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 					scanPatterns[target] = append(scanPatterns[target], curScanGroup)
 				}
 
+				p := patternRef{curRule, curRuleItem, curRuleItemIdx}
+
 				switch curRuleItem.Predicate.Op {
 				case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Streq, Strmatch, Within:
 					// The value can have macros that cannot be expanded at this time.
 					if len(curRuleItem.Predicate.valMacroMatches) == 0 {
-						p := patternRef{curRule, curRuleItem, curRuleItemIdx}
 						curScanGroup.patterns = append(curScanGroup.patterns, p)
 					}
+				case DetectXSS:
+					curXSSGroup := &detectXSSGroup{}
+					curXSSGroup.transformations = curRuleItem.Transformations
+					curXSSGroup.backRefs = append(curXSSGroup.backRefs, p)
+					detectXSSPatterns[target] = append(detectXSSPatterns[target], curXSSGroup)
 				}
+
 			}
 		}
 	}
@@ -142,6 +156,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 
 	r = &reqScannerImpl{
 		scanPatterns: scanPatterns,
+		detectXSSPatterns: detectXSSPatterns,
 	}
 
 	return
@@ -160,7 +175,10 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 	reqLine.WriteString(" ")
 	reqLine.WriteString(req.URI())
 	reqLine.WriteString(" HTTP/1.1") // TODO pass actual HTTP version through.
-	r.scanTarget("REQUEST_LINE", reqLine.String(), results)
+	err = r.scanTarget("REQUEST_LINE", reqLine.String(), results)
+	if err != nil {
+		return
+	}
 
 	err = r.scanURI(req.URI(), results)
 	if err != nil {
@@ -275,6 +293,32 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		}
 	}
 
+	for _, sg := range r.detectXSSPatterns[targetName] {
+
+		contentTransformed := applyTransformations(content, sg.transformations)
+
+		var match bool
+		match, _, err = detectXSSOperatorEval(contentTransformed, "")
+		if err != nil {
+			return
+		}
+
+		if match {
+			for _, p := range sg.backRefs{
+
+				// Store the match for fast retrieval in the eval phase
+				key := rxMatchKey{p.rule.ID, p.ruleItemIdx, targetName}
+				if _, alreadyFound := results.rxMatches[key]; !alreadyFound{
+					results.rxMatches[key] = RxMatch{
+						StartPos: 0,
+						EndPos:   0,
+						Data:     []byte{},
+					}
+				}
+			}
+		}
+	}
+
 	return
 }
 
@@ -324,7 +368,8 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	if n != -1 {
 		reqFilename = URI[:n]
 	}
-	r.scanTarget("REQUEST_FILENAME", reqFilename, results)
+
+	err = r.scanTarget("REQUEST_FILENAME", reqFilename, results)
 	if err != nil {
 		return
 	}
