@@ -12,6 +12,22 @@ type engineImpl struct {
 	resultsLogger ResultsLogger
 }
 
+// NewEngine creates a SecRule engine from statements
+func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, rl ResultsLogger) (engine waf.SecRuleEngine, err error) {
+	rs, err := rsf.NewReqScanner(statements)
+	if err != nil {
+		return
+	}
+
+	engine = &engineImpl{
+		statements:    statements,
+		reqScanner:    rs,
+		ruleEvaluator: re,
+		resultsLogger: rl,
+	}
+	return
+}
+
 type secRuleEvaluationImpl struct {
 	logger          zerolog.Logger
 	engine          *engineImpl

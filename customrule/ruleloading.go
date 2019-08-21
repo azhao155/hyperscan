@@ -15,6 +15,12 @@ type RuleLoader interface {
 type ruleLoader struct {
 }
 
+// NewCustomRuleLoader loads custom rules.
+func NewCustomRuleLoader() RuleLoader {
+	return &ruleLoader{
+	}
+}
+
 func (r *ruleLoader) GetSecRules(logger zerolog.Logger, jsonStr string) (rules []secrule.Statement, err error) {
 	logger.Printf("Parsing incoming JSON custom rule string %s", jsonStr)
 	cc, err := r.loadCustomRules(logger, jsonStr)

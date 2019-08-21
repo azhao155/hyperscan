@@ -16,11 +16,13 @@ func TestWafServerEvalRequest(t *testing.T) {
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcre := &mockCustomRuleEngine{}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{}
 	mcm := &mockConfigMgr{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl)
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -70,6 +72,8 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcre := &mockCustomRuleEngine{}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{
@@ -79,7 +83,7 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 		},
 	}
 	mcm := &mockConfigMgr{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl)
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
@@ -213,4 +217,36 @@ func (m *mockConfigMgr) PutConfig(c Config) error {
 
 func (m *mockConfigMgr) DisposeConfig(int) error {
 	return nil
+}
+
+type mockCustomRuleEngine struct {
+}
+
+type mockCustomRuleEngineFactory struct {
+	mcre            *mockCustomRuleEngine
+	newEngineCalled int
+}
+
+func (m *mockCustomRuleEngineFactory) NewEngine(c CustomRuleConfig) (engine CustomRuleEngine, err error) {
+	m.newEngineCalled++
+	engine = m.mcre
+	return
+}
+
+func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) CustomRuleEvaluation {
+	return &mockCustomRuleEvaluation{}
+}
+
+type mockCustomRuleEvaluation struct{}
+
+func (s *mockCustomRuleEvaluation) ScanHeaders() error {
+	return nil
+}
+
+func (s *mockCustomRuleEvaluation) ScanBodyField(contentType ContentType, fieldName string, data string) error {
+	return nil
+}
+
+func (s *mockCustomRuleEvaluation) EvalRules() bool {
+	return true
 }

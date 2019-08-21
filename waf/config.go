@@ -7,6 +7,10 @@ type SecRuleConfig interface {
 	RuleSetID() string
 }
 
+// CustomRuleConfig is CustomRule Engine config
+type CustomRuleConfig interface {
+}
+
 // GeoDBConfig is GeoDB Engine config
 type GeoDBConfig interface {
 	ID() string

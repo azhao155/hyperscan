@@ -2,6 +2,7 @@ package main
 
 import (
 	"azwaf/bodyparsing"
+	"azwaf/customrule"
 	"azwaf/grpc"
 	"azwaf/hyperscan"
 	"azwaf/logging"
@@ -90,7 +91,10 @@ func main() {
 	secruleResLog, wafResLog := logging.NewZerologResultsLogger(logger)
 	sref := secrule.NewEngineFactory(logger, rl, rsf, re, secruleResLog)
 	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
-	w, err := waf.NewServer(logger, cm, c, sref, rbp, wafResLog)
+	crl:= customrule.NewCustomRuleLoader()
+	cref := customrule.NewEngineFactory(logger, crl, rsf, re)
+
+	w, err := waf.NewServer(logger, cm, c, sref, rbp, wafResLog, cref)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating service manager")
 	}

@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"sort"
 	"time"
-
 	"github.com/rs/zerolog"
 )
 
@@ -22,16 +21,18 @@ type serverImpl struct {
 	secRuleEngineFactory SecRuleEngineFactory
 	requestBodyParser    RequestBodyParser
 	resultsLogger        ResultsLogger
+	customRuleEngineFactory CustomRuleEngineFactory
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory) (server Server, err error) {
 	s := &serverImpl{
 		logger:               logger,
 		configMgr:            cm,
 		secRuleEngineFactory: sref,
 		requestBodyParser:    rbp,
 		resultsLogger:        rl,
+		customRuleEngineFactory: cref,
 	}
 
 	s.secRuleEngines = make(map[string]SecRuleEngine)
@@ -135,6 +136,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		configID := secRuleConfig.ID()
 
 		s.secRuleEngines[configID] = engine
+
 	}
 
 	// TODO add other engine
