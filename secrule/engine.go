@@ -6,10 +6,12 @@ import (
 )
 
 type engineImpl struct {
-	statements    []Statement
-	reqScanner    ReqScanner
-	ruleEvaluator RuleEvaluator
-	resultsLogger ResultsLogger
+	statements       []Statement
+	reqScanner       ReqScanner
+	scratchSpaceDone chan *ReqScannerScratchSpace
+	scratchSpaceNext chan *ReqScannerScratchSpace
+	ruleEvaluator    RuleEvaluator
+	resultsLogger    ResultsLogger
 }
 
 // NewEngine creates a SecRule engine from statements
@@ -29,11 +31,14 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, 
 }
 
 type secRuleEvaluationImpl struct {
-	logger          zerolog.Logger
-	engine          *engineImpl
-	request         waf.HTTPRequest
-	scanResults     *ScanResults
-	ruleTriggeredCb func(stmt Statement, isDisruptive bool, msg string, logData string)
+	logger                 zerolog.Logger
+	engine                 *engineImpl
+	request                waf.HTTPRequest
+	scanResults            *ScanResults
+	ruleTriggeredCb        func(stmt Statement, isDisruptive bool, msg string, logData string)
+	reqScannerEvaluation   ReqScannerEvaluation
+	scratchSpaceDone       chan *ReqScannerScratchSpace
+	reqScannerScratchSpace *ReqScannerScratchSpace
 }
 
 func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) waf.SecRuleEvaluation {
@@ -46,21 +51,27 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
 	}
 
+	scratchSpace := <-s.scratchSpaceNext
+	reqScannerEvaluation := s.reqScanner.NewReqScannerEvaluation(scratchSpace)
+
 	return &secRuleEvaluationImpl{
-		request:         req,
-		logger:          logger,
-		engine:          s,
-		ruleTriggeredCb: ruleTriggeredCb,
+		request:                req,
+		logger:                 logger,
+		engine:                 s,
+		ruleTriggeredCb:        ruleTriggeredCb,
+		reqScannerEvaluation:   reqScannerEvaluation,
+		scratchSpaceDone:       s.scratchSpaceDone,
+		reqScannerScratchSpace: scratchSpace,
 	}
 }
 
 func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
-	s.scanResults, err = s.engine.reqScanner.ScanHeaders(s.request)
+	s.scanResults, err = s.reqScannerEvaluation.ScanHeaders(s.request)
 	return
 }
 
 func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, fieldName string, data string) (err error) {
-	return s.engine.reqScanner.ScanBodyField(contentType, fieldName, data, s.scanResults)
+	return s.reqScannerEvaluation.ScanBodyField(contentType, fieldName, data, s.scanResults)
 }
 
 func (s *secRuleEvaluationImpl) EvalRules() bool {
@@ -92,4 +103,9 @@ func (s *secRuleEvaluationImpl) EvalRules() bool {
 	}
 
 	return true
+}
+
+// Release resources.
+func (s *secRuleEvaluationImpl) Close() {
+	s.scratchSpaceDone <- s.reqScannerScratchSpace
 }

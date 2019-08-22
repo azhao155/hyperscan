@@ -10,8 +10,14 @@ import (
 	"strings"
 )
 
-// ReqScanner scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
+// ReqScanner can create NewReqScannerEvaluations, which scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
 type ReqScanner interface {
+	NewReqScannerEvaluation(scratchSpace *ReqScannerScratchSpace) ReqScannerEvaluation
+	NewScratchSpace() (scratchSpace *ReqScannerScratchSpace, err error)
+}
+
+// ReqScannerEvaluation is a session of the ReqScanner.
+type ReqScannerEvaluation interface {
 	ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error)
 	ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) error
 }
@@ -38,6 +44,9 @@ type ReqScannerFactory interface {
 func NewReqScannerFactory(m MultiRegexEngineFactory) ReqScannerFactory {
 	return &reqScannerFactoryImpl{m}
 }
+
+// ReqScannerScratchSpace is a collection of all the scratch spaces a ReqScanner will need. These can be reused for different requests, but cannot be shared concurrently.
+type ReqScannerScratchSpace map[*MultiRegexEngine]MultiRegexEngineScratchSpace
 
 type reqScannerFactoryImpl struct {
 	multiRegexEngineFactory MultiRegexEngineFactory
@@ -68,8 +77,13 @@ type detectXSSGroup struct {
 }
 
 type reqScannerImpl struct {
-	scanPatterns map[string][]*scanGroup
+	scanPatterns      map[string][]*scanGroup
 	detectXSSPatterns map[string][]*detectXSSGroup
+}
+
+type reqScannerEvaluationImpl struct {
+	reqScanner   *reqScannerImpl
+	scratchSpace *ReqScannerScratchSpace
 }
 
 // NewReqScanner creates a ReqScanner.
@@ -126,6 +140,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	for target, scanGroups := range scanPatterns {
 		for scanGroupIdx, scanGroup := range scanGroups {
 			if len(scanGroup.patterns) == 0 {
+				// TODO if scanPatterns only holds regex-based scan groups, then this should never happen
 				continue
 			}
 
@@ -155,14 +170,50 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	}
 
 	r = &reqScannerImpl{
-		scanPatterns: scanPatterns,
+		scanPatterns:      scanPatterns,
 		detectXSSPatterns: detectXSSPatterns,
 	}
 
 	return
 }
 
-func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
+func (r *reqScannerImpl) NewReqScannerEvaluation(scratchSpace *ReqScannerScratchSpace) ReqScannerEvaluation {
+	return &reqScannerEvaluationImpl{
+		reqScanner:   r,
+		scratchSpace: scratchSpace,
+	}
+}
+
+// NewScratchSpace creates an instance of all the scratch spaces this ReqScanner will need.
+func (r *reqScannerImpl) NewScratchSpace() (scratchSpace *ReqScannerScratchSpace, err error) {
+	s := make(ReqScannerScratchSpace)
+	for _, scanGroups := range r.scanPatterns {
+		for _, scanGroup := range scanGroups {
+			if scanGroup.rxEngine == nil {
+				// Happens with scan groups with no patterns
+				// TODO if scanPatterns only holds regex-based scan groups, then this should never happen
+				continue
+			}
+
+			s[&scanGroup.rxEngine], err = scanGroup.rxEngine.CreateScratchSpace()
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	scratchSpace = &s
+	return
+}
+
+// Close frees all scratch spaces this ReqScannerScratchSpace held.
+func (s ReqScannerScratchSpace) Close() {
+	for _, v := range s {
+		v.Close()
+	}
+}
+
+func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
 	results = &ScanResults{
 		rxMatches:      make(map[rxMatchKey]RxMatch),
 		targetsPresent: make(map[string]bool),
@@ -215,7 +266,7 @@ func (r *reqScannerImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults,
 	return
 }
 
-func (r *reqScannerImpl) ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) (err error) {
 	// TODO pass on certain content types that modsec doesnt handle?
 
 	switch contentType {
@@ -258,22 +309,24 @@ func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string
 	return
 }
 
-func (r *reqScannerImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
 
 	results.targetsPresent[targetName] = true
 
 	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
-	for _, sg := range r.scanPatterns[targetName] {
+	for _, sg := range r.reqScanner.scanPatterns[targetName] {
 		if len(sg.patterns) == 0 {
 			continue
 		}
 
 		contentTransformed := applyTransformations(content, sg.transformations)
 
+		scratchSpace := (*r.scratchSpace)[&sg.rxEngine]
+
 		var matches []MultiRegexEngineMatch
-		matches, err = sg.rxEngine.Scan([]byte(contentTransformed))
+		matches, err = sg.rxEngine.Scan([]byte(contentTransformed), scratchSpace)
 		if err != nil {
 			return
 		}
@@ -293,7 +346,7 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		}
 	}
 
-	for _, sg := range r.detectXSSPatterns[targetName] {
+	for _, sg := range r.reqScanner.detectXSSPatterns[targetName] {
 
 		contentTransformed := applyTransformations(content, sg.transformations)
 
@@ -304,11 +357,11 @@ func (r *reqScannerImpl) scanTarget(targetName string, content string, results *
 		}
 
 		if match {
-			for _, p := range sg.backRefs{
+			for _, p := range sg.backRefs {
 
 				// Store the match for fast retrieval in the eval phase
 				key := rxMatchKey{p.rule.ID, p.ruleItemIdx, targetName}
-				if _, alreadyFound := results.rxMatches[key]; !alreadyFound{
+				if _, alreadyFound := results.rxMatches[key]; !alreadyFound {
 					results.rxMatches[key] = RxMatch{
 						StartPos: 0,
 						EndPos:   0,
@@ -355,7 +408,7 @@ func getRxExprs(ruleItem *RuleItem) []string {
 	return nil
 }
 
-func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (err error) {
 	err = r.scanTarget("REQUEST_URI_RAW", URI, results)
 	if err != nil {
 		return
@@ -408,7 +461,7 @@ func (r *reqScannerImpl) scanURI(URI string, results *ScanResults) (err error) {
 	return
 }
 
-func (r *reqScannerImpl) scanCookies(c string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (err error) {
 	// Use Go's http.Request to parse the cookies.
 	goReq := &http.Request{Header: http.Header{"Cookie": []string{c}}}
 	cookies := goReq.Cookies()

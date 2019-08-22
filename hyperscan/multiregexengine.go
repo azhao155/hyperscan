@@ -15,14 +15,19 @@ type engineImpl struct {
 	// Hyperscan's compiled database of regexes.
 	db hs.BlockDatabase
 
-	// Pre-allocated memory space that Hyperscan needs during evaluation.
-	scratch *hs.Scratch
-
 	// Precompiled Go regexes used to re-validate matches.
 	goregexes map[int]*regexp.Regexp // TODO could this have been just a list rather than map?
 
 	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
 	emptyStringPatternIDs []int
+}
+
+type scratchSpaceImpl struct {
+	// Pre-allocated memory space that Hyperscan needs during evaluation.
+	scratch *hs.Scratch
+
+	// Scratch spaces are specifically allocated to work for just one Hyperscan DB.
+	belongsTo *engineImpl
 }
 
 // NewMultiRegexEngineFactory creates a MultiRegexEngineFactory which will create Hyperscan based MultiRegexEngines. DbCache is used to speed up initializing databases that was previously already built. This can be nil if you do not want to use a cache.
@@ -77,13 +82,6 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 		}
 	}
 
-	h.scratch, err = hs.NewScratch(h.db)
-	if err != nil {
-		h.Close()
-		err = fmt.Errorf("failed to create Hyperscan scratch space: %v", err)
-		return
-	}
-
 	// Compile each regex for Go regexp as well, so we can use Go regexp to re-validate matches that Hyperscan find as potential matches
 	h.goregexes = make(map[int]*regexp.Regexp)
 	for _, m := range mm {
@@ -106,7 +104,12 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 }
 
 // Scan scans the given input for all expressions that this engine was initialized with.
-func (h *engineImpl) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch, err error) {
+func (h *engineImpl) Scan(input []byte, s secrule.MultiRegexEngineScratchSpace) (matches []secrule.MultiRegexEngineMatch, err error) {
+	scratchSpace, valid := s.(*scratchSpaceImpl)
+	if !valid || scratchSpace.belongsTo != h {
+		panic("scratch spaces can only be used with the Hyperscan DB they were initialized for.")
+	}
+
 	matches = []secrule.MultiRegexEngineMatch{}
 
 	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
@@ -131,7 +134,7 @@ func (h *engineImpl) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch
 		potentialMatches = append(potentialMatches, int(id))
 		return nil
 	}
-	err = h.db.Scan(input, h.scratch, handler, nil)
+	err = h.db.Scan(input, scratchSpace.scratch, handler, nil)
 	if err != nil {
 		err = fmt.Errorf("failed to invoke Hyperscan: %v", err)
 	}
@@ -156,15 +159,38 @@ func (h *engineImpl) Scan(input []byte) (matches []secrule.MultiRegexEngineMatch
 	return
 }
 
+func (h *engineImpl) CreateScratchSpace() (scratchSpace secrule.MultiRegexEngineScratchSpace, err error) {
+	s := &scratchSpaceImpl{belongsTo: h}
+
+	if h.db == nil {
+		// This happens if this is a multi regex engine with zero patterns.
+		scratchSpace = s
+		return
+	}
+
+	s.scratch, err = hs.NewScratch(h.db)
+	if err != nil {
+		scratchSpace.Close()
+		err = fmt.Errorf("failed to create Hyperscan scratch space: %v", err)
+		return
+	}
+
+	scratchSpace = s
+	return
+}
+
 // Close frees up unmanaged resources. The engine will be unusable after this.
 func (h *engineImpl) Close() {
 	if h.db != nil {
 		h.db.Close()
 		h.db = nil
 	}
+}
 
-	if h.scratch != nil {
-		h.scratch.Free()
-		h.scratch = nil
+// Close frees up unmanaged resources. The scratch space will be unusable after this.
+func (s *scratchSpaceImpl) Close() {
+	if s.scratch != nil {
+		s.scratch.Free()
+		s.scratch = nil
 	}
 }

@@ -56,11 +56,24 @@ func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt State
 type mockReqScanner struct {
 }
 
-func (r *mockReqScanner) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
+func (r *mockReqScanner) NewReqScannerEvaluation(scratchSpace *ReqScannerScratchSpace) ReqScannerEvaluation {
+	return &mockReqScannerEvaluation{}
+}
+
+func (r *mockReqScanner) NewScratchSpace() (scratchSpace *ReqScannerScratchSpace, err error) {
+	s := make(ReqScannerScratchSpace)
+	scratchSpace = &s
+	return
+}
+
+type mockReqScannerEvaluation struct {
+}
+
+func (r *mockReqScannerEvaluation) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
 	results = &ScanResults{}
 	return
 }
-func (r *mockReqScanner) ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) (err error) {
+func (r *mockReqScannerEvaluation) ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) (err error) {
 	return
 }
 

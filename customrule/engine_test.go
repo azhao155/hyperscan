@@ -43,3 +43,6 @@ func (s *mockSecRuleEvaluation) ScanBodyField(contentType waf.ContentType, field
 func (s *mockSecRuleEvaluation) EvalRules() bool {
 	return true
 }
+
+func (s *mockSecRuleEvaluation) Close() {
+}

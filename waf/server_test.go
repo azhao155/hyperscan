@@ -51,6 +51,10 @@ func TestWafServerEvalRequest(t *testing.T) {
 	if msrev.evalRulesCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.EvalRules: %v", msrev.evalRulesCalled)
 	}
+
+	if msrev.closeCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.Close: %v", msrev.closeCalled)
+	}
 }
 
 func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
@@ -141,6 +145,7 @@ type mockSecRuleEvaluation struct {
 	scanHeadersCalled   int
 	scanBodyFieldCalled int
 	evalRulesCalled     int
+	closeCalled         int
 }
 
 func (m *mockSecRuleEvaluation) ScanHeaders() (err error) {
@@ -154,6 +159,9 @@ func (m *mockSecRuleEvaluation) ScanBodyField(contentType ContentType, fieldName
 func (m *mockSecRuleEvaluation) EvalRules() bool {
 	m.evalRulesCalled++
 	return true
+}
+func (m *mockSecRuleEvaluation) Close() {
+	m.closeCalled++
 }
 
 type mockSecRuleEngine struct {

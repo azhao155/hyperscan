@@ -41,11 +41,58 @@ func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecR
 		return
 	}
 
+	// Coordination to reuse scratch spaces between requests, while not letting concurrent requests share the same scratch space.
+	scratchSpaceDone := make(chan *ReqScannerScratchSpace)
+	scratchSpaceNext := make(chan *ReqScannerScratchSpace)
+	go func() {
+		var availableScratchSpaces []*ReqScannerScratchSpace
+
+		// Pre-allocate some scratch space sets. For example for CRS 3.0, each one is around 55KiB.
+		for i := 0; i < 200; i++ {
+			s, err := reqScanner.NewScratchSpace()
+			if err != nil {
+				panic(err)
+			}
+
+			availableScratchSpaces = append(availableScratchSpaces, s)
+		}
+
+		var nextAvailable *ReqScannerScratchSpace
+
+		for {
+			if nextAvailable == nil {
+				// Pop the next available scratch space
+				nextAvailable = availableScratchSpaces[len(availableScratchSpaces)-1]
+				availableScratchSpaces = availableScratchSpaces[:len(availableScratchSpaces)-1]
+
+				// No more scratch spaces ready standby. Create one so we have it ready in case someone asks before we get one back.
+				if len(availableScratchSpaces) == 0 {
+					s, err := reqScanner.NewScratchSpace()
+					if err != nil {
+						panic(err)
+					}
+
+					availableScratchSpaces = append(availableScratchSpaces, s)
+				}
+			}
+
+			select {
+			case scratchSpaceNext <- nextAvailable:
+				nextAvailable = nil
+			case s := <-scratchSpaceDone:
+				availableScratchSpaces = append(availableScratchSpaces, s)
+				// TODO consider freeing scratch spaces if the number of available scratch spaces become very large for a long time.
+			}
+		}
+	}()
+
 	engine = &engineImpl{
-		statements:    statements,
-		reqScanner:    reqScanner,
-		ruleEvaluator: f.ruleEvaluator,
-		resultsLogger: f.resultsLogger,
+		statements:       statements,
+		reqScanner:       reqScanner,
+		ruleEvaluator:    f.ruleEvaluator,
+		resultsLogger:    f.resultsLogger,
+		scratchSpaceDone: scratchSpaceDone,
+		scratchSpaceNext: scratchSpaceNext,
 	}
 
 	return

@@ -85,6 +85,8 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	// TODO add other engine
 
 	secRuleEvaluation := s.secRuleEngines[secRuleConfigID].NewEvaluation(logger, req)
+	defer secRuleEvaluation.Close()
+
 	err = secRuleEvaluation.ScanHeaders()
 	if err != nil {
 		return

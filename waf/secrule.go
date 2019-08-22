@@ -12,11 +12,12 @@ type SecRuleEngine interface {
 	NewEvaluation(logger zerolog.Logger, req HTTPRequest) SecRuleEvaluation
 }
 
-// SecRuleEvaluation is a run session of the SecRule engine for a single specific HTTP request.
+// SecRuleEvaluation is a session of the SecRule engine for a single specific HTTP request.
 type SecRuleEvaluation interface {
 	ScanHeaders() error
 	ScanBodyField(contentType ContentType, fieldName string, data string) error
 	EvalRules() bool
+	Close()
 }
 
 // RuleSetID identifies which rule set to initialize the engine with.

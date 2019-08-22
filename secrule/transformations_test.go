@@ -163,9 +163,11 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 		rules := []Statement{&Rule{ID: 100, Items: []RuleItem{{Predicate: RulePredicate{Targets: []string{test.target}, Op: Rx, Val: "abc"}, Transformations: test.inputTransformations}}}}
 		req := &mockWafHTTPRequest{uri: test.inputURI}
 		rs, err1 := rsf.NewReqScanner(rules)
+		s, _ := rs.NewScratchSpace()
+		rse := rs.NewReqScannerEvaluation(s)
 
 		// Act
-		_, err2 := rs.ScanHeaders(req)
+		_, err2 := rse.ScanHeaders(req)
 
 		// Assert
 		if err1 != nil {

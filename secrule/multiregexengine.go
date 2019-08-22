@@ -7,7 +7,8 @@ type MultiRegexEngineFactory interface {
 
 // MultiRegexEngine is an interface to a regex engine that can scan for multiple regexes at once.
 type MultiRegexEngine interface {
-	Scan(input []byte) (matches []MultiRegexEngineMatch, err error)
+	Scan(input []byte, scratchSpace MultiRegexEngineScratchSpace) (matches []MultiRegexEngineMatch, err error)
+	CreateScratchSpace() (scratchSpace MultiRegexEngineScratchSpace, err error)
 	Close()
 }
 
@@ -23,4 +24,9 @@ type MultiRegexEngineMatch struct {
 	StartPos int
 	EndPos   int
 	Data     []byte
+}
+
+// MultiRegexEngineScratchSpace is temporary memory needed by a MultiRegexEngine, which may not be concurrently used.
+type MultiRegexEngineScratchSpace interface {
+	Close()
 }

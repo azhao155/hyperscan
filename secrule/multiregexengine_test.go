@@ -54,8 +54,12 @@ type mockMultiRegexEngine struct {
 	scanMockFunc func(input []byte) []MultiRegexEngineMatch
 }
 
-func (m *mockMultiRegexEngine) Scan(input []byte) (matches []MultiRegexEngineMatch, err error) {
+func (m *mockMultiRegexEngine) Scan(input []byte, scratchSpace MultiRegexEngineScratchSpace) (matches []MultiRegexEngineMatch, err error) {
 	matches = m.scanMockFunc(input)
+	return
+}
+
+func (m *mockMultiRegexEngine) CreateScratchSpace() (scratchSpace MultiRegexEngineScratchSpace, err error) {
 	return
 }
 

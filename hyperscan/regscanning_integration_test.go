@@ -23,13 +23,18 @@ func TestReqScannerSimpleRules(t *testing.T) {
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
-	sr, err2 := rs.ScanHeaders(req)
+	s, err2 := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err3 := rse.ScanHeaders(req)
 
 	// Assert
 	if err1 != nil {
 		t.Fatalf("Got unexpected error: %s", err1)
 	}
 	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	if err3 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
@@ -83,13 +88,18 @@ func TestReqScannerPmfRule(t *testing.T) {
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
-	sr, err2 := rs.ScanHeaders(req)
+	s, err2 := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err3 := rse.ScanHeaders(req)
 
 	// Assert
 	if err1 != nil {
 		t.Fatalf("Got unexpected error: %s", err1)
 	}
 	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	if err3 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
@@ -118,13 +128,18 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 
 	// Act
 	rs, err1 := rf.NewReqScanner(rules)
-	sr, err2 := rs.ScanHeaders(req)
+	s, err2 := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err3 := rse.ScanHeaders(req)
 
 	// Assert
 	if err1 != nil {
 		t.Fatalf("Got unexpected error: %s", err1)
 	}
 	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	if err3 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 

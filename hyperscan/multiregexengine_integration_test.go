@@ -95,7 +95,11 @@ func TestHyperscanSimple(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	r, err := m.Scan([]byte("xyzabbbbcxyz"))
+	s, err := m.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte("xyzabbbbcxyz"), s)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -128,11 +132,15 @@ func TestHyperscanSimpleTwoScans(t *testing.T) {
 		{ID: 2, Expr: "ac+"},
 	})
 	if err != nil {
-		t.Fatalf("%s", err)
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	s, err := e.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	m, err := e.Scan([]byte("abbbbcccccc"))
+	m, err := e.Scan([]byte("abbbbcccccc"), s)
 
 	// Assert
 	if err != nil {
@@ -155,7 +163,7 @@ func TestHyperscanSimpleTwoScans(t *testing.T) {
 	}
 
 	// Act
-	m, err = e.Scan([]byte("xxxaaaaccccccbbbb"))
+	m, err = e.Scan([]byte("xxxaaaaccccccbbbb"), s)
 
 	// Assert
 	if err != nil {
@@ -192,7 +200,11 @@ func TestExpressionWithPCREPossessiveQuantifier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	r, err := m.Scan([]byte("xyzaaabcxyz"))
+	s, err := m.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte("xyzaaabcxyz"), s)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -232,7 +244,11 @@ func TestHyperscanEmptyString(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	r, err := m.Scan([]byte(""))
+	s, err := m.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte(""), s)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
