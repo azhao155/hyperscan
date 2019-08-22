@@ -190,6 +190,5 @@ type mockSecRuleConfig struct {
 	ruleSetID string
 }
 
-func (c *mockSecRuleConfig) ID() string        { return "SecRuleConfig1" }
 func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return c.ruleSetID }

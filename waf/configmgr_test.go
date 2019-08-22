@@ -7,25 +7,31 @@ import (
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) ID() string { return "SecRuleConfig1" }
-
 func (c *mockSecRuleConfig) Enabled() bool { return false }
 
 func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
 
 type mockGeoDBConfig struct{}
 
-func (c *mockGeoDBConfig) ID() string { return "GeoDbConfig1" }
-
 func (c *mockGeoDBConfig) Enabled() bool { return true }
+
+type mockPolicyConfig struct{}
+
+func (c *mockPolicyConfig) ConfigID() string { return "waf policy 1" }
+
+func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig { return &mockSecRuleConfig{} }
+
+func (c *mockPolicyConfig) GeoDBConfig() GeoDBConfig { return &mockGeoDBConfig{} }
+
+func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return nil }
 
 type mockConfig struct{}
 
-func (c *mockConfig) SecRuleConfigs() []SecRuleConfig { return []SecRuleConfig{&mockSecRuleConfig{}} }
+func (c *mockConfig) ConfigVersion() int32 { return 0 }
 
-func (c *mockConfig) GeoDBConfigs() []GeoDBConfig { return []GeoDBConfig{&mockGeoDBConfig{}} }
-
-func (c *mockConfig) IPReputationConfigs() []IPReputationConfig { return []IPReputationConfig{} }
+func (c *mockConfig) PolicyConfigs() []PolicyConfig {
+	return []PolicyConfig{&mockPolicyConfig{}}
+}
 
 type mockConfigConverter struct{}
 
@@ -95,31 +101,27 @@ func TestPutConfig(t *testing.T) {
 		t.Fatalf("PutConfig restore wrong config")
 	}
 
-	secRules := m[0].SecRuleConfigs()
+	policyConfig := m[0].PolicyConfigs()
 
-	if len(secRules) != 1 {
+	if len(policyConfig) != 1 {
 		t.Fatalf("PutConfig has wrong number of SecRule config")
 	}
 
-	if secRules[0].ID() != "SecRuleConfig1" {
-		t.Fatalf("PutConfig SecRule has wrong id")
+	if policyConfig[0].ConfigID() != "waf policy 1" {
+		t.Fatalf("PutConfig PolicyConfig has wrong id")
 	}
 
-	if secRules[0].Enabled() != false {
+	secRule := policyConfig[0].SecRuleConfig()
+	if secRule.Enabled() != false {
 		t.Fatalf("PutConfig SecRule has wrong Enabled field")
 	}
 
-	geoDBs := m[0].GeoDBConfigs()
-
-	if len(geoDBs) != 1 {
-		t.Fatalf("PutConfig has wrong number of GeoDB config")
+	if secRule.RuleSetID() != "OWASP CRS 3.0" {
+		t.Fatalf("PutConfig SecRule has wrong RuleSetID field")
 	}
 
-	if geoDBs[0].ID() != "GeoDbConfig1" {
-		t.Fatalf("PutConfig GeoDB has wrong id")
-	}
-
-	if geoDBs[0].Enabled() != true {
+	geoDB := policyConfig[0].GeoDBConfig()
+	if geoDB.Enabled() != true {
 		t.Fatalf("PutConfig GeoDB has wrong Enabled field")
 	}
 }
@@ -133,10 +135,18 @@ func TestDisposeConfig(t *testing.T) {
 	c, _, _ := NewConfigMgr(ms, cc)
 	config := mockConfig{}
 	c.PutConfig(&config)
-	c.DisposeConfig(0)
+	s, _ := c.DisposeConfig(0)
+
+	if len(s) != 1 {
+		t.Fatalf("DisposeConfig return wrong number of config")
+	}
+
+	if s[0] != "waf policy 1" {
+		t.Fatalf("DisposeConfig return wrong config")
+	}
 
 	c, m, _ := NewConfigMgr(ms, cc)
 	if len(m) != 0 {
-		t.Fatalf("PutConfig restore wrong config")
+		t.Fatalf("DisposeConfig return wrong number of config")
 	}
 }

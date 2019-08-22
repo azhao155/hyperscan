@@ -35,7 +35,7 @@ func (m *HeaderPair) Reset()         { *m = HeaderPair{} }
 func (m *HeaderPair) String() string { return proto.CompactTextString(m) }
 func (*HeaderPair) ProtoMessage()    {}
 func (*HeaderPair) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{0}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{0}
 }
 func (m *HeaderPair) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeaderPair.Unmarshal(m, b)
@@ -83,7 +83,7 @@ func (m *WafHttpRequest) Reset()         { *m = WafHttpRequest{} }
 func (m *WafHttpRequest) String() string { return proto.CompactTextString(m) }
 func (*WafHttpRequest) ProtoMessage()    {}
 func (*WafHttpRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{1}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{1}
 }
 func (m *WafHttpRequest) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WafHttpRequest.Unmarshal(m, b)
@@ -215,7 +215,7 @@ func _WafHttpRequest_OneofSizer(msg proto.Message) (n int) {
 }
 
 type HeadersAndFirstChunk struct {
-	SecRuleConfigID      string        `protobuf:"bytes,7,opt,name=secRuleConfigID,proto3" json:"secRuleConfigID,omitempty"`
+	ConfigID             string        `protobuf:"bytes,7,opt,name=configID,proto3" json:"configID,omitempty"`
 	Method               string        `protobuf:"bytes,1,opt,name=method,proto3" json:"method,omitempty"`
 	Uri                  string        `protobuf:"bytes,2,opt,name=uri,proto3" json:"uri,omitempty"`
 	Headers              []*HeaderPair `protobuf:"bytes,3,rep,name=headers,proto3" json:"headers,omitempty"`
@@ -230,7 +230,7 @@ func (m *HeadersAndFirstChunk) Reset()         { *m = HeadersAndFirstChunk{} }
 func (m *HeadersAndFirstChunk) String() string { return proto.CompactTextString(m) }
 func (*HeadersAndFirstChunk) ProtoMessage()    {}
 func (*HeadersAndFirstChunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{2}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{2}
 }
 func (m *HeadersAndFirstChunk) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_HeadersAndFirstChunk.Unmarshal(m, b)
@@ -250,9 +250,9 @@ func (m *HeadersAndFirstChunk) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_HeadersAndFirstChunk proto.InternalMessageInfo
 
-func (m *HeadersAndFirstChunk) GetSecRuleConfigID() string {
+func (m *HeadersAndFirstChunk) GetConfigID() string {
 	if m != nil {
-		return m.SecRuleConfigID
+		return m.ConfigID
 	}
 	return ""
 }
@@ -304,7 +304,7 @@ func (m *NextBodyChunk) Reset()         { *m = NextBodyChunk{} }
 func (m *NextBodyChunk) String() string { return proto.CompactTextString(m) }
 func (*NextBodyChunk) ProtoMessage()    {}
 func (*NextBodyChunk) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{3}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{3}
 }
 func (m *NextBodyChunk) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_NextBodyChunk.Unmarshal(m, b)
@@ -349,7 +349,7 @@ func (m *WafDecision) Reset()         { *m = WafDecision{} }
 func (m *WafDecision) String() string { return proto.CompactTextString(m) }
 func (*WafDecision) ProtoMessage()    {}
 func (*WafDecision) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{4}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{4}
 }
 func (m *WafDecision) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WafDecision.Unmarshal(m, b)
@@ -377,19 +377,18 @@ func (m *WafDecision) GetAllow() bool {
 }
 
 type WAFConfig struct {
-	SecRuleConfigs       []*SecRuleConfig      `protobuf:"bytes,1,rep,name=secRuleConfigs,proto3" json:"secRuleConfigs,omitempty"`
-	GeoDBConfigs         []*GeoDBConfig        `protobuf:"bytes,2,rep,name=geoDBConfigs,proto3" json:"geoDBConfigs,omitempty"`
-	IpReputationConfigs  []*IPReputationConfig `protobuf:"bytes,3,rep,name=ipReputationConfigs,proto3" json:"ipReputationConfigs,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
-	XXX_unrecognized     []byte                `json:"-"`
-	XXX_sizecache        int32                 `json:"-"`
+	ConfigVersion        int32           `protobuf:"varint,1,opt,name=configVersion,proto3" json:"configVersion,omitempty"`
+	PolicyConfigs        []*PolicyConfig `protobuf:"bytes,2,rep,name=policyConfigs,proto3" json:"policyConfigs,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}        `json:"-"`
+	XXX_unrecognized     []byte          `json:"-"`
+	XXX_sizecache        int32           `json:"-"`
 }
 
 func (m *WAFConfig) Reset()         { *m = WAFConfig{} }
 func (m *WAFConfig) String() string { return proto.CompactTextString(m) }
 func (*WAFConfig) ProtoMessage()    {}
 func (*WAFConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{5}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{5}
 }
 func (m *WAFConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_WAFConfig.Unmarshal(m, b)
@@ -409,31 +408,85 @@ func (m *WAFConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_WAFConfig proto.InternalMessageInfo
 
-func (m *WAFConfig) GetSecRuleConfigs() []*SecRuleConfig {
+func (m *WAFConfig) GetConfigVersion() int32 {
 	if m != nil {
-		return m.SecRuleConfigs
+		return m.ConfigVersion
+	}
+	return 0
+}
+
+func (m *WAFConfig) GetPolicyConfigs() []*PolicyConfig {
+	if m != nil {
+		return m.PolicyConfigs
 	}
 	return nil
 }
 
-func (m *WAFConfig) GetGeoDBConfigs() []*GeoDBConfig {
+type PolicyConfig struct {
+	ConfigID             string              `protobuf:"bytes,1,opt,name=configID,proto3" json:"configID,omitempty"`
+	SecRuleConfig        *SecRuleConfig      `protobuf:"bytes,2,opt,name=secRuleConfig,proto3" json:"secRuleConfig,omitempty"`
+	GeoDBConfig          *GeoDBConfig        `protobuf:"bytes,3,opt,name=geoDBConfig,proto3" json:"geoDBConfig,omitempty"`
+	IpReputationConfig   *IPReputationConfig `protobuf:"bytes,4,opt,name=ipReputationConfig,proto3" json:"ipReputationConfig,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}            `json:"-"`
+	XXX_unrecognized     []byte              `json:"-"`
+	XXX_sizecache        int32               `json:"-"`
+}
+
+func (m *PolicyConfig) Reset()         { *m = PolicyConfig{} }
+func (m *PolicyConfig) String() string { return proto.CompactTextString(m) }
+func (*PolicyConfig) ProtoMessage()    {}
+func (*PolicyConfig) Descriptor() ([]byte, []int) {
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{6}
+}
+func (m *PolicyConfig) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PolicyConfig.Unmarshal(m, b)
+}
+func (m *PolicyConfig) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PolicyConfig.Marshal(b, m, deterministic)
+}
+func (dst *PolicyConfig) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolicyConfig.Merge(dst, src)
+}
+func (m *PolicyConfig) XXX_Size() int {
+	return xxx_messageInfo_PolicyConfig.Size(m)
+}
+func (m *PolicyConfig) XXX_DiscardUnknown() {
+	xxx_messageInfo_PolicyConfig.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PolicyConfig proto.InternalMessageInfo
+
+func (m *PolicyConfig) GetConfigID() string {
 	if m != nil {
-		return m.GeoDBConfigs
+		return m.ConfigID
+	}
+	return ""
+}
+
+func (m *PolicyConfig) GetSecRuleConfig() *SecRuleConfig {
+	if m != nil {
+		return m.SecRuleConfig
 	}
 	return nil
 }
 
-func (m *WAFConfig) GetIpReputationConfigs() []*IPReputationConfig {
+func (m *PolicyConfig) GetGeoDBConfig() *GeoDBConfig {
 	if m != nil {
-		return m.IpReputationConfigs
+		return m.GeoDBConfig
+	}
+	return nil
+}
+
+func (m *PolicyConfig) GetIpReputationConfig() *IPReputationConfig {
+	if m != nil {
+		return m.IpReputationConfig
 	}
 	return nil
 }
 
 type SecRuleConfig struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Enabled              bool     `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	RuleSetId            string   `protobuf:"bytes,3,opt,name=ruleSetId,proto3" json:"ruleSetId,omitempty"`
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	RuleSetId            string   `protobuf:"bytes,2,opt,name=ruleSetId,proto3" json:"ruleSetId,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -443,7 +496,7 @@ func (m *SecRuleConfig) Reset()         { *m = SecRuleConfig{} }
 func (m *SecRuleConfig) String() string { return proto.CompactTextString(m) }
 func (*SecRuleConfig) ProtoMessage()    {}
 func (*SecRuleConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{6}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{7}
 }
 func (m *SecRuleConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_SecRuleConfig.Unmarshal(m, b)
@@ -463,13 +516,6 @@ func (m *SecRuleConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SecRuleConfig proto.InternalMessageInfo
 
-func (m *SecRuleConfig) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
 func (m *SecRuleConfig) GetEnabled() bool {
 	if m != nil {
 		return m.Enabled
@@ -485,8 +531,7 @@ func (m *SecRuleConfig) GetRuleSetId() string {
 }
 
 type GeoDBConfig struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Enabled              bool     `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -496,7 +541,7 @@ func (m *GeoDBConfig) Reset()         { *m = GeoDBConfig{} }
 func (m *GeoDBConfig) String() string { return proto.CompactTextString(m) }
 func (*GeoDBConfig) ProtoMessage()    {}
 func (*GeoDBConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{7}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{8}
 }
 func (m *GeoDBConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_GeoDBConfig.Unmarshal(m, b)
@@ -516,13 +561,6 @@ func (m *GeoDBConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_GeoDBConfig proto.InternalMessageInfo
 
-func (m *GeoDBConfig) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
 func (m *GeoDBConfig) GetEnabled() bool {
 	if m != nil {
 		return m.Enabled
@@ -531,8 +569,7 @@ func (m *GeoDBConfig) GetEnabled() bool {
 }
 
 type IPReputationConfig struct {
-	Id                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	Enabled              bool     `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled              bool     `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
 	XXX_sizecache        int32    `json:"-"`
@@ -542,7 +579,7 @@ func (m *IPReputationConfig) Reset()         { *m = IPReputationConfig{} }
 func (m *IPReputationConfig) String() string { return proto.CompactTextString(m) }
 func (*IPReputationConfig) ProtoMessage()    {}
 func (*IPReputationConfig) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{8}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{9}
 }
 func (m *IPReputationConfig) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_IPReputationConfig.Unmarshal(m, b)
@@ -562,13 +599,6 @@ func (m *IPReputationConfig) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_IPReputationConfig proto.InternalMessageInfo
 
-func (m *IPReputationConfig) GetId() string {
-	if m != nil {
-		return m.Id
-	}
-	return ""
-}
-
 func (m *IPReputationConfig) GetEnabled() bool {
 	if m != nil {
 		return m.Enabled
@@ -586,7 +616,7 @@ func (m *PutConfigResponse) Reset()         { *m = PutConfigResponse{} }
 func (m *PutConfigResponse) String() string { return proto.CompactTextString(m) }
 func (*PutConfigResponse) ProtoMessage()    {}
 func (*PutConfigResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_waf_30bf540cc9a1fa3f, []int{9}
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{10}
 }
 func (m *PutConfigResponse) XXX_Unmarshal(b []byte) error {
 	return xxx_messageInfo_PutConfigResponse.Unmarshal(m, b)
@@ -606,6 +636,74 @@ func (m *PutConfigResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_PutConfigResponse proto.InternalMessageInfo
 
+type WAFConfigVersion struct {
+	ConfigVersion        int32    `protobuf:"varint,1,opt,name=configVersion,proto3" json:"configVersion,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *WAFConfigVersion) Reset()         { *m = WAFConfigVersion{} }
+func (m *WAFConfigVersion) String() string { return proto.CompactTextString(m) }
+func (*WAFConfigVersion) ProtoMessage()    {}
+func (*WAFConfigVersion) Descriptor() ([]byte, []int) {
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{11}
+}
+func (m *WAFConfigVersion) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_WAFConfigVersion.Unmarshal(m, b)
+}
+func (m *WAFConfigVersion) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_WAFConfigVersion.Marshal(b, m, deterministic)
+}
+func (dst *WAFConfigVersion) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_WAFConfigVersion.Merge(dst, src)
+}
+func (m *WAFConfigVersion) XXX_Size() int {
+	return xxx_messageInfo_WAFConfigVersion.Size(m)
+}
+func (m *WAFConfigVersion) XXX_DiscardUnknown() {
+	xxx_messageInfo_WAFConfigVersion.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_WAFConfigVersion proto.InternalMessageInfo
+
+func (m *WAFConfigVersion) GetConfigVersion() int32 {
+	if m != nil {
+		return m.ConfigVersion
+	}
+	return 0
+}
+
+type DisPoseConfigResponse struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DisPoseConfigResponse) Reset()         { *m = DisPoseConfigResponse{} }
+func (m *DisPoseConfigResponse) String() string { return proto.CompactTextString(m) }
+func (*DisPoseConfigResponse) ProtoMessage()    {}
+func (*DisPoseConfigResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_waf_23bda0e66b1371e8, []int{12}
+}
+func (m *DisPoseConfigResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DisPoseConfigResponse.Unmarshal(m, b)
+}
+func (m *DisPoseConfigResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DisPoseConfigResponse.Marshal(b, m, deterministic)
+}
+func (dst *DisPoseConfigResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DisPoseConfigResponse.Merge(dst, src)
+}
+func (m *DisPoseConfigResponse) XXX_Size() int {
+	return xxx_messageInfo_DisPoseConfigResponse.Size(m)
+}
+func (m *DisPoseConfigResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_DisPoseConfigResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DisPoseConfigResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*HeaderPair)(nil), "wafservice.HeaderPair")
 	proto.RegisterType((*WafHttpRequest)(nil), "wafservice.WafHttpRequest")
@@ -613,10 +711,13 @@ func init() {
 	proto.RegisterType((*NextBodyChunk)(nil), "wafservice.NextBodyChunk")
 	proto.RegisterType((*WafDecision)(nil), "wafservice.WafDecision")
 	proto.RegisterType((*WAFConfig)(nil), "wafservice.WAFConfig")
+	proto.RegisterType((*PolicyConfig)(nil), "wafservice.PolicyConfig")
 	proto.RegisterType((*SecRuleConfig)(nil), "wafservice.SecRuleConfig")
 	proto.RegisterType((*GeoDBConfig)(nil), "wafservice.GeoDBConfig")
 	proto.RegisterType((*IPReputationConfig)(nil), "wafservice.IPReputationConfig")
 	proto.RegisterType((*PutConfigResponse)(nil), "wafservice.PutConfigResponse")
+	proto.RegisterType((*WAFConfigVersion)(nil), "wafservice.WAFConfigVersion")
+	proto.RegisterType((*DisPoseConfigResponse)(nil), "wafservice.DisPoseConfigResponse")
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -633,6 +734,7 @@ const _ = grpc.SupportPackageIsVersion4
 type WafServiceClient interface {
 	EvalRequest(ctx context.Context, opts ...grpc.CallOption) (WafService_EvalRequestClient, error)
 	PutConfig(ctx context.Context, in *WAFConfig, opts ...grpc.CallOption) (*PutConfigResponse, error)
+	DisposeConfig(ctx context.Context, in *WAFConfigVersion, opts ...grpc.CallOption) (*DisPoseConfigResponse, error)
 }
 
 type wafServiceClient struct {
@@ -686,10 +788,20 @@ func (c *wafServiceClient) PutConfig(ctx context.Context, in *WAFConfig, opts ..
 	return out, nil
 }
 
+func (c *wafServiceClient) DisposeConfig(ctx context.Context, in *WAFConfigVersion, opts ...grpc.CallOption) (*DisPoseConfigResponse, error) {
+	out := new(DisPoseConfigResponse)
+	err := c.cc.Invoke(ctx, "/wafservice.WafService/DisposeConfig", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // WafServiceServer is the server API for WafService service.
 type WafServiceServer interface {
 	EvalRequest(WafService_EvalRequestServer) error
 	PutConfig(context.Context, *WAFConfig) (*PutConfigResponse, error)
+	DisposeConfig(context.Context, *WAFConfigVersion) (*DisPoseConfigResponse, error)
 }
 
 func RegisterWafServiceServer(s *grpc.Server, srv WafServiceServer) {
@@ -740,6 +852,24 @@ func _WafService_PutConfig_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _WafService_DisposeConfig_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WAFConfigVersion)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(WafServiceServer).DisposeConfig(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/wafservice.WafService/DisposeConfig",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(WafServiceServer).DisposeConfig(ctx, req.(*WAFConfigVersion))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _WafService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "wafservice.WafService",
 	HandlerType: (*WafServiceServer)(nil),
@@ -747,6 +877,10 @@ var _WafService_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "PutConfig",
 			Handler:    _WafService_PutConfig_Handler,
+		},
+		{
+			MethodName: "DisposeConfig",
+			Handler:    _WafService_DisposeConfig_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
@@ -759,43 +893,47 @@ var _WafService_serviceDesc = grpc.ServiceDesc{
 	Metadata: "waf.proto",
 }
 
-func init() { proto.RegisterFile("waf.proto", fileDescriptor_waf_30bf540cc9a1fa3f) }
+func init() { proto.RegisterFile("waf.proto", fileDescriptor_waf_23bda0e66b1371e8) }
 
-var fileDescriptor_waf_30bf540cc9a1fa3f = []byte{
-	// 546 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x94, 0x94, 0xcf, 0x6e, 0xd3, 0x4c,
-	0x14, 0xc5, 0x63, 0xe7, 0x6b, 0x53, 0xdf, 0xb4, 0xf9, 0x60, 0x5a, 0x5a, 0x13, 0x01, 0x8a, 0x8c,
-	0x84, 0xbc, 0x8a, 0x50, 0x40, 0x62, 0x81, 0x84, 0x94, 0x3f, 0x84, 0x64, 0x83, 0xa2, 0x89, 0x20,
-	0xeb, 0x49, 0x7c, 0xdd, 0x8c, 0xea, 0x7a, 0x82, 0x3d, 0x4e, 0xe8, 0xa3, 0xf0, 0x22, 0xbc, 0x0d,
-	0x6f, 0xc0, 0x43, 0x20, 0x8f, 0xed, 0xc4, 0x76, 0xbc, 0x80, 0x9d, 0xe7, 0xf8, 0xdc, 0xdf, 0xcc,
-	0x3d, 0x73, 0x6d, 0x30, 0x76, 0xcc, 0xed, 0x6e, 0x02, 0x21, 0x05, 0x81, 0x1d, 0x73, 0x43, 0x0c,
-	0xb6, 0x7c, 0x85, 0xd6, 0x5b, 0x80, 0x09, 0x32, 0x07, 0x83, 0x19, 0xe3, 0x01, 0x79, 0x04, 0xf5,
-	0x3b, 0x7c, 0x30, 0xb5, 0x8e, 0x66, 0x1b, 0x34, 0x7e, 0x24, 0x57, 0x70, 0xb2, 0x65, 0x5e, 0x84,
-	0xa6, 0xae, 0xb4, 0x64, 0x61, 0xfd, 0xd4, 0xa0, 0xb5, 0x60, 0xee, 0x44, 0xca, 0x0d, 0xc5, 0x6f,
-	0x11, 0x86, 0x92, 0x7c, 0x85, 0xab, 0xb5, 0x02, 0x85, 0x7d, 0xdf, 0x19, 0xf3, 0x20, 0x94, 0xc3,
-	0x75, 0xe4, 0xdf, 0x29, 0x56, 0xb3, 0xd7, 0xe9, 0x1e, 0xf6, 0xec, 0x4e, 0x2a, 0x7c, 0x93, 0x1a,
-	0xad, 0xac, 0x27, 0x7d, 0xb8, 0xf0, 0xf1, 0xbb, 0x1c, 0x08, 0xe7, 0x21, 0x01, 0xea, 0x0a, 0xf8,
-	0x34, 0x0f, 0xfc, 0x9c, 0x37, 0x4c, 0x6a, 0xb4, 0x58, 0x31, 0x30, 0xa0, 0xb1, 0x12, 0xbe, 0x44,
-	0x5f, 0x5a, 0xbf, 0x35, 0xb8, 0xaa, 0xda, 0x9e, 0xd8, 0xf0, 0x7f, 0x88, 0x2b, 0x1a, 0x79, 0x38,
-	0x14, 0xbe, 0xcb, 0x6f, 0xa7, 0x23, 0xb3, 0xa1, 0x3a, 0x2e, 0xcb, 0xe4, 0x1a, 0x4e, 0xef, 0x51,
-	0xae, 0x85, 0x93, 0xc6, 0x94, 0xae, 0xe2, 0xec, 0xa2, 0x80, 0xa7, 0x39, 0xc5, 0x8f, 0xe4, 0x35,
-	0x34, 0xd2, 0x96, 0xcc, 0x7a, 0xa7, 0x6e, 0x37, 0x7b, 0xd7, 0xc7, 0x29, 0xc4, 0xb1, 0xd3, 0xcc,
-	0x46, 0x5e, 0x41, 0xcb, 0x8d, 0xcf, 0x74, 0xe8, 0xf6, 0xbf, 0x8e, 0x66, 0x9f, 0xd3, 0x92, 0x1a,
-	0xfb, 0xee, 0x45, 0x80, 0x7b, 0x21, 0x34, 0x4f, 0x3a, 0x9a, 0x7d, 0x46, 0x4b, 0xaa, 0xf5, 0x05,
-	0x2e, 0x0a, 0xd9, 0x90, 0x67, 0x60, 0x2c, 0xf7, 0x6c, 0x4d, 0xb1, 0x0f, 0x42, 0x05, 0x56, 0xaf,
-	0xc4, 0xbe, 0x84, 0xe6, 0x82, 0xb9, 0x23, 0x5c, 0xf1, 0x90, 0x0b, 0x3f, 0x9e, 0x11, 0xe6, 0x79,
-	0x62, 0xa7, 0x80, 0x67, 0x34, 0x59, 0x58, 0xbf, 0x34, 0x30, 0x16, 0xfd, 0x71, 0x92, 0x1b, 0xe9,
-	0x43, 0xab, 0x10, 0x64, 0x68, 0x6a, 0x2a, 0x92, 0xc2, 0x3d, 0xce, 0xf3, 0x0e, 0x5a, 0x2a, 0x20,
-	0xef, 0xe1, 0xfc, 0x16, 0xc5, 0x68, 0x90, 0x01, 0x74, 0x05, 0xb8, 0xc9, 0x03, 0x3e, 0x1d, 0xde,
-	0xd3, 0x82, 0x99, 0xcc, 0xe0, 0x92, 0x6f, 0x28, 0x6e, 0x22, 0xc9, 0x24, 0x17, 0x7e, 0xc6, 0x48,
-	0xee, 0xe5, 0x45, 0x9e, 0x31, 0x9d, 0x95, 0x6d, 0xb4, 0xaa, 0xd4, 0x5a, 0xc0, 0x45, 0xe1, 0xbc,
-	0xa4, 0x05, 0x3a, 0xcf, 0x86, 0x42, 0xe7, 0x0e, 0x31, 0xa1, 0x81, 0x3e, 0x5b, 0x7a, 0xe8, 0xa4,
-	0x31, 0x66, 0xcb, 0xf8, 0x16, 0x82, 0xc8, 0xc3, 0x39, 0xca, 0xa9, 0x63, 0xd6, 0x55, 0xc1, 0x41,
-	0xb0, 0xde, 0x41, 0x33, 0xd7, 0xc7, 0xdf, 0x63, 0xad, 0x0f, 0x40, 0x8e, 0x0f, 0xff, 0x0f, 0xf5,
-	0x97, 0xf0, 0x78, 0x16, 0xc9, 0xb4, 0x67, 0x0c, 0x37, 0xc2, 0x0f, 0xb1, 0xf7, 0x43, 0x03, 0x58,
-	0x30, 0x77, 0x9e, 0xa4, 0x43, 0xc6, 0xd0, 0xfc, 0xb8, 0x65, 0x5e, 0xf6, 0xd5, 0xb7, 0xf3, 0xc9,
-	0x15, 0xff, 0x08, 0xed, 0x9b, 0xd2, 0xbb, 0x6c, 0x5e, 0xac, 0x9a, 0xad, 0x91, 0x21, 0x18, 0xfb,
-	0xbd, 0xc8, 0x93, 0x82, 0x33, 0x9b, 0x99, 0xf6, 0xf3, 0xbc, 0x7c, 0x74, 0x32, 0xab, 0xb6, 0x3c,
-	0x55, 0xff, 0xb3, 0x37, 0x7f, 0x02, 0x00, 0x00, 0xff, 0xff, 0x51, 0xce, 0x67, 0xde, 0xdc, 0x04,
-	0x00, 0x00,
+var fileDescriptor_waf_23bda0e66b1371e8 = []byte{
+	// 617 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x54, 0x5d, 0x53, 0xd3, 0x40,
+	0x14, 0x6d, 0x28, 0x50, 0x7a, 0x4b, 0x18, 0x5c, 0xf9, 0x88, 0x1d, 0x74, 0xea, 0xea, 0x68, 0x9f,
+	0x3a, 0x0e, 0xfa, 0xa0, 0x2f, 0x3a, 0x40, 0x85, 0xf2, 0xc2, 0x74, 0x96, 0x91, 0x3e, 0x2f, 0xed,
+	0x0d, 0xec, 0x10, 0xb2, 0x21, 0xbb, 0x01, 0xf9, 0x63, 0xfe, 0x1c, 0xff, 0x81, 0xaf, 0x3e, 0x3b,
+	0xd9, 0xa4, 0xe9, 0xa6, 0x8d, 0x8e, 0x6f, 0xb9, 0x77, 0xcf, 0x3d, 0xb9, 0xe7, 0xec, 0x99, 0x85,
+	0xe6, 0x03, 0xf7, 0x7b, 0x51, 0x2c, 0xb5, 0x24, 0xf0, 0xc0, 0x7d, 0x85, 0xf1, 0xbd, 0x18, 0x23,
+	0xfd, 0x00, 0x30, 0x40, 0x3e, 0xc1, 0x78, 0xc8, 0x45, 0x4c, 0x36, 0xa1, 0x7e, 0x83, 0x8f, 0x9e,
+	0xd3, 0x71, 0xba, 0x4d, 0x96, 0x7e, 0x92, 0x2d, 0x58, 0xb9, 0xe7, 0x41, 0x82, 0xde, 0x92, 0xe9,
+	0x65, 0x05, 0xfd, 0xe1, 0xc0, 0xc6, 0x88, 0xfb, 0x03, 0xad, 0x23, 0x86, 0x77, 0x09, 0x2a, 0x4d,
+	0x2e, 0x60, 0xeb, 0xda, 0x10, 0xa9, 0x83, 0x70, 0x72, 0x2c, 0x62, 0xa5, 0x8f, 0xae, 0x93, 0xf0,
+	0xc6, 0x70, 0xb5, 0xf6, 0x3b, 0xbd, 0xd9, 0x3f, 0x7b, 0x83, 0x0a, 0xdc, 0xa0, 0xc6, 0x2a, 0xe7,
+	0xc9, 0x01, 0xb8, 0x21, 0x7e, 0xd7, 0x87, 0x72, 0xf2, 0x98, 0x11, 0x2e, 0x19, 0xc2, 0x67, 0x36,
+	0xe1, 0x99, 0x0d, 0x18, 0xd4, 0x58, 0x79, 0xe2, 0xb0, 0x09, 0x8d, 0xb1, 0x0c, 0x35, 0x86, 0x9a,
+	0xfe, 0x74, 0x60, 0xab, 0xea, 0xf7, 0xa4, 0x0d, 0x6b, 0x63, 0x19, 0xfa, 0xe2, 0xea, 0xb4, 0xef,
+	0x35, 0x8c, 0xd4, 0xa2, 0x26, 0x3b, 0xb0, 0x7a, 0x8b, 0xfa, 0x5a, 0x4e, 0x72, 0x63, 0xf2, 0x2a,
+	0x75, 0x2b, 0x89, 0x45, 0xee, 0x4c, 0xfa, 0x49, 0xde, 0x41, 0x23, 0x17, 0xe1, 0xd5, 0x3b, 0xf5,
+	0x6e, 0x6b, 0x7f, 0x67, 0x51, 0x77, 0x6a, 0x34, 0x9b, 0xc2, 0xc8, 0x1b, 0xd8, 0xf0, 0xd3, 0x2d,
+	0x66, 0xfa, 0x96, 0x3b, 0x4e, 0x77, 0x9d, 0xcd, 0x75, 0x53, 0xdc, 0xad, 0x8c, 0xb1, 0x68, 0x28,
+	0x6f, 0xa5, 0xe3, 0x74, 0xd7, 0xd8, 0x5c, 0x97, 0x7e, 0x03, 0xb7, 0xe4, 0x06, 0xd9, 0x83, 0xe6,
+	0x65, 0xc1, 0xed, 0x18, 0xee, 0x59, 0xa3, 0x82, 0x76, 0xa9, 0x92, 0xf6, 0x15, 0xb4, 0x46, 0xdc,
+	0xef, 0xe3, 0x58, 0x28, 0x21, 0xc3, 0x34, 0x15, 0x3c, 0x08, 0xe4, 0x83, 0x21, 0x5c, 0x63, 0x59,
+	0x41, 0xef, 0xa0, 0x39, 0x3a, 0x38, 0x3e, 0x32, 0xb6, 0x91, 0xd7, 0xe0, 0x66, 0x06, 0x5e, 0x60,
+	0x9c, 0xce, 0x18, 0xe8, 0x0a, 0x2b, 0x37, 0xc9, 0x67, 0x70, 0x23, 0x19, 0x88, 0xf1, 0x63, 0x36,
+	0x95, 0xfe, 0x3e, 0xb5, 0xcd, 0xb3, 0x6d, 0x1b, 0x5a, 0x00, 0x56, 0x86, 0xd3, 0xdf, 0x0e, 0xac,
+	0xdb, 0xe7, 0xa5, 0x7b, 0x74, 0xe6, 0xee, 0xf1, 0x0b, 0xb8, 0x0a, 0xc7, 0x2c, 0x09, 0x30, 0x03,
+	0x57, 0x45, 0xe9, 0xdc, 0x06, 0xb0, 0x32, 0x9e, 0x7c, 0x82, 0xd6, 0x15, 0xca, 0xfe, 0x61, 0x3e,
+	0x5e, 0x37, 0xe3, 0xbb, 0xf6, 0xf8, 0xc9, 0xec, 0x98, 0xd9, 0x58, 0x72, 0x06, 0x44, 0x44, 0x0c,
+	0xa3, 0x44, 0x73, 0x2d, 0x64, 0x98, 0x33, 0x2c, 0x1b, 0x86, 0x17, 0x36, 0xc3, 0xe9, 0x70, 0x1e,
+	0xc5, 0x2a, 0x26, 0xe9, 0x09, 0xb8, 0xa5, 0x55, 0x89, 0x07, 0x0d, 0x0c, 0xf9, 0x65, 0x80, 0x93,
+	0xfc, 0x52, 0xa6, 0x65, 0x9a, 0x80, 0x38, 0x09, 0xf0, 0x1c, 0xf5, 0xe9, 0x24, 0x0f, 0xeb, 0xac,
+	0x41, 0xdf, 0x42, 0xcb, 0x5a, 0xfa, 0xef, 0x34, 0xb4, 0x07, 0x64, 0x71, 0xb7, 0x7f, 0xe0, 0x9f,
+	0xc2, 0x93, 0x61, 0xa2, 0x73, 0x09, 0xa8, 0x22, 0x19, 0x2a, 0xa4, 0x1f, 0x61, 0xb3, 0x88, 0xc8,
+	0x34, 0x03, 0xff, 0x95, 0x14, 0xba, 0x0b, 0xdb, 0x7d, 0xa1, 0x86, 0x52, 0x61, 0x99, 0x72, 0xff,
+	0x97, 0x03, 0x30, 0xe2, 0xfe, 0x79, 0xe6, 0x1f, 0x39, 0x86, 0xd6, 0xd7, 0x7b, 0x1e, 0x4c, 0x9f,
+	0xa5, 0xb6, 0xed, 0x6d, 0xf9, 0xc9, 0x6a, 0xef, 0xce, 0x9d, 0x4d, 0xe3, 0x4d, 0x6b, 0x5d, 0x87,
+	0x1c, 0x41, 0xb3, 0x58, 0x9f, 0x6c, 0x97, 0x90, 0x53, 0x01, 0xed, 0xe7, 0xa5, 0x98, 0x2e, 0x88,
+	0xad, 0x11, 0x06, 0x6e, 0x5f, 0xa8, 0xa8, 0x58, 0x9a, 0xec, 0x55, 0x12, 0xe5, 0x1a, 0xdb, 0x2f,
+	0xed, 0xd3, 0x4a, 0xb5, 0xb4, 0x76, 0xb9, 0x6a, 0x1e, 0xf1, 0xf7, 0x7f, 0x02, 0x00, 0x00, 0xff,
+	0xff, 0x48, 0x7f, 0x1c, 0xac, 0xd1, 0x05, 0x00, 0x00,
 }

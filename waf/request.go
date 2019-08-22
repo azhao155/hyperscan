@@ -10,7 +10,7 @@ type HeaderPair interface {
 
 // HTTPRequest represents an HTTP request to be evaluated by the WAF.
 type HTTPRequest interface {
-	SecRuleConfigID() string
+	ConfigID() string
 	Method() string
 	URI() string
 	Headers() []HeaderPair

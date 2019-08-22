@@ -159,5 +159,5 @@ type mockWafHTTPRequest struct {
 func (r *mockWafHTTPRequest) Method() string            { return "GET" }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
-func (r *mockWafHTTPRequest) SecRuleConfigID() string   { return "SecRuleConfig1" }
+func (r *mockWafHTTPRequest) ConfigID() string          { return "SecRuleConfig1" }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }

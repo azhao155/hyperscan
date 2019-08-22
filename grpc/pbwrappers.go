@@ -26,7 +26,7 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 
 // TODO once protobuf has config id, need to be implemented
-func (r *wafHTTPRequestPbWrapper) SecRuleConfigID() string { return r.pb.SecRuleConfigID }
+func (r *wafHTTPRequestPbWrapper) ConfigID() string { return r.pb.ConfigID }
 
 type headerPairPbWrapper struct{ pb *pb.HeaderPair }
 
@@ -41,42 +41,41 @@ func (r *wafHTTPRequestPbWrapperBodyReader) Read(p []byte) (n int, err error) { 
 
 type secRuleConfigImpl struct{ pb *pb.SecRuleConfig }
 
-func (c *secRuleConfigImpl) ID() string        { return c.pb.Id }
 func (c *secRuleConfigImpl) Enabled() bool     { return c.pb.Enabled }
 func (c *secRuleConfigImpl) RuleSetID() string { return c.pb.RuleSetId }
 
 type geoDbConfigImpl struct{ pb *pb.GeoDBConfig }
 
-func (c *geoDbConfigImpl) ID() string    { return c.pb.Id }
 func (c *geoDbConfigImpl) Enabled() bool { return c.pb.Enabled }
 
 type ipReputationConfigImpl struct{ pb *pb.IPReputationConfig }
 
-func (c *ipReputationConfigImpl) ID() string    { return c.pb.Id }
 func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
+
+type policyConfigWrapper struct{ pb *pb.PolicyConfig }
+
+func (c *policyConfigWrapper) ConfigID() string { return c.pb.ConfigID }
+
+func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
+	return &secRuleConfigImpl{pb: c.pb.SecRuleConfig}
+}
+
+func (c *policyConfigWrapper) GeoDBConfig() waf.GeoDBConfig {
+	return &geoDbConfigImpl{pb: c.pb.GeoDBConfig}
+}
+
+func (c *policyConfigWrapper) IPReputationConfig() waf.IPReputationConfig {
+	return &ipReputationConfigImpl{pb: c.pb.IpReputationConfig}
+}
 
 type configPbWrapper struct{ pb *pb.WAFConfig }
 
-func (c *configPbWrapper) SecRuleConfigs() []waf.SecRuleConfig {
-	ss := make([]waf.SecRuleConfig, 0)
-	for _, p := range c.pb.SecRuleConfigs {
-		ss = append(ss, &secRuleConfigImpl{pb: p})
-	}
-	return ss
-}
+func (c *configPbWrapper) ConfigVersion() int32 { return c.pb.ConfigVersion }
 
-func (c *configPbWrapper) GeoDBConfigs() []waf.GeoDBConfig {
-	ss := make([]waf.GeoDBConfig, 0)
-	for _, p := range c.pb.GeoDBConfigs {
-		ss = append(ss, &geoDbConfigImpl{pb: p})
-	}
-	return ss
-}
-
-func (c *configPbWrapper) IPReputationConfigs() []waf.IPReputationConfig {
-	ss := make([]waf.IPReputationConfig, 0)
-	for _, p := range c.pb.IpReputationConfigs {
-		ss = append(ss, &ipReputationConfigImpl{pb: p})
+func (c *configPbWrapper) PolicyConfigs() []waf.PolicyConfig {
+	ss := make([]waf.PolicyConfig, 0)
+	for _, p := range c.pb.PolicyConfigs {
+		ss = append(ss, &policyConfigWrapper{pb: p})
 	}
 	return ss
 }

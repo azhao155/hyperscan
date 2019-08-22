@@ -15,14 +15,14 @@ const prefix = "AzWAFConfig"
 // ConfigMgr is the top level configuration management interface to AzWaf.
 type ConfigMgr interface {
 	PutConfig(c Config) error
-	DisposeConfig(int) error
+	DisposeConfig(int) ([]string, error)
 }
 
 type configMgrImpl struct {
-	curVersion int
-	fileSystem ConfigFileSystem
-	converter  ConfigConverter
-	mux        sync.Mutex
+	fileSystem  ConfigFileSystem
+	converter   ConfigConverter
+	mux         sync.Mutex
+	configIDMap map[int][]string
 }
 
 // NewConfigMgr create a configuration manager instance.
@@ -31,6 +31,7 @@ func NewConfigMgr(fileSystem ConfigFileSystem, converter ConfigConverter) (Confi
 
 	c.fileSystem = fileSystem
 	c.converter = converter
+	c.configIDMap = make(map[int][]string)
 
 	err := c.fileSystem.MkDir(Path)
 	if err != nil {
@@ -55,40 +56,53 @@ func (c *configMgrImpl) PutConfig(config Config) error {
 		return err
 	}
 
-	err = c.fileSystem.WriteFile(Path+prefix+strconv.Itoa(c.curVersion), str)
+	version := int(config.ConfigVersion())
+
+	err = c.fileSystem.WriteFile(Path+prefix+strconv.Itoa(version), str)
 	if err != nil {
 		return err
 	}
 
-	c.curVersion++
+	c.configIDMap[version] = make([]string, 0)
+
+	for _, config := range config.PolicyConfigs() {
+		c.configIDMap[version] = append(c.configIDMap[version], config.ConfigID())
+	}
+
 	return nil
 }
 
-func (c *configMgrImpl) DisposeConfig(version int) error {
+func (c *configMgrImpl) DisposeConfig(version int) ([]string, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
+
+	ids, ok := c.configIDMap[version]
+
+	if !ok {
+		return nil, fmt.Errorf("Version %v not existing, can't dispose", version)
+	}
+
+	delete(c.configIDMap, version)
 
 	err := c.fileSystem.RemoveFile(Path + prefix + strconv.Itoa(version))
 
 	if err != nil {
-		return fmt.Errorf("Delete file: %v has error: %v", version, err)
+		return nil, fmt.Errorf("Delete file: %v has error: %v", version, err)
 	}
 
-	return nil
+	return ids, nil
 }
 
 func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 
-	c.curVersion = 0
 	m := make(map[int]Config)
 	files, err := c.fileSystem.ReadDir(Path)
 	if err != nil {
 		return m, err
 	}
 
-	var found = false
 	for _, f := range files {
 		if !strings.HasPrefix(f, prefix) {
 			continue
@@ -109,21 +123,14 @@ func (c *configMgrImpl) restoreConfig() (map[int]Config, error) {
 			return m, fmt.Errorf("Processing file %v has error: %v", f, err)
 		}
 
-		found = true
-		c.curVersion = max(c.curVersion, v)
 		m[v] = wafConfig
-	}
 
-	if found {
-		c.curVersion++
+		c.configIDMap[v] = make([]string, 0)
+
+		for _, config := range wafConfig.PolicyConfigs() {
+			c.configIDMap[v] = append(c.configIDMap[v], config.ConfigID())
+		}
 	}
 
 	return m, nil
-}
-
-func max(x, y int) int {
-	if x < y {
-		return y
-	}
-	return x
 }

@@ -3,8 +3,9 @@ package secrule
 import (
 	"azwaf/testutils"
 	"azwaf/waf"
-	"github.com/rs/zerolog"
 	"testing"
+
+	"github.com/rs/zerolog"
 )
 
 func TestSecRuleEngineEvalRequest(t *testing.T) {
@@ -37,7 +38,6 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) ID() string        { return "SecRuleConfig1" }
 func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
 

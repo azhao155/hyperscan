@@ -5,6 +5,7 @@ package wafservice;
 service WafService {
   rpc EvalRequest (stream WafHttpRequest) returns (WafDecision) {}
   rpc PutConfig (WAFConfig) returns (PutConfigResponse) {}
+  rpc DisposeConfig (WAFConfigVersion) returns (DisPoseConfigResponse) {}
 }
 
 message HeaderPair {
@@ -20,7 +21,7 @@ message WafHttpRequest {
 }
 
 message HeadersAndFirstChunk {
-  string secRuleConfigID = 7;
+  string configID = 7;
   string method = 1;
   string uri = 2;
   repeated HeaderPair headers = 3;
@@ -39,26 +40,36 @@ message WafDecision {
 }
 
 message WAFConfig {
-  repeated SecRuleConfig secRuleConfigs = 1;
-  repeated GeoDBConfig geoDBConfigs = 2;
-  repeated IPReputationConfig ipReputationConfigs = 3;
+  int32 configVersion = 1;
+  repeated PolicyConfig policyConfigs = 2;
+}
+
+message PolicyConfig {
+  string configID = 1;
+  SecRuleConfig secRuleConfig = 2;
+  GeoDBConfig geoDBConfig = 3;
+  IPReputationConfig ipReputationConfig = 4;
 }
 
 message SecRuleConfig { 
-  string id = 1;
-  bool enabled = 2;
-  string ruleSetId = 3;
+  bool enabled = 1;
+  string ruleSetId = 2;
 }
 
 message GeoDBConfig { 
-  string id = 1;
-  bool enabled = 2; 
+  bool enabled = 1;
 }
 
 message IPReputationConfig { 
-  string id = 1;
-  bool enabled = 2; 
+  bool enabled = 1;
 }
 
 message PutConfigResponse { 
+}
+
+message WAFConfigVersion {
+  int32 configVersion = 1;
+}
+
+message DisPoseConfigResponse {
 }

@@ -6,18 +6,23 @@ import (
 )
 
 var wrapperTestConfig1 = pb.SecRuleConfig{
-	Id:      "SecRuleConfig123",
-	Enabled: false,
+	Enabled:   false,
+	RuleSetId: "abc",
 }
 
 var wrapperTestConfig2 = pb.GeoDBConfig{
-	Id:      "GeoDbConfig345",
 	Enabled: true,
 }
 
+var policyConfig = pb.PolicyConfig{
+	ConfigID:      "wafPolicy1",
+	SecRuleConfig: &wrapperTestConfig1,
+	GeoDBConfig:   &wrapperTestConfig2,
+}
+
 var wafConfigs = pb.WAFConfig{
-	SecRuleConfigs: []*pb.SecRuleConfig{&wrapperTestConfig1},
-	GeoDBConfigs:   []*pb.GeoDBConfig{&wrapperTestConfig2},
+	ConfigVersion: 1,
+	PolicyConfigs: []*pb.PolicyConfig{&policyConfig},
 }
 
 func TestConfigsConversion(t *testing.T) {
@@ -27,31 +32,23 @@ func TestConfigsConversion(t *testing.T) {
 
 	config2, _ := cc.DeserializeFromJSON(str)
 
-	secRules := config2.SecRuleConfigs()
+	locConfig := config2.PolicyConfigs()
 
-	if len(secRules) != 1 {
-		t.Fatalf("TestConfigsConversion has wrong number of SecRule config")
+	if len(locConfig) != 1 {
+		t.Fatalf("TestConfigsConversion has wrong number of Location config")
 	}
 
-	if secRules[0].ID() != wrapperTestConfig1.Id {
+	secRule := locConfig[0].SecRuleConfig()
+	if secRule.RuleSetID() != wrapperTestConfig1.RuleSetId {
 		t.Fatalf("TestConfigsConversion SecRule has wrong id")
 	}
 
-	if secRules[0].Enabled() != wrapperTestConfig1.Enabled {
+	if secRule.Enabled() != wrapperTestConfig1.Enabled {
 		t.Fatalf("TestConfigsConversion SecRule has wrong Enabled field")
 	}
 
-	geoDBs := config2.GeoDBConfigs()
-
-	if len(geoDBs) != 1 {
-		t.Fatalf("TestConfigsConversion has wrong number of GeoDB config")
-	}
-
-	if geoDBs[0].ID() != wrapperTestConfig2.Id {
-		t.Fatalf("TestConfigsConversion GeoDB has wrong id")
-	}
-
-	if geoDBs[0].Enabled() != wrapperTestConfig2.Enabled {
+	geoDB := locConfig[0].GeoDBConfig()
+	if geoDB.Enabled() != wrapperTestConfig2.Enabled {
 		t.Fatalf("TestConfigsConversion GeoDB has wrong Enabled field")
 	}
 }

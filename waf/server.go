@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"sort"
 	"time"
+
 	"github.com/rs/zerolog"
 )
 
@@ -12,26 +13,27 @@ import (
 type Server interface {
 	EvalRequest(HTTPRequest) (allow bool, err error)
 	PutConfig(Config) error
+	DisposeConfig(int) error
 }
 
 type serverImpl struct {
-	logger               zerolog.Logger
-	configMgr            ConfigMgr
-	secRuleEngines       map[string]SecRuleEngine
-	secRuleEngineFactory SecRuleEngineFactory
-	requestBodyParser    RequestBodyParser
-	resultsLogger        ResultsLogger
+	logger                  zerolog.Logger
+	configMgr               ConfigMgr
+	secRuleEngines          map[string]SecRuleEngine
+	secRuleEngineFactory    SecRuleEngineFactory
+	requestBodyParser       RequestBodyParser
+	resultsLogger           ResultsLogger
 	customRuleEngineFactory CustomRuleEngineFactory
 }
 
 // NewServer creates a new top level AzWaf.
 func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory) (server Server, err error) {
 	s := &serverImpl{
-		logger:               logger,
-		configMgr:            cm,
-		secRuleEngineFactory: sref,
-		requestBodyParser:    rbp,
-		resultsLogger:        rl,
+		logger:                  logger,
+		configMgr:               cm,
+		secRuleEngineFactory:    sref,
+		requestBodyParser:       rbp,
+		resultsLogger:           rl,
 		customRuleEngineFactory: cref,
 	}
 
@@ -70,50 +72,54 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 		}()
 	}
 
-	secRuleConfigID := req.SecRuleConfigID()
+	configID := req.ConfigID()
 
 	// TODO consider if this should be removed once config management is fully functional e2e
-	if secRuleConfigID == "" {
-		secRuleConfigID = "default"
+	if configID == "" {
+		configID = "default"
 	}
 
-	if _, ok := s.secRuleEngines[secRuleConfigID]; !ok {
-		err = fmt.Errorf("request specified an unknown secRuleConfigID: %v", secRuleConfigID)
+	// TODO Also need to check id in other Engine map,
+	// if id not in any engine map, return error
+	_, secRuleOk := s.secRuleEngines[configID]
+	if !secRuleOk {
+		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
 		return
 	}
 
-	// TODO add other engine
+	if secRuleOk {
+		secRuleEvaluation := s.secRuleEngines[configID].NewEvaluation(logger, req)
+		defer secRuleEvaluation.Close()
 
-	secRuleEvaluation := s.secRuleEngines[secRuleConfigID].NewEvaluation(logger, req)
-	defer secRuleEvaluation.Close()
-
-	err = secRuleEvaluation.ScanHeaders()
-	if err != nil {
-		return
-	}
-
-	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
-		err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
-		// TODO add other engines who also need to do body scanning here
-		return
-	})
-	if err != nil {
-		lengthLimits := s.requestBodyParser.LengthLimits()
-		if err == ErrFieldBytesLimitExceeded {
-			s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
-		} else if err == ErrPausableBytesLimitExceeded {
-			s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
-		} else if err == ErrTotalBytesLimitExceeded {
-			s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
-		} else {
-			s.resultsLogger.BodyParseError(req, err)
+		err = secRuleEvaluation.ScanHeaders()
+		if err != nil {
+			return
 		}
 
-		allow = false
-		return
-	}
+		err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
+			err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+			// TODO add other engines who also need to do body scanning here
+			return
+		})
+		if err != nil {
+			lengthLimits := s.requestBodyParser.LengthLimits()
+			if err == ErrFieldBytesLimitExceeded {
+				s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
+			} else if err == ErrPausableBytesLimitExceeded {
+				s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
+			} else if err == ErrTotalBytesLimitExceeded {
+				s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
+			} else {
+				s.resultsLogger.BodyParseError(req, err)
+			}
 
-	allow = secRuleEvaluation.EvalRules()
+			allow = false
+			return
+		}
+
+		allow = secRuleEvaluation.EvalRules()
+	}
+	// TODO add other engine
 
 	return
 }
@@ -126,22 +132,56 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		}
 	}
 
-	for _, secRuleConfig := range c.SecRuleConfigs() {
+	for _, config := range c.PolicyConfigs() {
+		// Create SecRuleEngine map
 		var engine SecRuleEngine
+		secRuleConfig := config.SecRuleConfig()
+
+		if secRuleConfig == nil {
+			continue
+		}
+
 		engine, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)
 
 		if err != nil {
-			err = fmt.Errorf("failed to create SecRule engine for configID %v: %v", secRuleConfig.ID(), err)
+			err = fmt.Errorf("failed to create SecRule engine for configID %v: %v", config.ConfigID(), err)
 			return
 		}
 
-		configID := secRuleConfig.ID()
+		configID := config.ConfigID()
 
 		s.secRuleEngines[configID] = engine
 
+		// TODO add other engine
 	}
 
-	// TODO add other engine
-
 	return
+}
+
+func (s *serverImpl) DisposeConfig(version int) (err error) {
+	var ids []string
+	if s.configMgr != nil {
+		ids, err = s.configMgr.DisposeConfig(version)
+		if err != nil {
+			return
+		}
+	}
+
+	for _, id := range ids {
+		_, secRuleOk := s.secRuleEngines[id]
+		// TODO Also need to check id in other Engine map,
+		// if id not in any engine map, return error
+
+		if !secRuleOk {
+			return fmt.Errorf("configID %v not valid, can't delete", id)
+		}
+
+		if secRuleOk {
+			delete(s.secRuleEngines, id)
+		}
+
+		// TODO add other engine
+	}
+
+	return nil
 }

@@ -2,7 +2,6 @@ package waf
 
 // SecRuleConfig is SecRule Engine config
 type SecRuleConfig interface {
-	ID() string
 	Enabled() bool
 	RuleSetID() string
 }
@@ -13,21 +12,26 @@ type CustomRuleConfig interface {
 
 // GeoDBConfig is GeoDB Engine config
 type GeoDBConfig interface {
-	ID() string
 	Enabled() bool
 }
 
 // IPReputationConfig is IPReputation Engine config
 type IPReputationConfig interface {
-	ID() string
 	Enabled() bool
+}
+
+// PolicyConfig is config defined for each location
+type PolicyConfig interface {
+	ConfigID() string
+	SecRuleConfig() SecRuleConfig
+	GeoDBConfig() GeoDBConfig
+	IPReputationConfig() IPReputationConfig
 }
 
 // Config is the top level configuration object
 type Config interface {
-	SecRuleConfigs() []SecRuleConfig
-	GeoDBConfigs() []GeoDBConfig
-	IPReputationConfigs() []IPReputationConfig
+	ConfigVersion() int32
+	PolicyConfigs() []PolicyConfig
 }
 
 // ConfigConverter convert Config to/from JSON string

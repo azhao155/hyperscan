@@ -187,12 +187,12 @@ func (m *mockSecRuleEngineFactory) NewEngine(c SecRuleConfig) (engine SecRuleEng
 
 type mockWafHTTPRequest struct{}
 
-func (r *mockWafHTTPRequest) Method() string          { return "GET" }
-func (r *mockWafHTTPRequest) URI() string             { return "/hello.php?arg1=aaaaaaabccc" }
-func (r *mockWafHTTPRequest) Headers() []HeaderPair   { return nil }
-func (r *mockWafHTTPRequest) SecRuleConfigID() string { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) Version() int64          { return 0 }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader   { return &bytes.Buffer{} }
+func (r *mockWafHTTPRequest) Method() string        { return "GET" }
+func (r *mockWafHTTPRequest) URI() string           { return "/hello.php?arg1=aaaaaaabccc" }
+func (r *mockWafHTTPRequest) Headers() []HeaderPair { return nil }
+func (r *mockWafHTTPRequest) ConfigID() string      { return "waf policy 1" }
+func (r *mockWafHTTPRequest) Version() int64        { return 0 }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader { return &bytes.Buffer{} }
 
 type mockResultsLogger struct {
 	fieldBytesLimitExceededCalled    int
@@ -215,16 +215,26 @@ func (r *mockResultsLogger) BodyParseError(request HTTPRequest, err error) {
 }
 
 type mockConfigMgr struct {
-	putConfigCalled int
+	configMap map[int][]string
 }
 
 func (m *mockConfigMgr) PutConfig(c Config) error {
-	m.putConfigCalled++
+	if m.configMap == nil {
+		m.configMap = make(map[int][]string)
+	}
+
+	v := int(c.ConfigVersion())
+	m.configMap[v] = make([]string, 0)
+
+	for _, l := range c.PolicyConfigs() {
+		m.configMap[v] = append(m.configMap[v], l.ConfigID())
+	}
+
 	return nil
 }
 
-func (m *mockConfigMgr) DisposeConfig(int) error {
-	return nil
+func (m *mockConfigMgr) DisposeConfig(version int) ([]string, error) {
+	return m.configMap[version], nil
 }
 
 type mockCustomRuleEngine struct {

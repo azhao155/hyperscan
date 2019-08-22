@@ -23,19 +23,26 @@ import (
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) ID() string        { return "default" }
 func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "default" }
 
+type mockPolicyConfig struct{}
+
+func (c *mockPolicyConfig) ConfigID() string { return "default" }
+
+func (c *mockPolicyConfig) SecRuleConfig() waf.SecRuleConfig { return &mockSecRuleConfig{} }
+
+func (c *mockPolicyConfig) GeoDBConfig() waf.GeoDBConfig { return nil }
+
+func (c *mockPolicyConfig) IPReputationConfig() waf.IPReputationConfig { return nil }
+
 type mockConfig struct{}
 
-func (c *mockConfig) SecRuleConfigs() []waf.SecRuleConfig {
-	return []waf.SecRuleConfig{&mockSecRuleConfig{}}
+func (c *mockConfig) ConfigVersion() int32 { return 0 }
+
+func (c *mockConfig) PolicyConfigs() []waf.PolicyConfig {
+	return []waf.PolicyConfig{&mockPolicyConfig{}}
 }
-
-func (c *mockConfig) GeoDBConfigs() []waf.GeoDBConfig { return []waf.GeoDBConfig{} }
-
-func (c *mockConfig) IPReputationConfigs() []waf.IPReputationConfig { return []waf.IPReputationConfig{} }
 
 // Dependency injection composition root
 func main() {
@@ -91,7 +98,7 @@ func main() {
 	secruleResLog, wafResLog := logging.NewZerologResultsLogger(logger)
 	sref := secrule.NewEngineFactory(logger, rl, rsf, re, secruleResLog)
 	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
-	crl:= customrule.NewCustomRuleLoader()
+	crl := customrule.NewCustomRuleLoader()
 	cref := customrule.NewEngineFactory(logger, crl, rsf, re)
 
 	w, err := waf.NewServer(logger, cm, c, sref, rbp, wafResLog, cref)

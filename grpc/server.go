@@ -6,9 +6,10 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/rs/zerolog"
 	"io"
 	"net"
+
+	"github.com/rs/zerolog"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -145,6 +146,16 @@ func (s *serverImpl) PutConfig(ctx context.Context, in *pb.WAFConfig) (d *pb.Put
 	}
 
 	d = &pb.PutConfigResponse{}
+	return
+}
+
+func (s *serverImpl) DisposeConfig(ctx context.Context, in *pb.WAFConfigVersion) (d *pb.DisPoseConfigResponse, err error) {
+	err = s.ws.DisposeConfig(int(in.ConfigVersion))
+	if err != nil {
+		return
+	}
+
+	d = &pb.DisPoseConfigResponse{}
 	return
 }
 

@@ -407,12 +407,28 @@ func TestGrpcServerPutConfig(t *testing.T) {
 	}
 }
 
+func TestGrpcServerDisposeConfig(t *testing.T) {
+	// Arrange
+	mw := &mockWafServer{}
+	s := &serverImpl{ws: mw}
+	version := &pb.WAFConfigVersion{}
+
+	// Act
+	s.DisposeConfig(nil, version)
+
+	// Assert
+	if mw.disposeConfigCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockWafServer.DisposeConfig")
+	}
+}
+
 type mockWafServer struct {
-	evalRequestCalled int
-	putConfigCalled   int
-	receivedBody      strings.Builder
-	receivedBodyErr   error
-	bodyReadBufSize   int
+	evalRequestCalled   int
+	putConfigCalled     int
+	disposeConfigCalled int
+	receivedBody        strings.Builder
+	receivedBodyErr     error
+	bodyReadBufSize     int
 }
 
 func (m *mockWafServer) EvalRequest(req waf.HTTPRequest) (allow bool, err error) {
@@ -460,5 +476,10 @@ func (m *mockWafServiceEvalRequestServer) SendAndClose(*pb.WafDecision) error {
 
 func (m *mockWafServer) PutConfig(c waf.Config) error {
 	m.putConfigCalled++
+	return nil
+}
+
+func (m *mockWafServer) DisposeConfig(v int) error {
+	m.disposeConfigCalled++
 	return nil
 }
