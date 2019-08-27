@@ -8,7 +8,6 @@ import (
 type engineImpl struct {
 	statements       []Statement
 	reqScanner       ReqScanner
-	scratchSpaceDone chan *ReqScannerScratchSpace
 	scratchSpaceNext chan *ReqScannerScratchSpace
 	ruleEvaluator    RuleEvaluator
 	resultsLogger    ResultsLogger
@@ -31,14 +30,14 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, 
 }
 
 type secRuleEvaluationImpl struct {
-	logger                 zerolog.Logger
-	engine                 *engineImpl
-	request                waf.HTTPRequest
-	scanResults            *ScanResults
-	ruleTriggeredCb        func(stmt Statement, isDisruptive bool, msg string, logData string)
-	reqScannerEvaluation   ReqScannerEvaluation
-	scratchSpaceDone       chan *ReqScannerScratchSpace
-	reqScannerScratchSpace *ReqScannerScratchSpace
+	logger               zerolog.Logger
+	engine               *engineImpl
+	request              waf.HTTPRequest
+	scanResults          *ScanResults
+	ruleTriggeredCb      func(stmt Statement, isDisruptive bool, msg string, logData string)
+	reqScannerEvaluation ReqScannerEvaluation
+	scratchSpaceNext     chan *ReqScannerScratchSpace
+	scratchSpace         *ReqScannerScratchSpace
 }
 
 func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) waf.SecRuleEvaluation {
@@ -51,17 +50,28 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
 	}
 
-	scratchSpace := <-s.scratchSpaceNext
+	// Reuse a scratch space, or create a new one if there are none available
+	var scratchSpace *ReqScannerScratchSpace
+	if len(s.scratchSpaceNext) > 0 {
+		scratchSpace = <-s.scratchSpaceNext
+	} else {
+		var err error
+		scratchSpace, err = s.reqScanner.NewScratchSpace()
+		if err != nil {
+			panic(err)
+		}
+	}
+
 	reqScannerEvaluation := s.reqScanner.NewReqScannerEvaluation(scratchSpace)
 
 	return &secRuleEvaluationImpl{
-		request:                req,
-		logger:                 logger,
-		engine:                 s,
-		ruleTriggeredCb:        ruleTriggeredCb,
-		reqScannerEvaluation:   reqScannerEvaluation,
-		scratchSpaceDone:       s.scratchSpaceDone,
-		reqScannerScratchSpace: scratchSpace,
+		request:              req,
+		logger:               logger,
+		engine:               s,
+		ruleTriggeredCb:      ruleTriggeredCb,
+		reqScannerEvaluation: reqScannerEvaluation,
+		scratchSpaceNext:     s.scratchSpaceNext,
+		scratchSpace:         scratchSpace,
 	}
 }
 
@@ -107,5 +117,5 @@ func (s *secRuleEvaluationImpl) EvalRules() bool {
 
 // Release resources.
 func (s *secRuleEvaluationImpl) Close() {
-	s.scratchSpaceDone <- s.reqScannerScratchSpace
+	s.scratchSpaceNext <- s.scratchSpace
 }
