@@ -45,5 +45,4 @@ go tool cover -html=coverage.out -o coverage.html
 
 # To regenerate the gRPC stubs
 protoc -I./proto/ waf.proto --go_out=plugins=grpc:proto
-protoc -I./proto/ config.proto --go_out=plugins=grpc:proto
 ```
