@@ -35,26 +35,9 @@ func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecR
 		return
 	}
 
-	reqScanner, err := f.reqScannerFactory.NewReqScanner(statements)
+	engine, err = NewEngine(statements, f.reqScannerFactory, f.ruleEvaluator, f.resultsLogger)
 	if err != nil {
-		err = fmt.Errorf("failed to create request scanner: %v", err)
 		return
-	}
-
-	// Buffered channel used for reuse of scratch spaces between requests, while not letting concurrent requests share the same scratch space.
-	scratchSpaceNext := make(chan *ReqScannerScratchSpace, 100000)
-	s, err := reqScanner.NewScratchSpace()
-	if err != nil {
-		panic(err)
-	}
-	scratchSpaceNext <- s
-
-	engine = &engineImpl{
-		statements:       statements,
-		reqScanner:       reqScanner,
-		ruleEvaluator:    f.ruleEvaluator,
-		resultsLogger:    f.resultsLogger,
-		scratchSpaceNext: scratchSpaceNext,
 	}
 
 	return

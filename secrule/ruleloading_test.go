@@ -28,7 +28,7 @@ func TestStandaloneRuleLoader(t *testing.T) {
 	rl := NewStandaloneRuleLoader(mrp, mrlfs, "file1.conf")
 
 	// Act
-	_, err := rl.Rules("")
+	_, err := rl.Rules()
 
 	// Assert
 	if err != nil {
@@ -43,7 +43,7 @@ func TestStandaloneRuleLoaderCycle(t *testing.T) {
 	rl := NewStandaloneRuleLoader(mrp, mrlfs, "/fileCycle1.conf")
 
 	// Act
-	_, err := rl.Rules("fileCycle1.conf")
+	_, err := rl.Rules()
 
 	// Assert
 	if err == nil {

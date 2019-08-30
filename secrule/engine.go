@@ -15,17 +15,27 @@ type engineImpl struct {
 
 // NewEngine creates a SecRule engine from statements
 func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, rl ResultsLogger) (engine waf.SecRuleEngine, err error) {
-	rs, err := rsf.NewReqScanner(statements)
+	reqScanner, err := rsf.NewReqScanner(statements)
 	if err != nil {
 		return
 	}
 
-	engine = &engineImpl{
-		statements:    statements,
-		reqScanner:    rs,
-		ruleEvaluator: re,
-		resultsLogger: rl,
+	// Buffered channel used for reuse of scratch spaces between requests, while not letting concurrent requests share the same scratch space.
+	scratchSpaceNext := make(chan *ReqScannerScratchSpace, 100000)
+	s, err := reqScanner.NewScratchSpace()
+	if err != nil {
+		panic(err)
 	}
+	scratchSpaceNext <- s
+
+	engine = &engineImpl{
+		statements:       statements,
+		reqScanner:       reqScanner,
+		ruleEvaluator:    re,
+		resultsLogger:    rl,
+		scratchSpaceNext: scratchSpaceNext,
+	}
+
 	return
 }
 

@@ -59,6 +59,20 @@ func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRu
 	return
 }
 
+// NewStandaloneSecruleServer creates a new Azwaf server that only has a SecRule engine.
+func NewStandaloneSecruleServer(logger zerolog.Logger, sre SecRuleEngine, rbp RequestBodyParser, rl ResultsLogger) (server Server, err error) {
+	s := &serverImpl{
+		logger:            logger,
+		requestBodyParser: rbp,
+		resultsLogger:     rl,
+		secRuleEngines:    make(map[string]SecRuleEngine),
+	}
+	s.secRuleEngines[""] = sre
+	server = s
+
+	return
+}
+
 func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	// Create a sub-logger with a transaction ID
 	txid := fmt.Sprintf("%X", rand.Int())[:7] // TODO pass a txid down with the request from Nginx
@@ -74,62 +88,51 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 
 	configID := req.ConfigID()
 
-	// TODO consider if this should be removed once config management is fully functional e2e
-	if configID == "" {
-		configID = "default"
-	}
-
-	// TODO Also need to check id in other Engine map,
-	// if id not in any engine map, return error
+	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
 	_, secRuleOk := s.secRuleEngines[configID]
 	if !secRuleOk {
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
 		return
 	}
 
-	if secRuleOk {
-		secRuleEvaluation := s.secRuleEngines[configID].NewEvaluation(logger, req)
-		defer secRuleEvaluation.Close()
+	secRuleEvaluation := s.secRuleEngines[configID].NewEvaluation(logger, req)
+	defer secRuleEvaluation.Close()
 
-		err = secRuleEvaluation.ScanHeaders()
-		if err != nil {
-			return
-		}
-
-		err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
-			err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
-			// TODO add other engines who also need to do body scanning here
-			return
-		})
-		if err != nil {
-			lengthLimits := s.requestBodyParser.LengthLimits()
-			if err == ErrFieldBytesLimitExceeded {
-				s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
-			} else if err == ErrPausableBytesLimitExceeded {
-				s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
-			} else if err == ErrTotalBytesLimitExceeded {
-				s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
-			} else {
-				s.resultsLogger.BodyParseError(req, err)
-			}
-
-			allow = false
-			return
-		}
-
-		allow = secRuleEvaluation.EvalRules()
+	err = secRuleEvaluation.ScanHeaders()
+	if err != nil {
+		return
 	}
-	// TODO add other engine
+
+	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
+		err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+		// TODO add other engines who also need to do body scanning here
+		return
+	})
+	if err != nil {
+		lengthLimits := s.requestBodyParser.LengthLimits()
+		if err == ErrFieldBytesLimitExceeded {
+			s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
+		} else if err == ErrPausableBytesLimitExceeded {
+			s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
+		} else if err == ErrTotalBytesLimitExceeded {
+			s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
+		} else {
+			s.resultsLogger.BodyParseError(req, err)
+		}
+
+		allow = false
+		return
+	}
+
+	allow = secRuleEvaluation.EvalRules()
 
 	return
 }
 
 func (s *serverImpl) PutConfig(c Config) (err error) {
-	if s.configMgr != nil {
-		err = s.configMgr.PutConfig(c)
-		if err != nil {
-			return
-		}
+	err = s.configMgr.PutConfig(c)
+	if err != nil {
+		return
 	}
 
 	for _, config := range c.PolicyConfigs() {

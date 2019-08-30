@@ -199,8 +199,13 @@ type standaloneRuleLoader struct {
 	secRuleConfigFilePath string
 }
 
+// StandaloneRuleLoader loads a fixed set of rules defined at the creation of the StandaloneRuleLoader object.
+type StandaloneRuleLoader interface {
+	Rules() (statements []Statement, err error)
+}
+
 // NewStandaloneRuleLoader loads and parses SecRule files from disk, given a SecRule file path.
-func NewStandaloneRuleLoader(parser RuleParser, fs RuleLoaderFileSystem, secRuleConfigFilePath string) RuleLoader {
+func NewStandaloneRuleLoader(parser RuleParser, fs RuleLoaderFileSystem, secRuleConfigFilePath string) StandaloneRuleLoader {
 	return &standaloneRuleLoader{
 		parser:                parser,
 		fs:                    fs,
@@ -209,7 +214,7 @@ func NewStandaloneRuleLoader(parser RuleParser, fs RuleLoaderFileSystem, secRule
 }
 
 // GetRules loads and parses a SecRule config file from disk (given in the constructor).
-func (c *standaloneRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, err error) {
+func (c *standaloneRuleLoader) Rules() (statements []Statement, err error) {
 	statements, err = loadRulesFromPath(c.secRuleConfigFilePath, c.parser, c.fs, nil)
 	if err != nil {
 		return
