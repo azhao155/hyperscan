@@ -29,7 +29,7 @@ func main() {
 	logLevel := flag.String("loglevel", "error", "sets log level. Can be one of: debug, info, warn, error, fatal, panic.")
 	profiling := flag.Bool("profiling", false, "whether to enable the :6060/debug/pprof/ endpoint")
 	secruleconf := flag.String("secruleconf", "", "if set, use the given SecRule config file instead of using the ConfigMgr service")
-	limitsArg := flag.String("bodylimits", "", fmt.Sprintf("if set, use these request body length limits. Unit is bytes. These are only enforced within around 8KiB precision, due to various default buffer sizes. This parameter takes three integer values: max length of any single field, max length of request bodies excluding file fields in multipart/form-data bodies, and max total request body length. Example (these are the defaults): -limits=%v,%v,%v ", defaultLengthLimits.MaxLengthField, defaultLengthLimits.MaxLengthPausable, defaultLengthLimits.MaxLengthTotal))
+	limitsArg := flag.String("bodylimits", "", fmt.Sprintf("if set, use these request body length limits. Unit is bytes. These are only enforced within around 8KiB precision, due to various default buffer sizes. This parameter takes three integer values: max length of any single field, max length of request bodies excluding file fields in multipart/form-data bodies, and max total request body length. Example (these are the defaults): -bodylimits=%v,%v,%v ", defaultLengthLimits.MaxLengthField, defaultLengthLimits.MaxLengthPausable, defaultLengthLimits.MaxLengthTotal))
 	flag.Parse()
 	standaloneSecruleServer := *secruleconf != ""
 
