@@ -377,8 +377,8 @@ func TestReqScannerBodyUrlencode1(t *testing.T) {
 	// If we implement our own io.Reader-based urldecoder in the future, we may no longer be sorting, but rather using the order the values appeared.
 	contentType := waf.URLEncodedContent
 	expectedCalls := []parsedBodyFieldCbCall{
-		{contentType, "a", "helloworld1"},
 		{contentType, "b", "aaaaaaabccc"},
+		{contentType, "a", "helloworld1"},
 	}
 
 	if len(calls) != len(expectedCalls) {
@@ -674,6 +674,7 @@ type mockReader struct {
 	Pos     int
 	Length  int
 	Content []byte
+	next    []byte
 }
 
 // Fills up the given buffer with 'a'-chars on each call until Length is reached.
@@ -688,17 +689,22 @@ func (m *mockReader) Read(p []byte) (n int, err error) {
 	}
 
 	for {
-		if n+len(m.Content) > len(p) {
-			break
-		}
-
-		copy(p[n:], m.Content)
-		n += len(m.Content)
-		m.Pos += len(m.Content)
-
-		if m.Pos >= m.Length {
+		if m.Pos+len(m.Content) > m.Length {
 			err = io.EOF
 			return
+		}
+
+		if len(m.next) == 0 {
+			m.next = m.Content
+		}
+
+		c := copy(p[n:], m.next)
+		n += c
+		m.Pos += c
+		m.next = m.next[c:]
+
+		if n == len(p) {
+			break
 		}
 	}
 
@@ -708,7 +714,9 @@ func (m *mockReader) Read(p []byte) (n int, err error) {
 // Tests that the mockReader works, which itself is just used for other tests.
 func TestMockReader(t *testing.T) {
 	// Arrange
-	m := &mockReader{Length: 1024 * 1024 * 2, Content: []byte("hello,")}
+	content := []byte("hello,")
+	targetLen := 1024 * 1024 * 2
+	m := &mockReader{Length: targetLen, Content: content}
 	b := &bytes.Buffer{}
 
 	// Act
@@ -719,7 +727,7 @@ func TestMockReader(t *testing.T) {
 		t.Fatalf("Unexpected err %T: %v", err, err)
 	}
 
-	if b.Len() != 2097156 { // A little more than 2 MiB
+	if b.Len() != targetLen-targetLen%len(content) {
 		t.Fatalf("Unexpected length: %v", b.Len())
 
 	}

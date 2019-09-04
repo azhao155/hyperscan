@@ -10,8 +10,6 @@ import (
 	"io"
 	"mime"
 	"mime/multipart"
-	"net/url"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -181,37 +179,24 @@ func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorat
 }
 
 func (r *reqBodyParserImpl) scanUrlencodedBody(bodyReader *maxLengthReaderDecorator, cb waf.ParsedBodyFieldCb) (err error) {
-	// TODO remove this line, and instead implement a urlencode parser that uses the io.Reader interface, so we can call body bodyReader.ResetFieldReadCount() after reading each field
-	bodyReader.Limits.MaxLengthField = bodyReader.Limits.MaxLengthPausable
+	dec := newURLDecoder(bodyReader)
+	for {
+		bodyReader.ResetFieldReadCount()
+		var key, value string
+		key, value, err = dec.next()
+		if err != nil {
+			if err == waf.ErrFieldBytesLimitExceeded || err == waf.ErrPausableBytesLimitExceeded || err == waf.ErrTotalBytesLimitExceeded {
+				return
+			}
 
-	var buf bytes.Buffer
-	_, err = buf.ReadFrom(bodyReader)
-	if err != nil {
-		if err == waf.ErrPausableBytesLimitExceeded || err == waf.ErrTotalBytesLimitExceeded {
+			if err == io.EOF {
+				err = nil
+			}
+
 			return
 		}
 
-		return
-	}
-
-	qvals, err := url.ParseQuery(buf.String())
-	if err != nil {
-		return
-	}
-
-	keys := make([]string, 0, len(qvals))
-	for k := range qvals {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		for _, v := range qvals[k] {
-			cb(waf.URLEncodedContent, k, v)
-			if err != nil {
-				return
-			}
-		}
+		cb(waf.URLEncodedContent, key, value)
 	}
 
 	return

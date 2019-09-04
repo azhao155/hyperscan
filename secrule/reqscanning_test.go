@@ -845,6 +845,42 @@ func TestDetectXssOperator(t *testing.T) {
 	}
 }
 
+func TestParseQuery(t *testing.T) {
+	// Arrange
+	query := "abc=def&ghi=jkl=mno&pqr&=stu&hello=world&hello=world2"
+	expected := map[string][]string{
+		"abc":   []string{"def"},
+		"ghi":   []string{"jkl=mno"},
+		"pqr":   []string{""},
+		"":      []string{"stu"},
+		"hello": []string{"world", "world2"},
+	}
+
+	// Act
+	qq, err := parseQuery(query)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	if len(qq) != len(expected) {
+		t.Fatalf("Got unexpected number of values from parseQuery: %v", len(qq))
+	}
+
+	for k, vv := range expected {
+		if len(qq[k]) != len(expected[k]) {
+			t.Fatalf("Got unexpected number of values for key: %v. Expected: %v.", len(qq[k]), len(expected[k]))
+		}
+
+		for i := range vv {
+			if qq[k][i] != expected[k][i] {
+				t.Fatalf("Got unexpected value for key %v: %v. Expected: %v.", k, qq[k][i], expected[k][i])
+			}
+		}
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader
