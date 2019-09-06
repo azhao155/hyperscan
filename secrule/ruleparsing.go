@@ -408,6 +408,9 @@ func parseActions(rawActions []RawAction) (
 		case "chain":
 			hasChainAction = true
 
+		case "allow":
+			actions = append(actions, &AllowAction{})
+
 		case "deny":
 			actions = append(actions, &DenyAction{})
 

@@ -593,6 +593,7 @@ func TestSecRuleActions(t *testing.T) {
 		{`ID:950902`, 950902, []Action{}},
 		{`id:950902`, 950902, []Action{}},
 		{`id:'950902'`, 950902, []Action{}},
+		{`id:'950902',allow`, 950902, []Action{&AllowAction{}}},
 		{`id:'950902',deny`, 950902, []Action{&DenyAction{}}},
 		{`"id:'950902'"`, 950902, []Action{}},
 		{`"id:'950902',deny"`, 950902, []Action{&DenyAction{}}},

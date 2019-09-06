@@ -69,6 +69,46 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	assert.Equal(403, code)
 }
 
+func TestRuleEvaluatorAllowAction(t *testing.T) {
+	logger := testutils.NewTestLogger(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{Lowercase, RemoveWhitespace},
+					Actions:         []Action{&AllowAction{}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{Lowercase, RemoveWhitespace},
+					Actions:         []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+
+	assert := assert.New(t)
+	key := rxMatchKey{100, 0, "ARGS"}
+	m := make(map[rxMatchKey]RxMatch)
+	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
+	tp := make(map[string]bool)
+	tp["ARGS"] = true
+	sr := &ScanResults{m, tp}
+	re := NewRuleEvaluator()
+
+	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	assert.Nil(err)
+	assert.True(pass)
+	assert.Equal(200, code)
+}
+
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)

@@ -132,6 +132,11 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 				case *MsgAction:
 					msg = action.Msg
 
+				case *AllowAction:
+					phaseDisruptive = true
+					allow = true
+					statusCode = 200
+
 				case *DenyAction:
 					phaseDisruptive = true
 					allow = false
