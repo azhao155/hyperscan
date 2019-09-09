@@ -44,9 +44,15 @@ type secRuleConfigImpl struct{ pb *pb.SecRuleConfig }
 func (c *secRuleConfigImpl) Enabled() bool     { return c.pb.Enabled }
 func (c *secRuleConfigImpl) RuleSetID() string { return c.pb.RuleSetId }
 
-type geoDbConfigImpl struct{ pb *pb.GeoDBConfig }
+type customRuleConfigImpl struct{ pb *pb.CustomRuleConfig }
 
-func (c *geoDbConfigImpl) Enabled() bool { return c.pb.Enabled }
+func (cc *customRuleConfigImpl) CustomRules() []waf.CustomRule {
+	customRules := make([]waf.CustomRule, 0)
+	for _, cr := range cc.pb.CustomRules {
+		customRules = append(customRules, &customRuleWrapper{pb: cr})
+	}
+	return customRules
+}
 
 type ipReputationConfigImpl struct{ pb *pb.IPReputationConfig }
 
@@ -55,23 +61,72 @@ func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
 type policyConfigWrapper struct{ pb *pb.PolicyConfig }
 
 func (c *policyConfigWrapper) ConfigID() string { return c.pb.ConfigID }
-
 func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
 	return &secRuleConfigImpl{pb: c.pb.SecRuleConfig}
 }
-
-func (c *policyConfigWrapper) GeoDBConfig() waf.GeoDBConfig {
-	return &geoDbConfigImpl{pb: c.pb.GeoDBConfig}
+func (c *policyConfigWrapper) CustomRuleConfig() waf.CustomRuleConfig {
+	return &customRuleConfigImpl{pb: c.pb.CustomRuleConfig}
 }
-
 func (c *policyConfigWrapper) IPReputationConfig() waf.IPReputationConfig {
 	return &ipReputationConfigImpl{pb: c.pb.IpReputationConfig}
 }
 
+type customRuleWrapper struct{ pb *pb.CustomRule }
+
+func (cr *customRuleWrapper) Name() string     { return cr.pb.Name }
+func (cr *customRuleWrapper) Priority() int    { return int(cr.pb.Priority) }
+func (cr *customRuleWrapper) RuleType() string { return cr.pb.RuleType }
+func (cr *customRuleWrapper) MatchConditions() []waf.MatchCondition {
+	matchConditions := make([]waf.MatchCondition, 0)
+	for _, mc := range cr.pb.MatchConditions {
+		matchConditions = append(matchConditions, &matchConditionWrapper{pb: mc})
+	}
+	return matchConditions
+}
+func (cr *customRuleWrapper) Action() string { return cr.pb.Action }
+
+type matchConditionWrapper struct {
+	pb *pb.MatchCondition
+}
+
+func (mc *matchConditionWrapper) MatchVariables() []waf.MatchVariable {
+	matchVariables := make([]waf.MatchVariable, 0)
+	for _, mv := range mc.pb.MatchVariables {
+		matchVariables = append(matchVariables, &matchVariableWrapper{pb: mv})
+	}
+	return matchVariables
+}
+
+func (mc *matchConditionWrapper) Operator() string { return mc.pb.Operator }
+
+func (mc *matchConditionWrapper) NegateCondition() bool { return mc.pb.NegateCondition }
+
+func (mc *matchConditionWrapper) MatchValues() []string {
+	matchValues := make([]string, 0)
+	for _, mv := range mc.pb.MatchValues {
+		matchValues = append(matchValues, mv)
+	}
+	return matchValues
+}
+
+func (mc *matchConditionWrapper) Transforms() []string {
+	transforms := make([]string, 0)
+	for _, t := range mc.pb.Transforms {
+		transforms = append(transforms, t)
+	}
+	return transforms
+}
+
+type matchVariableWrapper struct {
+	pb *pb.MatchVariable
+}
+
+func (mv *matchVariableWrapper) VariableName() string { return mv.pb.VariableName }
+func (mv *matchVariableWrapper) Selector() string     { return mv.pb.Selector }
+
 type configPbWrapper struct{ pb *pb.WAFConfig }
 
 func (c *configPbWrapper) ConfigVersion() int32 { return c.pb.ConfigVersion }
-
 func (c *configPbWrapper) PolicyConfigs() []waf.PolicyConfig {
 	ss := make([]waf.PolicyConfig, 0)
 	for _, p := range c.pb.PolicyConfigs {

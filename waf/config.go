@@ -6,10 +6,6 @@ type SecRuleConfig interface {
 	RuleSetID() string
 }
 
-// CustomRuleConfig is CustomRule Engine config
-type CustomRuleConfig interface {
-}
-
 // GeoDBConfig is GeoDB Engine config
 type GeoDBConfig interface {
 	Enabled() bool
@@ -24,7 +20,7 @@ type IPReputationConfig interface {
 type PolicyConfig interface {
 	ConfigID() string
 	SecRuleConfig() SecRuleConfig
-	GeoDBConfig() GeoDBConfig
+	CustomRuleConfig() CustomRuleConfig
 	IPReputationConfig() IPReputationConfig
 }
 

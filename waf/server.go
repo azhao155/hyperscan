@@ -9,6 +9,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
+type engineInstances struct {
+	sre SecRuleEngine
+	cre CustomRuleEngine
+}
+
 // Server is the top level interface to AzWaf.
 type Server interface {
 	EvalRequest(HTTPRequest) (allow bool, err error)
@@ -19,7 +24,7 @@ type Server interface {
 type serverImpl struct {
 	logger                  zerolog.Logger
 	configMgr               ConfigMgr
-	secRuleEngines          map[string]SecRuleEngine
+	engines                 map[string]engineInstances
 	secRuleEngineFactory    SecRuleEngineFactory
 	requestBodyParser       RequestBodyParser
 	resultsLogger           ResultsLogger
@@ -37,7 +42,7 @@ func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRu
 		customRuleEngineFactory: cref,
 	}
 
-	s.secRuleEngines = make(map[string]SecRuleEngine)
+	s.engines = make(map[string]engineInstances)
 
 	var versions []int
 	for v := range c {
@@ -65,9 +70,11 @@ func NewStandaloneSecruleServer(logger zerolog.Logger, sre SecRuleEngine, rbp Re
 		logger:            logger,
 		requestBodyParser: rbp,
 		resultsLogger:     rl,
-		secRuleEngines:    make(map[string]SecRuleEngine),
+		engines:           make(map[string]engineInstances),
 	}
-	s.secRuleEngines[""] = sre
+	s.engines[""] = engineInstances{
+		sre: sre,
+	}
 	server = s
 
 	return
@@ -89,13 +96,13 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	configID := req.ConfigID()
 
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
-	_, secRuleOk := s.secRuleEngines[configID]
-	if !secRuleOk {
+	engines, idExists := s.engines[configID]
+	if !idExists {
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
 		return
 	}
 
-	secRuleEvaluation := s.secRuleEngines[configID].NewEvaluation(logger, req)
+	secRuleEvaluation := engines.sre.NewEvaluation(logger, req)
 	defer secRuleEvaluation.Close()
 
 	err = secRuleEvaluation.ScanHeaders()
@@ -136,26 +143,32 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 	}
 
 	for _, config := range c.PolicyConfigs() {
-		// Create SecRuleEngine map
-		var engine SecRuleEngine
-		secRuleConfig := config.SecRuleConfig()
-
-		if secRuleConfig == nil {
-			continue
-		}
-
-		engine, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)
-
-		if err != nil {
-			err = fmt.Errorf("failed to create SecRule engine for configID %v: %v", config.ConfigID(), err)
-			return
-		}
-
+		engines := engineInstances{}
 		configID := config.ConfigID()
 
-		s.secRuleEngines[configID] = engine
+		// Create SecRuleEngine.
+		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil {
+			var sre SecRuleEngine
+			sre, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)
+			if err != nil {
+				err = fmt.Errorf("failed to create SecRule engine for configID %v: %v", configID, err)
+				return
+			}
+			engines.sre = sre
+		}
 
-		// TODO add other engine
+		// Create CustomRuleEngine.
+		if customRuleConfig := config.CustomRuleConfig(); customRuleConfig != nil {
+			var cre CustomRuleEngine
+			cre, err = s.customRuleEngineFactory.NewEngine(customRuleConfig)
+			if err != nil {
+				err = fmt.Errorf("failed to create CustomRule engine for configID %v: %v", configID, err)
+				return
+			}
+			engines.cre = cre
+		}
+
+		s.engines[configID] = engines
 	}
 
 	return
@@ -171,17 +184,15 @@ func (s *serverImpl) DisposeConfig(version int) (err error) {
 	}
 
 	for _, id := range ids {
-		_, secRuleOk := s.secRuleEngines[id]
+		_, idExists := s.engines[id]
 		// TODO Also need to check id in other Engine map,
 		// if id not in any engine map, return error
 
-		if !secRuleOk {
+		if !idExists {
 			return fmt.Errorf("configID %v not valid, can't delete", id)
 		}
 
-		if secRuleOk {
-			delete(s.secRuleEngines, id)
-		}
+		delete(s.engines, id)
 
 		// TODO add other engine
 	}

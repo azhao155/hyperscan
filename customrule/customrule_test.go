@@ -2,44 +2,46 @@ package customrule
 
 import (
 	"azwaf/secrule"
-	"github.com/stretchr/testify/assert"
+	"azwaf/waf"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestToSimpleSecRule(t *testing.T) {
 	assert := assert.New(t)
-	cr := CustomRule{
-		Name:     "blockEvilBot",
-		Priority: 2,
-		RuleType: "MatchRule",
-		Action:   "Block",
-		MatchConditions: []MatchCondition{
-			{
-				MatchVariables: []MatchVariable{
-					{
-						VariableName: "RequestHeaders",
-						Selector:     "User-Agent",
+	cr := mockCustomRule{
+		name:     "blockEvilBot",
+		priority: 2,
+		ruleType: "MatchRule",
+		action:   "Block",
+		matchConditions: []waf.MatchCondition{
+			mockMatchCondition{
+				matchVariables: []waf.MatchVariable{
+					mockMatchVariable{
+						variableName: "RequestHeaders",
+						selector:     "User-Agent",
 					},
 				},
 
-				Operator: "Contains",
-				Negate:   true,
-				MatchValues: []string{
+				operator:        "Contains",
+				negateCondition: true,
+				matchValues: []string{
 					"evilbot",
 				},
 
-				Transforms: []string{
+				transforms: []string{
 					"Lowercase",
 				},
 			},
 		},
 	}
 
-	st, err := cr.toSecRule()
+	st, err := toSecRule(cr)
 	assert.Nil(err)
 
 	esr := &secrule.Rule{
-		ID:    cr.Priority,
+		ID:    cr.Priority(),
 		Phase: 0,
 		Items: []secrule.RuleItem{
 			{
@@ -57,55 +59,50 @@ func TestToSimpleSecRule(t *testing.T) {
 
 func TestToSecRuleWithMultiples(t *testing.T) {
 	assert := assert.New(t)
-	cr := CustomRule{
-		Name:     "blockEvilBot",
-		Priority: 2,
-		RuleType: "MatchRule",
-		Action:   "Block",
-		MatchConditions: []MatchCondition{
-			{
-				MatchVariables: []MatchVariable{
-					{
-						VariableName: "RequestHeaders",
-						Selector:     "User-Agent",
+	cr := mockCustomRule{
+		name:     "blockEvilBot",
+		priority: 2,
+		ruleType: "MatchRule",
+		action:   "Block",
+		matchConditions: []waf.MatchCondition{
+			mockMatchCondition{
+				matchVariables: []waf.MatchVariable{
+					mockMatchVariable{
+						variableName: "RequestHeaders",
+						selector:     "User-Agent",
 					},
 				},
 
-				Operator: "Contains",
-				Negate:   true,
-				MatchValues: []string{
-					"evilbot",
-					"badbot",
-				},
+				operator:        "Contains",
+				negateCondition: true,
+				matchValues:     []string{"evilbot", "badbot"},
 
-				Transforms: []string{
+				transforms: []string{
 					"Lowercase",
 					"Trim",
 				},
 			},
-			{
-				MatchVariables: []MatchVariable{
-					{
-						VariableName: "RemoteAddr",
+			mockMatchCondition{
+				matchVariables: []waf.MatchVariable{
+					mockMatchVariable{
+						variableName: "RemoteAddr",
 					},
 				},
 
-				Operator: "IPMatch",
-				Negate:   false,
-				MatchValues: []string{
-					"192.168.0.1", "192.168.0.2",
-				},
+				operator:        "IPMatch",
+				negateCondition: false,
+				matchValues:     []string{"192.168.0.1", "192.168.0.2"},
 
-				Transforms: []string{},
+				transforms: []string{},
 			},
 		},
 	}
 
-	st, err := cr.toSecRule()
+	st, err := toSecRule(cr)
 	assert.Nil(err)
 
 	esr := &secrule.Rule{
-		ID:    cr.Priority,
+		ID:    cr.Priority(),
 		Phase: 0,
 		Items: []secrule.RuleItem{
 			{
@@ -127,234 +124,234 @@ func TestToSecRuleWithMultiples(t *testing.T) {
 
 func TestToSecruleTarget(t *testing.T) {
 	assert := assert.New(t)
-	mv1 := &MatchVariable{
-		VariableName: "RequestCookies",
-		Selector:     "C1",
+	mv1 := &mockMatchVariable{
+		variableName: "RequestCookies",
+		selector:     "C1",
 	}
 
-	mv2 := &MatchVariable{
-		VariableName: "RequestHeaders",
+	mv2 := &mockMatchVariable{
+		variableName: "RequestHeaders",
 	}
 
-	at1, _ := mv1.toSecRuleTarget()
+	at1, _ := toSecRuleTarget(mv1)
 	assert.Equal("REQUEST_COOKIES:C1", at1)
 
-	at2, _ := mv2.toSecRuleTarget()
+	at2, _ := toSecRuleTarget(mv2)
 	assert.Equal("REQUEST_HEADERS", at2)
 }
 
 func TestToSecruleMatchValueIpMatch(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "IPMatch",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "IPMatch",
+		matchValues: []string{
 			"192.168.0.1",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("192.168.0.1", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "IPMatch",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "IPMatch",
+		matchValues: []string{
 			"192.168.0.1",
 			"192.168.0.2",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("192.168.0.1,192.168.0.2", av2)
 }
 
 func TestToSecruleMatchValueContains(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "Contains",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "Contains",
+		matchValues: []string{
 			"str1",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("(str1)", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "Contains",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "Contains",
+		matchValues: []string{
 			"str1",
 			"str2",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("(str1|str2)", av2)
 }
 
 func TestToSecruleMatchValueBeginsWith(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "BeginsWith",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "BeginsWith",
+		matchValues: []string{
 			"str1",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("^(str1)", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "BeginsWith",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "BeginsWith",
+		matchValues: []string{
 			"str1",
 			"str2",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("^(str1|str2)", av2)
 }
 
 func TestToSecruleMatchValueEndsWith(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "EndsWith",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "EndsWith",
+		matchValues: []string{
 			"str1",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("(str1)$", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "EndsWith",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "EndsWith",
+		matchValues: []string{
 			"str1",
 			"str2",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("(str1|str2)$", av2)
 }
 
 func TestToSecruleMatchValueEquals(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "Equals",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "Equals",
+		matchValues: []string{
 			"str1",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("^(str1)$", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "Equals",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "Equals",
+		matchValues: []string{
 			"str1",
 			"str2",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("^(str1|str2)$", av2)
 }
 
 func TestToSecruleMatchValueLessThan(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "LessThan",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "LessThan",
+		matchValues: []string{
 			"12",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "LessThan",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "LessThan",
+		matchValues: []string{
 			"12",
 			"15",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("15", av2)
 }
 
 func TestToSecruleMatchValueLessThanOrEqual(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "LessThanOrEqual",
-		MatchValues: []string{
+	mc1 := mockMatchCondition{
+		operator: "LessThanOrEqual",
+		matchValues: []string{
 			"12",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "LessThanOrEqual",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "LessThanOrEqual",
+		matchValues: []string{
 			"12",
 			"15",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("15", av2)
 }
 
 func TestToSecruleMatchValueGreaterThan(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "GreaterThan",
-		MatchValues: []string{
+	mc1 := &mockMatchCondition{
+		operator: "GreaterThan",
+		matchValues: []string{
 			"12",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "GreaterThan",
-		MatchValues: []string{
+	mc2 := &mockMatchCondition{
+		operator: "GreaterThan",
+		matchValues: []string{
 			"12",
 			"15",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("12", av2)
 }
 
 func TestToSecruleMatchValueGreaterThanOrEqual(t *testing.T) {
 	assert := assert.New(t)
-	mc1 := &MatchCondition{
-		Operator: "GreaterThanOrEqual",
-		MatchValues: []string{
+	mc1 := mockMatchCondition{
+		operator: "GreaterThanOrEqual",
+		matchValues: []string{
 			"12",
 		},
 	}
 
-	av1 := mc1.toSecRuleMatchValue()
+	av1 := toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
-	mc2 := &MatchCondition{
-		Operator: "GreaterThanOrEqual",
-		MatchValues: []string{
+	mc2 := mockMatchCondition{
+		operator: "GreaterThanOrEqual",
+		matchValues: []string{
 			"12",
 			"15",
 		},
 	}
 
-	av2 := mc2.toSecRuleMatchValue()
+	av2 := toSecRuleMatchValue(mc2)
 	assert.Equal("12", av2)
 }

@@ -4,6 +4,7 @@ import (
 	"azwaf/secrule"
 	"azwaf/waf"
 	"fmt"
+
 	"github.com/rs/zerolog"
 )
 
@@ -11,7 +12,7 @@ import (
 func NewEngineFactory(logger zerolog.Logger, rl RuleLoader, rsf secrule.ReqScannerFactory, re secrule.RuleEvaluator) waf.CustomRuleEngineFactory {
 	return &engineFactoryImpl{
 		logger:            logger,
-		ruleLoader:		   rl,
+		ruleLoader:        rl,
 		reqScannerFactory: rsf,
 		ruleEvaluator:     re,
 	}
@@ -27,7 +28,7 @@ type engineFactoryImpl struct {
 func (f *engineFactoryImpl) NewEngine(config waf.CustomRuleConfig) (engine waf.CustomRuleEngine, err error) {
 	e := &engineImpl{}
 
-	stmts, err := f.ruleLoader.GetSecRules(f.logger, "{}")
+	stmts, err := f.ruleLoader.GetSecRules(f.logger, config)
 	if err != nil {
 		err = fmt.Errorf("failed to load custom rules, error: %v", err)
 		return

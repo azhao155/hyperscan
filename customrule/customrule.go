@@ -2,36 +2,13 @@ package customrule
 
 import (
 	"azwaf/secrule"
+	"azwaf/waf"
 	"fmt"
 	"math"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-// MatchVariable identifies the entity of the HTTP request that needs to be matched.
-type MatchVariable struct {
-	VariableName string `json:"variableName"`
-	Selector     string `json:"selector"`
-}
-
-// MatchCondition specifies the condition that if satisfied causes the Action to run.
-type MatchCondition struct {
-	MatchVariables []MatchVariable `json:"matchVariables"`
-	Operator       string          `json:"operator"`
-	Negate         bool            `json:"negationCondition"`
-	MatchValues    []string        `json:"matchValues"`
-	Transforms     []string        `json:"transforms"`
-}
-
-// CustomRule specifies the customer specified rule that needs to run as part of WAF.
-type CustomRule struct {
-	Name            string           `json:"name"`
-	Priority        int              `json:"priority"`
-	RuleType        string           `json:"ruleType"`
-	Action          string           `json:"action"`
-	MatchConditions []MatchCondition `json:"matchConditions"`
-}
 
 var targetsMap = map[string]string{
 	"RemoteAddr":     "REMOTE_ADDR",
@@ -68,16 +45,16 @@ var transformMap = map[string]secrule.Transformation{
 	"HtmlEntityDecode": secrule.HTMLEntityDecode,
 }
 
-func (cr *CustomRule) toSecRule() (st secrule.Statement, err error) {
+func toSecRule(cr waf.CustomRule) (st secrule.Statement, err error) {
 
 	rule := &secrule.Rule{
-		ID:    cr.Priority,
+		ID:    int(cr.Priority()),
 		Phase: 0,
 	}
 
 	sri := secrule.RuleItem{}
-	for _, mc := range cr.MatchConditions {
-		sri, err = mc.toSecRuleItem()
+	for _, mc := range cr.MatchConditions() {
+		sri, err = toSecRuleItem(mc)
 		if err != nil {
 			return
 		}
@@ -85,7 +62,7 @@ func (cr *CustomRule) toSecRule() (st secrule.Statement, err error) {
 	}
 
 	var action secrule.Action
-	switch cr.Action {
+	switch cr.Action() {
 	case "Allow":
 		action = &secrule.AllowAction{}
 	case "Block":
@@ -93,7 +70,7 @@ func (cr *CustomRule) toSecRule() (st secrule.Statement, err error) {
 	case "Log":
 		action = &secrule.LogAction{}
 	default:
-		err = fmt.Errorf("received unsupported action %s", cr.Action)
+		err = fmt.Errorf("received unsupported action %s", cr.Action())
 		return
 	}
 
@@ -103,33 +80,33 @@ func (cr *CustomRule) toSecRule() (st secrule.Statement, err error) {
 	return
 }
 
-func (mc *MatchCondition) toSecRuleItem() (ri secrule.RuleItem, err error) {
+func toSecRuleItem(mc waf.MatchCondition) (ri secrule.RuleItem, err error) {
 	t := ""
-	for _, mv := range mc.MatchVariables {
-		t, err = mv.toSecRuleTarget()
+	for _, mv := range mc.MatchVariables() {
+		t, err = toSecRuleTarget(mv)
 		if err != nil {
 			return
 		}
 		ri.Predicate.Targets = append(ri.Predicate.Targets, t)
 	}
 
-	ri.Predicate.Op = operatorsMap[mc.Operator]
-	ri.Predicate.Neg = mc.Negate
-	ri.Predicate.Val = mc.toSecRuleMatchValue()
+	ri.Predicate.Op = operatorsMap[mc.Operator()]
+	ri.Predicate.Neg = mc.NegateCondition()
+	ri.Predicate.Val = toSecRuleMatchValue(mc)
 
-	for _, tr := range mc.Transforms {
+	for _, tr := range mc.Transforms() {
 		ri.Transformations = append(ri.Transformations, transformMap[tr])
 	}
 
 	return
 }
 
-func (mc *MatchCondition) toSecRuleMatchValue() (mv string) {
+func toSecRuleMatchValue(mc waf.MatchCondition) (mv string) {
 
 	var ev []string
 	min := math.MaxInt64
 	max := 0
-	for _, v := range mc.MatchValues {
+	for _, v := range mc.MatchValues() {
 		if n, ok := strconv.Atoi(v); ok == nil {
 			if n < min {
 				min = n
@@ -144,9 +121,9 @@ func (mc *MatchCondition) toSecRuleMatchValue() (mv string) {
 	}
 
 	//TODO: need to be aware of the HyperScan regex limit, consider splitting into multiple rules
-	switch mc.Operator {
+	switch mc.Operator() {
 	case "IPMatch":
-		mv = strings.Join(mc.MatchValues, ",")
+		mv = strings.Join(mc.MatchValues(), ",")
 	case "Equals":
 		mv = "^(" + strings.Join(ev, "|") + ")$"
 	case "Contains":
@@ -164,10 +141,10 @@ func (mc *MatchCondition) toSecRuleMatchValue() (mv string) {
 	return
 }
 
-func (mv *MatchVariable) toSecRuleTarget() (target string, err error) {
-	target = targetsMap[mv.VariableName]
-	if mv.Selector != "" {
-		target = target + ":" + regexp.QuoteMeta(mv.Selector)
+func toSecRuleTarget(mv waf.MatchVariable) (target string, err error) {
+	target = targetsMap[mv.VariableName()]
+	if mv.Selector() != "" {
+		target = target + ":" + regexp.QuoteMeta(mv.Selector())
 	}
 	return
 }

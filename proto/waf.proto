@@ -21,6 +21,7 @@ message WafHttpRequest {
 }
 
 message HeadersAndFirstChunk {
+  string remoteAddr = 9;
   string configID = 7;
   string method = 1;
   string uri = 2;
@@ -44,27 +45,48 @@ message WAFConfig {
   repeated PolicyConfig policyConfigs = 2;
 }
 
+message CustomRule {
+  string name = 1;
+  int32 priority = 2;
+  string ruleType = 3;
+  repeated MatchCondition matchConditions = 4;
+  string action = 5;
+}
+
+message MatchCondition {
+  repeated MatchVariable matchVariables = 1;
+  string operator = 2;
+  bool negateCondition = 3;
+  repeated string matchValues = 4;
+  repeated string transforms = 5;
+}
+
+message MatchVariable {
+  string variableName = 1;
+  string selector = 2;
+}
+
 message PolicyConfig {
   string configID = 1;
   SecRuleConfig secRuleConfig = 2;
-  GeoDBConfig geoDBConfig = 3;
+  CustomRuleConfig customRuleConfig = 3;
   IPReputationConfig ipReputationConfig = 4;
 }
 
-message SecRuleConfig { 
+message SecRuleConfig {
   bool enabled = 1;
   string ruleSetId = 2;
 }
 
-message GeoDBConfig { 
+message CustomRuleConfig {
+  repeated CustomRule customRules = 1;
+}
+
+message IPReputationConfig {
   bool enabled = 1;
 }
 
-message IPReputationConfig { 
-  bool enabled = 1;
-}
-
-message PutConfigResponse { 
+message PutConfigResponse {
 }
 
 message WAFConfigVersion {

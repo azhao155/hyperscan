@@ -7,28 +7,19 @@ import (
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) Enabled() bool { return false }
-
+func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
-
-type mockGeoDBConfig struct{}
-
-func (c *mockGeoDBConfig) Enabled() bool { return true }
 
 type mockPolicyConfig struct{}
 
-func (c *mockPolicyConfig) ConfigID() string { return "waf policy 1" }
-
-func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig { return &mockSecRuleConfig{} }
-
-func (c *mockPolicyConfig) GeoDBConfig() GeoDBConfig { return &mockGeoDBConfig{} }
-
+func (c *mockPolicyConfig) ConfigID() string                       { return "waf policy 1" }
+func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig           { return &mockSecRuleConfig{} }
+func (c *mockPolicyConfig) CustomRuleConfig() CustomRuleConfig     { return nil }
 func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return nil }
 
 type mockConfig struct{}
 
 func (c *mockConfig) ConfigVersion() int32 { return 0 }
-
 func (c *mockConfig) PolicyConfigs() []PolicyConfig {
 	return []PolicyConfig{&mockPolicyConfig{}}
 }
@@ -38,7 +29,6 @@ type mockConfigConverter struct{}
 func (c *mockConfigConverter) SerializeToJSON(Config) (string, error) {
 	return "random", nil
 }
-
 func (c *mockConfigConverter) DeserializeFromJSON(str string) (Config, error) {
 	if str == "random" {
 		return &mockConfig{}, nil
@@ -118,11 +108,6 @@ func TestPutConfig(t *testing.T) {
 
 	if secRule.RuleSetID() != "OWASP CRS 3.0" {
 		t.Fatalf("PutConfig SecRule has wrong RuleSetID field")
-	}
-
-	geoDB := policyConfig[0].GeoDBConfig()
-	if geoDB.Enabled() != true {
-		t.Fatalf("PutConfig GeoDB has wrong Enabled field")
 	}
 }
 
