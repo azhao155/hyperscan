@@ -483,3 +483,6 @@ func (m *mockWafServer) DisposeConfig(v int) error {
 	m.disposeConfigCalled++
 	return nil
 }
+
+func (m *mockWafServer) SetLogMetaData(l waf.ConfigLogMetaData) {
+}

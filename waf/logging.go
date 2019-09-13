@@ -6,4 +6,5 @@ type ResultsLogger interface {
 	PausableBytesLimitExceeded(request HTTPRequest, limit int)
 	TotalBytesLimitExceeded(request HTTPRequest, limit int)
 	BodyParseError(request HTTPRequest, err error)
+	SetLogMetaData(data ConfigLogMetaData)
 }

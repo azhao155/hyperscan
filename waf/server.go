@@ -2,7 +2,6 @@ package waf
 
 import (
 	"fmt"
-	"math/rand"
 	"sort"
 	"time"
 
@@ -82,8 +81,7 @@ func NewStandaloneSecruleServer(logger zerolog.Logger, sre SecRuleEngine, rbp Re
 
 func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	// Create a sub-logger with a transaction ID
-	txid := fmt.Sprintf("%X", rand.Int())[:7] // TODO pass a txid down with the request from Nginx
-	logger := s.logger.With().Str("txid", txid).Logger()
+	logger := s.logger.With().Str("txid", req.TransactionID()).Logger()
 
 	if logger.Info() != nil {
 		logger.Info().Str("uri", req.URI()).Msg("WAF got request")
@@ -171,6 +169,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		s.engines[configID] = engines
 	}
 
+	s.resultsLogger.SetLogMetaData(c.LogMetaData())
 	return
 }
 

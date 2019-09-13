@@ -11,12 +11,14 @@ type mockWafHTTPRequest struct {
 	headers    []waf.HeaderPair
 }
 
-func (r *mockWafHTTPRequest) Method() string             { return "GET" }
-func (r *mockWafHTTPRequest) URI() string                { return r.uri }
-func (r *mockWafHTTPRequest) ConfigID() string           { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) CustomRuleConfigID() string { return "CustomRuleConfig1" }
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair  { return r.headers }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader      { return r.bodyReader }
+func (r *mockWafHTTPRequest) Method() string                      { return "GET" }
+func (r *mockWafHTTPRequest) URI() string                         { return r.uri }
+func (r *mockWafHTTPRequest) ConfigID() string                    { return "SecRuleConfig1" }
+func (r *mockWafHTTPRequest) CustomRuleConfigID() string          { return "CustomRuleConfig1" }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return r.headers }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return r.bodyReader }
+func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
+func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 
 type mockHeaderPair struct {
 	k string
@@ -25,6 +27,12 @@ type mockHeaderPair struct {
 
 func (h *mockHeaderPair) Key() string   { return h.k }
 func (h *mockHeaderPair) Value() string { return h.v }
+
+type mockLogMetaData struct {
+}
+
+func (h *mockLogMetaData) Scope() string     { return "Global" }
+func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
 
 type mockMatchVariable struct {
 	variableName string

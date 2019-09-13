@@ -24,10 +24,17 @@ type PolicyConfig interface {
 	IPReputationConfig() IPReputationConfig
 }
 
+// ConfigLogMetaData is log meta data inside config
+type ConfigLogMetaData interface {
+	ResourceID() string
+	InstanceID() string
+}
+
 // Config is the top level configuration object
 type Config interface {
 	ConfigVersion() int32
 	PolicyConfigs() []PolicyConfig
+	LogMetaData() ConfigLogMetaData
 }
 
 // ConfigConverter convert Config to/from JSON string

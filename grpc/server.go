@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 
 	"github.com/rs/zerolog"
@@ -123,8 +124,9 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 	}
 
 	w := &wafHTTPRequestPbWrapper{
-		pb:         m.HeadersAndFirstChunk,
-		bodyReader: &wafHTTPRequestPbWrapperBodyReader{readCb: readCb},
+		pb:            m.HeadersAndFirstChunk,
+		bodyReader:    &wafHTTPRequestPbWrapperBodyReader{readCb: readCb},
+		transactionID: fmt.Sprintf("%X", rand.Int())[:7], // TODO pass a txid down with the request from Nginx
 	}
 
 	allow, err = s.ws.EvalRequest(w)

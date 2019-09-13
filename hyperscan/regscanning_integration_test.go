@@ -156,8 +156,17 @@ type mockWafHTTPRequest struct {
 	uri string
 }
 
-func (r *mockWafHTTPRequest) Method() string            { return "GET" }
-func (r *mockWafHTTPRequest) URI() string               { return r.uri }
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return nil }
-func (r *mockWafHTTPRequest) ConfigID() string          { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return &bytes.Buffer{} }
+func (r *mockWafHTTPRequest) Method() string               { return "GET" }
+func (r *mockWafHTTPRequest) URI() string                  { return r.uri }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair    { return nil }
+func (r *mockWafHTTPRequest) ConfigID() string             { return "SecRuleConfig1" }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader        { return &bytes.Buffer{} }
+func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
+func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
+
+
+type mockLogMetaData struct {
+}
+
+func (h *mockLogMetaData) Scope() string     { return "Global" }
+func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }

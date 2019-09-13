@@ -17,12 +17,19 @@ func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig           { return &moc
 func (c *mockPolicyConfig) CustomRuleConfig() CustomRuleConfig     { return nil }
 func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return nil }
 
+type mockConfigLogMetaData struct {
+}
+
+func (h *mockConfigLogMetaData) ResourceID() string { return "appgwWaf" }
+func (h *mockConfigLogMetaData) InstanceID() string { return "vm1" }
+
 type mockConfig struct{}
 
 func (c *mockConfig) ConfigVersion() int32 { return 0 }
 func (c *mockConfig) PolicyConfigs() []PolicyConfig {
 	return []PolicyConfig{&mockPolicyConfig{}}
 }
+func (c *mockConfig) LogMetaData() ConfigLogMetaData { return &mockConfigLogMetaData{} }
 
 type mockConfigConverter struct{}
 

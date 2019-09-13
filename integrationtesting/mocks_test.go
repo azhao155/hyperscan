@@ -23,6 +23,8 @@ func (r *mockWafHTTPRequest) BodyReader() io.Reader {
 	b.WriteString(r.body)
 	return &b
 }
+func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
+func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 
 type mockHeaderPair struct {
 	k string
@@ -31,3 +33,9 @@ type mockHeaderPair struct {
 
 func (h *mockHeaderPair) Key() string   { return h.k }
 func (h *mockHeaderPair) Value() string { return h.v }
+
+type mockLogMetaData struct {
+}
+
+func (h *mockLogMetaData) Scope() string     { return "Global" }
+func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }

@@ -43,7 +43,11 @@ func main() {
 	// Initialize common dependencies
 	loglevel, _ := zerolog.ParseLevel(*logLevel)
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
-	secruleResLog, wafResLog := logging.NewZerologResultsLogger(logger)
+	secruleResLog, wafResLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
+	if err != nil{
+		logger.Fatal().Err(err).Msg("Error while creating file logger")
+	}
+
 	lengthLimits := parseLengthLimitsArgOrDefault(logger, limitsArg)
 	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
 	p := secrule.NewRuleParser()

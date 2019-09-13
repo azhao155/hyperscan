@@ -10,8 +10,9 @@ import (
 )
 
 type wafHTTPRequestPbWrapper struct {
-	pb         *pb.HeadersAndFirstChunk
-	bodyReader *wafHTTPRequestPbWrapperBodyReader
+	pb            *pb.HeadersAndFirstChunk
+	bodyReader    *wafHTTPRequestPbWrapperBodyReader
+	transactionID string
 }
 
 func (r *wafHTTPRequestPbWrapper) Method() string { return r.pb.Method }
@@ -24,14 +25,24 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 	return hh
 }
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
+func (r *wafHTTPRequestPbWrapper) TransactionID() string { return r.transactionID }
 
 // TODO once protobuf has config id, need to be implemented
 func (r *wafHTTPRequestPbWrapper) ConfigID() string { return r.pb.ConfigID }
+
+func (r *wafHTTPRequestPbWrapper) LogMetaData() waf.RequestLogMetaData {
+	return &requestLogMetaDataPbWrapper{pb: r.pb.MetaData}
+}
 
 type headerPairPbWrapper struct{ pb *pb.HeaderPair }
 
 func (h *headerPairPbWrapper) Key() string   { return h.pb.Key }
 func (h *headerPairPbWrapper) Value() string { return h.pb.Value }
+
+type requestLogMetaDataPbWrapper struct{ pb *pb.RequestLogMetaData }
+
+func (h *requestLogMetaDataPbWrapper) Scope() string     { return h.pb.Scope }
+func (h *requestLogMetaDataPbWrapper) ScopeName() string { return h.pb.ScopeName }
 
 type wafHTTPRequestPbWrapperBodyReader struct {
 	readCb func(p []byte) (n int, err error)
@@ -70,6 +81,11 @@ func (c *policyConfigWrapper) CustomRuleConfig() waf.CustomRuleConfig {
 func (c *policyConfigWrapper) IPReputationConfig() waf.IPReputationConfig {
 	return &ipReputationConfigImpl{pb: c.pb.IpReputationConfig}
 }
+
+type configLogMetaDataPbWrapper struct{ pb *pb.ConfigLogMetaData }
+
+func (h *configLogMetaDataPbWrapper) ResourceID() string { return h.pb.ResourceID }
+func (h *configLogMetaDataPbWrapper) InstanceID() string { return h.pb.InstanceID }
 
 type customRuleWrapper struct{ pb *pb.CustomRule }
 
@@ -133,6 +149,10 @@ func (c *configPbWrapper) PolicyConfigs() []waf.PolicyConfig {
 		ss = append(ss, &policyConfigWrapper{pb: p})
 	}
 	return ss
+}
+
+func (c *configPbWrapper) LogMetaData() waf.ConfigLogMetaData {
+	return &configLogMetaDataPbWrapper{pb: c.pb.MetaData}
 }
 
 // ConfigConverterImpl implement config SerializeToJSON/DeSerializeFromJSON.

@@ -187,12 +187,20 @@ func (m *mockSecRuleEngineFactory) NewEngine(c SecRuleConfig) (engine SecRuleEng
 
 type mockWafHTTPRequest struct{}
 
-func (r *mockWafHTTPRequest) Method() string        { return "GET" }
-func (r *mockWafHTTPRequest) URI() string           { return "/hello.php?arg1=aaaaaaabccc" }
-func (r *mockWafHTTPRequest) Headers() []HeaderPair { return nil }
-func (r *mockWafHTTPRequest) ConfigID() string      { return "waf policy 1" }
-func (r *mockWafHTTPRequest) Version() int64        { return 0 }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader { return &bytes.Buffer{} }
+func (r *mockWafHTTPRequest) Method() string                  { return "GET" }
+func (r *mockWafHTTPRequest) URI() string                     { return "/hello.php?arg1=aaaaaaabccc" }
+func (r *mockWafHTTPRequest) Headers() []HeaderPair           { return nil }
+func (r *mockWafHTTPRequest) ConfigID() string                { return "waf policy 1" }
+func (r *mockWafHTTPRequest) Version() int64                  { return 0 }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader           { return &bytes.Buffer{} }
+func (r *mockWafHTTPRequest) LogMetaData() RequestLogMetaData { return &mockLogMetaData{} }
+func (r *mockWafHTTPRequest) TransactionID() string           { return "abc" }
+
+type mockLogMetaData struct {
+}
+
+func (h *mockLogMetaData) Scope() string     { return "Global" }
+func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
 
 type mockResultsLogger struct {
 	fieldBytesLimitExceededCalled    int
@@ -212,6 +220,9 @@ func (r *mockResultsLogger) TotalBytesLimitExceeded(request HTTPRequest, limit i
 }
 func (r *mockResultsLogger) BodyParseError(request HTTPRequest, err error) {
 	r.bodyParseErrorCalled++
+}
+
+func (r *mockResultsLogger) SetLogMetaData(metaData ConfigLogMetaData) {
 }
 
 type mockConfigMgr struct {

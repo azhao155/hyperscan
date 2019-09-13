@@ -8,6 +8,12 @@ type HeaderPair interface {
 	Value() string
 }
 
+// RequestLogMetaData is the data needed by logging.
+type RequestLogMetaData interface {
+	Scope() string
+	ScopeName() string
+}
+
 // HTTPRequest represents an HTTP request to be evaluated by the WAF.
 type HTTPRequest interface {
 	ConfigID() string
@@ -15,4 +21,6 @@ type HTTPRequest interface {
 	URI() string
 	Headers() []HeaderPair
 	BodyReader() io.Reader
+	LogMetaData() RequestLogMetaData
+	TransactionID() string
 }

@@ -23,11 +23,17 @@ message WafHttpRequest {
 message HeadersAndFirstChunk {
   string remoteAddr = 9;
   string configID = 7;
+  RequestLogMetaData metaData = 8;
   string method = 1;
   string uri = 2;
   repeated HeaderPair headers = 3;
   bytes firstBodyChunk = 4;
   bool moreBodyChunks = 5;
+}
+
+message RequestLogMetaData {
+  string scope = 1;
+  string scopeName = 2;
 }
 
 message NextBodyChunk {
@@ -43,6 +49,12 @@ message WafDecision {
 message WAFConfig {
   int32 configVersion = 1;
   repeated PolicyConfig policyConfigs = 2;
+  ConfigLogMetaData metaData = 3;
+}
+
+message ConfigLogMetaData {
+  string resourceID = 1;
+  string instanceID = 2;
 }
 
 message CustomRule {
