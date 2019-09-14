@@ -662,6 +662,7 @@ func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return r.hea
 func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return r.bodyReader }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
+func (r *mockWafHTTPRequest) RemoteAddr() string        { return "0.0.0.0" }
 
 type mockHeaderPair struct {
 	k string

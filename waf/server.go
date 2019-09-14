@@ -2,7 +2,9 @@ package waf
 
 import (
 	"fmt"
+	"net"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -11,6 +13,7 @@ import (
 type engineInstances struct {
 	sre SecRuleEngine
 	cre CustomRuleEngine
+	ire IPReputationEngine
 }
 
 // Server is the top level interface to AzWaf.
@@ -18,6 +21,7 @@ type Server interface {
 	EvalRequest(HTTPRequest) (allow bool, err error)
 	PutConfig(Config) error
 	DisposeConfig(int) error
+	PutIPReputationList([]string)
 }
 
 type serverImpl struct {
@@ -25,13 +29,14 @@ type serverImpl struct {
 	configMgr               ConfigMgr
 	engines                 map[string]engineInstances
 	secRuleEngineFactory    SecRuleEngineFactory
+	ipReputationEngine      IPReputationEngine
 	requestBodyParser       RequestBodyParser
 	resultsLogger           ResultsLogger
 	customRuleEngineFactory CustomRuleEngineFactory
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory, ire IPReputationEngine) (server Server, err error) {
 	s := &serverImpl{
 		logger:                  logger,
 		configMgr:               cm,
@@ -39,6 +44,7 @@ func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRu
 		requestBodyParser:       rbp,
 		resultsLogger:           rl,
 		customRuleEngineFactory: cref,
+		ipReputationEngine:      ire,
 	}
 
 	s.engines = make(map[string]engineInstances)
@@ -76,6 +82,9 @@ func NewStandaloneSecruleServer(logger zerolog.Logger, sre SecRuleEngine, rbp Re
 	}
 	server = s
 
+	s.engines = make(map[string]engineInstances)
+	s.engines[""] = engineInstances{sre: sre}
+
 	return
 }
 
@@ -97,6 +106,10 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	engines, idExists := s.engines[configID]
 	if !idExists {
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
+		return
+	}
+	if engines.ire != nil && !engines.ire.EvalRequest(req) {
+		allow = false
 		return
 	}
 
@@ -197,4 +210,25 @@ func (s *serverImpl) DisposeConfig(version int) (err error) {
 	}
 
 	return nil
+}
+
+func (s *serverImpl) PutIPReputationList(ips []string) {
+	sanitizedIps := sanitizeIPList(ips)
+	s.ipReputationEngine.PutIPReputationList(sanitizedIps)
+}
+
+// Strips out unnecessary data that isn't the IP
+// Sample input line: 255.255.255.255/32=bot:1
+func sanitizeIPList(input []string) (output []string) {
+	output = make([]string, 0)
+	for _, str := range input {
+		split := strings.Split(str, "=")
+		ip := split[0]
+		_, _, err := net.ParseCIDR(ip)
+		if err != nil && net.ParseIP(ip) == nil {
+			continue
+		}
+		output = append(output, split[0])
+	}
+	return
 }

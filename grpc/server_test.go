@@ -392,6 +392,32 @@ func TestGrpcServerEvalRequestStreamingProtocolViolation2(t *testing.T) {
 	}
 }
 
+func TestGrpcServerPutIPReputationListEmpty(t *testing.T) {
+	mw := &mockWafServer{
+		bodyReadBufSize: 10,
+	}
+	s := &serverImpl{ws: mw}
+	stream := &mockWafServicePutIPReputationListServer{}
+
+	s.PutIPReputationList(stream)
+	if mw.putIPReputationListCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockWafServer.PutIPReputationList")
+	}
+}
+
+func TestGrpcServerPutIPReputationListWithData(t *testing.T) {
+	mw := &mockWafServer{
+		bodyReadBufSize: 10,
+	}
+	s := &serverImpl{ws: mw}
+	stream := &mockWafServicePutIPReputationListServer{ips: [][]string{[]string{"0.0.0.0/32", "255.255.255.255"}, []string{"122.122.122.122/12", "10.20.30.40"}}}
+
+	s.PutIPReputationList(stream)
+	if mw.putIPReputationListCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockWafServer.PutIPReputationList")
+	}
+}
+
 func TestGrpcServerPutConfig(t *testing.T) {
 	// Arrange
 	mw := &mockWafServer{}
@@ -423,12 +449,13 @@ func TestGrpcServerDisposeConfig(t *testing.T) {
 }
 
 type mockWafServer struct {
-	evalRequestCalled   int
-	putConfigCalled     int
-	disposeConfigCalled int
-	receivedBody        strings.Builder
-	receivedBodyErr     error
-	bodyReadBufSize     int
+	evalRequestCalled         int
+	putConfigCalled           int
+	putIPReputationListCalled int
+	disposeConfigCalled       int
+	receivedBody              strings.Builder
+	receivedBodyErr           error
+	bodyReadBufSize           int
 }
 
 func (m *mockWafServer) EvalRequest(req waf.HTTPRequest) (allow bool, err error) {
@@ -474,6 +501,26 @@ func (m *mockWafServiceEvalRequestServer) SendAndClose(*pb.WafDecision) error {
 	return nil
 }
 
+type mockWafServicePutIPReputationListServer struct {
+	grpc.ServerStream
+	ips   [][]string
+	index int
+}
+
+func (m *mockWafServicePutIPReputationListServer) Recv() (list *pb.IpReputationList, err error) {
+	if m.index < len(m.ips) {
+		list = &pb.IpReputationList{Ip: m.ips[m.index]}
+		m.index++
+	} else {
+		err = io.EOF
+	}
+	return
+}
+
+func (m *mockWafServicePutIPReputationListServer) SendAndClose(*pb.PutIPReputationListResponse) error {
+	return nil
+}
+
 func (m *mockWafServer) PutConfig(c waf.Config) error {
 	m.putConfigCalled++
 	return nil
@@ -485,4 +532,8 @@ func (m *mockWafServer) DisposeConfig(v int) error {
 }
 
 func (m *mockWafServer) SetLogMetaData(l waf.ConfigLogMetaData) {
+}
+
+func (m *mockWafServer) PutIPReputationList(ips []string) {
+	m.putIPReputationListCalled++
 }

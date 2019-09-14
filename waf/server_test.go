@@ -22,7 +22,8 @@ func TestWafServerEvalRequest(t *testing.T) {
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{}
 	mcm := &mockConfigMgr{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref)
+	mire := &mockIPReputationEngine{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -54,6 +55,48 @@ func TestWafServerEvalRequest(t *testing.T) {
 
 	if msrev.closeCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.Close: %v", msrev.closeCalled)
+	}
+
+	if mire.evalRequestCount != 0 {
+		t.Fatalf("Unexpected number of calls to mockIPReputationEngine.NewEngine: %v", mire.evalRequestCount)
+	}
+}
+
+func TestWafServerPutIPReputationList(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	msrev := &mockSecRuleEvaluation{}
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcre := &mockCustomRuleEngine{}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	c[0] = &mockConfig{}
+	mrbp := &mockRequestBodyParser{}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+
+	// Act
+	s.PutIPReputationList([]string{"0.0.0.0/32=bot:1", "255.255.255.255/32=bot:1", "115.213.87.34/32=bot:1"})
+
+	// Assert
+	if mire.putIPReputationListCount != 1 {
+		t.Fatalf("Unexpected number of calls to mockIPReputationEngine.PutIPReputationList: %v", mire.putIPReputationListCount)
+	}
+}
+
+func TestSanitizeIPList(t *testing.T) {
+	validIPs := []string{"0.0.0.0/32=bot:1", "255.255.255.255", "1.2.3.4"}
+	invalidIPs := []string{"256.256.256.256", "0.0.0.0/33", "abcd=bot:1"}
+	unsanitizedList := append(validIPs, invalidIPs...)
+	sanitizedList := sanitizeIPList(unsanitizedList)
+	if len(sanitizedList) != 3 {
+		t.Fatal("sanitizeIPList failed to filter out invalid IPs")
 	}
 }
 
@@ -87,7 +130,8 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 		},
 	}
 	mcm := &mockConfigMgr{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref)
+	mire := &mockIPReputationEngine{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
@@ -185,6 +229,20 @@ func (m *mockSecRuleEngineFactory) NewEngine(c SecRuleConfig) (engine SecRuleEng
 	return
 }
 
+type mockIPReputationEngine struct {
+	evalRequestCount         int
+	putIPReputationListCount int
+}
+
+func (m *mockIPReputationEngine) PutIPReputationList([]string) {
+	m.putIPReputationListCount++
+}
+
+func (m *mockIPReputationEngine) EvalRequest(req HTTPRequest) bool {
+	m.evalRequestCount++
+	return false
+}
+
 type mockWafHTTPRequest struct{}
 
 func (r *mockWafHTTPRequest) Method() string                  { return "GET" }
@@ -195,6 +253,7 @@ func (r *mockWafHTTPRequest) Version() int64                  { return 0 }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader           { return &bytes.Buffer{} }
 func (r *mockWafHTTPRequest) LogMetaData() RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string           { return "abc" }
+func (r *mockWafHTTPRequest) RemoteAddr() string              { return "0.0.0.0" }
 
 type mockLogMetaData struct {
 }

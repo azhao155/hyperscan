@@ -161,6 +161,26 @@ func (s *serverImpl) DisposeConfig(ctx context.Context, in *pb.WAFConfigVersion)
 	return
 }
 
+func (s *serverImpl) PutIPReputationList(stream pb.WafService_PutIPReputationListServer) (err error) {
+	ips := make([]string, 0)
+	for {
+		var r *pb.IpReputationList
+		r, err = stream.Recv()
+		if r == nil || err != nil {
+			break
+		}
+		ips = append(ips, r.Ip...)
+	}
+
+	hasError := err != io.EOF
+	if !hasError {
+		s.ws.PutIPReputationList(ips)
+	}
+
+	stream.SendAndClose(&pb.PutIPReputationListResponse{})
+	return err
+}
+
 func (s *serverImpl) Serve() error {
 	lis, err := net.Listen("tcp", ":37291")
 	if err != nil {

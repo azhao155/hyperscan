@@ -5,6 +5,7 @@ import (
 	"azwaf/customrule"
 	"azwaf/grpc"
 	"azwaf/hyperscan"
+	"azwaf/ipreputation"
 	"azwaf/logging"
 	"azwaf/secrule"
 	"azwaf/waf"
@@ -89,8 +90,9 @@ func main() {
 		sref := secrule.NewEngineFactory(logger, rl, rsf, re, secruleResLog)
 		crl := customrule.NewCustomRuleLoader()
 		cref := customrule.NewEngineFactory(logger, crl, rsf, re)
+		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
-		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, wafResLog, cref)
+		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, wafResLog, cref, ire)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating service manager")
 		}

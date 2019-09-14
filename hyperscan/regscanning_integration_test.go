@@ -163,7 +163,7 @@ func (r *mockWafHTTPRequest) ConfigID() string             { return "SecRuleConf
 func (r *mockWafHTTPRequest) BodyReader() io.Reader        { return &bytes.Buffer{} }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
-
+func (r *mockWafHTTPRequest) RemoteAddr() string        { return "0.0.0.0" }
 
 type mockLogMetaData struct {
 }

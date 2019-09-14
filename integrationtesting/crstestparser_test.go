@@ -2,10 +2,11 @@ package integrationtesting
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetTests(t *testing.T) {

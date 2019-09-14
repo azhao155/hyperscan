@@ -1,10 +1,11 @@
 package testutils
 
 import (
-	"github.com/rs/zerolog"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
 // NewTestLogger creates a zerolog.Logger that writes to testing.T's log.

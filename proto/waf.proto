@@ -6,6 +6,7 @@ service WafService {
   rpc EvalRequest (stream WafHttpRequest) returns (WafDecision) {}
   rpc PutConfig (WAFConfig) returns (PutConfigResponse) {}
   rpc DisposeConfig (WAFConfigVersion) returns (DisposeConfigResponse) {}
+  rpc PutIPReputationList (stream IpReputationList) returns (PutIPReputationListResponse) {}
 }
 
 message HeaderPair {
@@ -106,4 +107,11 @@ message WAFConfigVersion {
 }
 
 message DisposeConfigResponse {
+}
+
+message IpReputationList {
+  repeated string ip = 1;
+}
+
+message PutIPReputationListResponse { 
 }

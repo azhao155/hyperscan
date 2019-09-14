@@ -7,11 +7,12 @@ import (
 )
 
 type mockWafHTTPRequest struct {
-	uri      string
-	method   string
-	headers  []waf.HeaderPair
-	configID string
-	body     string
+	uri        string
+	method     string
+	headers    []waf.HeaderPair
+	configID   string
+	body       string
+	remoteAddr string
 }
 
 func (r *mockWafHTTPRequest) Method() string            { return r.method }
@@ -25,6 +26,7 @@ func (r *mockWafHTTPRequest) BodyReader() io.Reader {
 }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
+func (r *mockWafHTTPRequest) RemoteAddr() string                  { return "0.0.0.0" }
 
 type mockHeaderPair struct {
 	k string

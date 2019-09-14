@@ -23,4 +23,5 @@ type HTTPRequest interface {
 	BodyReader() io.Reader
 	LogMetaData() RequestLogMetaData
 	TransactionID() string
+	RemoteAddr() string
 }

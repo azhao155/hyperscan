@@ -26,6 +26,7 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 }
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 func (r *wafHTTPRequestPbWrapper) TransactionID() string { return r.transactionID }
+func (r *wafHTTPRequestPbWrapper) RemoteAddr() string    { return r.pb.RemoteAddr }
 
 // TODO once protobuf has config id, need to be implemented
 func (r *wafHTTPRequestPbWrapper) ConfigID() string { return r.pb.ConfigID }

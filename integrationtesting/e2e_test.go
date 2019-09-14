@@ -4,8 +4,9 @@ import (
 	"azwaf/hyperscan"
 	"azwaf/secrule"
 	"azwaf/testutils"
-	"github.com/rs/zerolog"
 	"testing"
+
+	"github.com/rs/zerolog"
 )
 
 func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
