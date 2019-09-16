@@ -70,6 +70,12 @@ func (l *filelogResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 		iID = l.metaData.InstanceID()
 	}
 
+	var policyScope, policyScopeName string
+	if request.LogMetaData() != nil {
+		policyScope = request.LogMetaData().Scope()
+		policyScopeName = request.LogMetaData().ScopeName()
+	}
+
 	c := customerFirewallLogEntryProperty{
 		InstanceID: iID,
 		RequestURI: request.URI(),
@@ -81,8 +87,8 @@ func (l *filelogResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt se
 		},
 		TransactionID:   request.TransactionID(),
 		PolicyID:        request.ConfigID(),
-		PolicyScope:     request.LogMetaData().Scope(),
-		PolicyScopeName: request.LogMetaData().ScopeName(),
+		PolicyScope:     policyScope,
+		PolicyScopeName: policyScopeName,
 	}
 
 	lg := &customerFirewallLogEntry{
@@ -120,6 +126,13 @@ func (l *filelogResultsLogger) bytesLimitExceeded(request waf.HTTPRequest, msg s
 		rID = l.metaData.ResourceID()
 		iID = l.metaData.InstanceID()
 	}
+
+	var policyScope, policyScopeName string
+	if request.LogMetaData() != nil {
+		policyScope = request.LogMetaData().Scope()
+		policyScopeName = request.LogMetaData().ScopeName()
+	}
+
 	c := customerFirewallLimitExceedLogEntryProperty{
 		InstanceID:      iID,
 		RequestURI:      request.URI(),
@@ -127,8 +140,8 @@ func (l *filelogResultsLogger) bytesLimitExceeded(request waf.HTTPRequest, msg s
 		Action:          "Blocked",
 		TransactionID:   request.TransactionID(),
 		PolicyID:        request.ConfigID(),
-		PolicyScope:     request.LogMetaData().Scope(),
-		PolicyScopeName: request.LogMetaData().ScopeName(),
+		PolicyScope:     policyScope,
+		PolicyScopeName: policyScopeName,
 	}
 
 	lg := &customerFirewallLimitExceedLogEntry{
