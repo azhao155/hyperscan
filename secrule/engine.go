@@ -57,6 +57,15 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 			action = "Blocked"
 		}
 
+		var ruleID int
+		switch stmt := stmt.(type) {
+		case *Rule:
+			ruleID = stmt.ID
+		case *ActionStmt:
+			ruleID = stmt.ID
+		}
+		logger.Info().Int("ruleID", ruleID).Str("action", action).Str("msg", msg).Str("logData", logData).Msg("SecRule triggered")
+
 		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
 	}
 

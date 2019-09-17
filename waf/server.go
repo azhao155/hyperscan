@@ -135,12 +135,16 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 	if err != nil {
 		lengthLimits := s.requestBodyParser.LengthLimits()
 		if err == ErrFieldBytesLimitExceeded {
+			logger.Info().Int("limit", lengthLimits.MaxLengthField).Msg("Request body contained a field longer than the limit")
 			s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
 		} else if err == ErrPausableBytesLimitExceeded {
+			logger.Info().Int("limit", lengthLimits.MaxLengthPausable).Msg("Request body length (excluding file upload fields) exceeded the limit")
 			s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
 		} else if err == ErrTotalBytesLimitExceeded {
+			logger.Info().Int("limit", lengthLimits.MaxLengthTotal).Msg("Request body length exceeded the limit")
 			s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
 		} else {
+			logger.Info().Err(err).Msg("Request body scanning error")
 			s.resultsLogger.BodyParseError(req, err)
 		}
 
