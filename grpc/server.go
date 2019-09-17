@@ -131,7 +131,6 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 
 	allow, err = s.ws.EvalRequest(w)
 	if err != nil {
-		stream.SendAndClose(&pb.WafDecision{Allow: false})
 		s.logger.Warn().Err(err).Msg("Error from s.ws.EvalRequest(w)")
 		allow = false
 	}
