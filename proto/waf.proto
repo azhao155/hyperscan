@@ -5,6 +5,7 @@ package wafservice;
 service WafService {
   rpc EvalRequest (stream WafHttpRequest) returns (WafDecision) {}
   rpc PutConfig (WAFConfig) returns (PutConfigResponse) {}
+  rpc PutGeoIPData (stream GeoIPData) returns (PutGeoIPDataResponse) {}
   rpc DisposeConfig (WAFConfigVersion) returns (DisposeConfigResponse) {}
   rpc PutIPReputationList (stream IpReputationList) returns (PutIPReputationListResponse) {}
 }
@@ -89,6 +90,24 @@ message PolicyConfig {
 message SecRuleConfig {
   bool enabled = 1;
   string ruleSetId = 2;
+}
+
+message GeoDBConfig {
+  bool enabled = 1;
+}
+
+message GeoIPData {
+  repeated GeoIPDataRecord geoIPDataRecords = 1;
+}
+
+message GeoIPDataRecord {
+  uint32 startIP = 1;
+  uint32 endIP = 2;
+  string countryCode = 3;
+}
+
+message PutGeoIPDataResponse {
+  bool success = 1;
 }
 
 message CustomRuleConfig {

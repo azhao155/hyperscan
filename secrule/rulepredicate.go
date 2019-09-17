@@ -10,13 +10,13 @@ type RulePredicate struct {
 	Targets         []string
 	ExceptTargets   []string // ExceptTargets are the targets that are exempt/excluded from being matched.
 	Op              Operator
+	CallBackOpFunc  CustomOpCallBackFunc
 	Neg             bool
 	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
 	valMacroMatches [][]string
 }
 
-//example to show usage - subject to change as other components get written
-func (rp *RulePredicate) eval(perRequestEnv envMap) (bool, string, error) {
+func (rp *RulePredicate) eval(perRequestEnv envMap) (result bool, output string, err error) {
 	for _, target := range rp.Targets {
 		val, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
 		if err != nil {
@@ -47,8 +47,13 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (bool, string, error) {
 			variable = varObj.ToString()
 		}
 
-		opFunc := toOperatorFunc(rp.Op)
-		result, output, err := opFunc(variable, val)
+		if rp.Op == CallBack {
+			result, output, err = rp.CallBackOpFunc(variable, val)
+		} else {
+			opFunc := toOperatorFunc(rp.Op)
+			result, output, err = opFunc(variable, val)
+		}
+
 		if err != nil {
 			return result, "", err
 		}

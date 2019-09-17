@@ -23,6 +23,7 @@ type engineFactoryImpl struct {
 	ruleLoader        RuleLoader
 	reqScannerFactory secrule.ReqScannerFactory
 	ruleEvaluator     secrule.RuleEvaluator
+	geoDB             waf.GeoDB
 }
 
 func (f *engineFactoryImpl) NewEngine(config waf.CustomRuleConfig) (engine waf.CustomRuleEngine, err error) {

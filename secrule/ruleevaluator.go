@@ -1,8 +1,9 @@
 package secrule
 
 import (
-	"github.com/rs/zerolog"
 	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 // RuleEvaluator processes the incoming request against all parsed rules

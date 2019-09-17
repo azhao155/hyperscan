@@ -14,22 +14,23 @@ type RuleLoader interface {
 }
 
 type ruleLoader struct {
+	geoDB waf.GeoDB
 }
 
 // NewCustomRuleLoader loads custom rules.
-func NewCustomRuleLoader() RuleLoader {
-	return &ruleLoader{}
+func NewCustomRuleLoader(geoDB waf.GeoDB) RuleLoader {
+	return &ruleLoader{geoDB: geoDB}
 }
 
-func (r *ruleLoader) GetSecRules(logger zerolog.Logger, config waf.CustomRuleConfig) (rules []secrule.Statement, err error) {
-	cc := r.loadCustomRules(logger, config)
+func (rl *ruleLoader) GetSecRules(logger zerolog.Logger, config waf.CustomRuleConfig) (rules []secrule.Statement, err error) {
+	cc := rl.loadCustomRules(logger, config)
 	if err != nil {
 		return
 	}
 
 	var st secrule.Statement
 	for _, cr := range cc {
-		st, err = toSecRule(cr)
+		st, err = rl.toSecRule(cr)
 		if err != nil {
 			return
 		}
@@ -42,7 +43,7 @@ func (r *ruleLoader) GetSecRules(logger zerolog.Logger, config waf.CustomRuleCon
 	return
 }
 
-func (r *ruleLoader) loadCustomRules(logger zerolog.Logger, config waf.CustomRuleConfig) (rules []waf.CustomRule) {
+func (rl *ruleLoader) loadCustomRules(logger zerolog.Logger, config waf.CustomRuleConfig) (rules []waf.CustomRule) {
 	rules = config.CustomRules()
 
 	// Priority determines the order of execution, no two rules have the same priority.

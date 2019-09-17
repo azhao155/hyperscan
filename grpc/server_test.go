@@ -448,9 +448,44 @@ func TestGrpcServerDisposeConfig(t *testing.T) {
 	}
 }
 
+func TestGrpcServerPutGeoIPData(t *testing.T) {
+	// Arrange
+	mw := &mockWafServer{}
+	s := &serverImpl{ws: mw}
+	stream := &mockWafServicePutGeoIPDataServer{
+		messages: []*pb.GeoIPData{
+			&pb.GeoIPData{
+				GeoIPDataRecords: []*pb.GeoIPDataRecord{
+					&pb.GeoIPDataRecord{StartIP: 34064466, EndIP: 34064483, CountryCode: "FR"},
+					&pb.GeoIPDataRecord{StartIP: 412372463, EndIP: 412372463, CountryCode: "FR"},
+				},
+			},
+			&pb.GeoIPData{
+				GeoIPDataRecords: []*pb.GeoIPDataRecord{
+					&pb.GeoIPDataRecord{StartIP: 412372463, EndIP: 412372463, CountryCode: "FR"},
+					&pb.GeoIPDataRecord{StartIP: 416447260, EndIP: 416447260, CountryCode: "US"},
+				},
+			},
+		},
+	}
+
+	// Act
+	err := s.PutGeoIPData(stream)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Unexpected error: %v.", err)
+	}
+
+	if mw.putGeoIPDataCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockWafServer.PutGeoIPData. Expected: 1. Actual: %v.", mw.evalRequestCalled)
+	}
+}
+
 type mockWafServer struct {
 	evalRequestCalled         int
 	putConfigCalled           int
+	putGeoIPDataCalled        int
 	putIPReputationListCalled int
 	disposeConfigCalled       int
 	receivedBody              strings.Builder
@@ -526,8 +561,33 @@ func (m *mockWafServer) PutConfig(c waf.Config) error {
 	return nil
 }
 
+func (m *mockWafServer) PutGeoIPData(data []waf.GeoIPDataRecord) error {
+	m.putGeoIPDataCalled++
+	return nil
+}
+
 func (m *mockWafServer) DisposeConfig(v int) error {
 	m.disposeConfigCalled++
+	return nil
+}
+
+type mockWafServicePutGeoIPDataServer struct {
+	grpc.ServerStream
+	messages []*pb.GeoIPData
+}
+
+func (m *mockWafServicePutGeoIPDataServer) Recv() (rec *pb.GeoIPData, err error) {
+	if len(m.messages) == 0 {
+		err = io.EOF
+		return
+	}
+
+	rec = m.messages[0]
+	m.messages = m.messages[1:]
+	return
+}
+
+func (m *mockWafServicePutGeoIPDataServer) SendAndClose(*pb.PutGeoIPDataResponse) error {
 	return nil
 }
 

@@ -3,6 +3,7 @@ package main
 import (
 	"azwaf/bodyparsing"
 	"azwaf/customrule"
+	"azwaf/geodb"
 	"azwaf/grpc"
 	"azwaf/hyperscan"
 	"azwaf/ipreputation"
@@ -45,7 +46,7 @@ func main() {
 	loglevel, _ := zerolog.ParseLevel(*logLevel)
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
 	secruleResLog, wafResLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
-	if err != nil{
+	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
 
@@ -86,10 +87,12 @@ func main() {
 			logger.Fatal().Err(err).Msg("Error while creating config manager")
 		}
 
+		gfs := geodb.NewGeoIPFileSystem(logger)
+		geoDB := geodb.NewGeoDB(logger, gfs)
+		crl := customrule.NewCustomRuleLoader(geoDB)
+		cref := customrule.NewEngineFactory(logger, crl, rsf, re)
 		rl := secrule.NewCrsRuleLoader(p, rlfs)
 		sref := secrule.NewEngineFactory(logger, rl, rsf, re, secruleResLog)
-		crl := customrule.NewCustomRuleLoader()
-		cref := customrule.NewEngineFactory(logger, crl, rsf, re)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
 		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, wafResLog, cref, ire)

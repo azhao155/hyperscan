@@ -3,6 +3,7 @@ package customrule
 import (
 	"azwaf/secrule"
 	"azwaf/waf"
+
 	"github.com/rs/zerolog"
 )
 
@@ -12,7 +13,6 @@ type engineImpl struct {
 
 type customRuleEvaluationImpl struct {
 	logger            zerolog.Logger
-	engine            *engineImpl
 	request           waf.HTTPRequest
 	secRuleEvaluation waf.SecRuleEvaluation
 }
@@ -23,7 +23,6 @@ func (c *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 	return &customRuleEvaluationImpl{
 		request:           req,
 		logger:            logger,
-		engine:            c,
 		secRuleEvaluation: srev,
 	}
 }

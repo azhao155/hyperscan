@@ -15,8 +15,9 @@ type wafHTTPRequestPbWrapper struct {
 	transactionID string
 }
 
-func (r *wafHTTPRequestPbWrapper) Method() string { return r.pb.Method }
-func (r *wafHTTPRequestPbWrapper) URI() string    { return r.pb.Uri }
+func (r *wafHTTPRequestPbWrapper) Method() string     { return r.pb.Method }
+func (r *wafHTTPRequestPbWrapper) URI() string        { return r.pb.Uri }
+func (r *wafHTTPRequestPbWrapper) RemoteAddr() string { return r.pb.RemoteAddr }
 func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 	hh := make([]waf.HeaderPair, 0, len(r.pb.Headers))
 	for _, ph := range r.pb.Headers {
@@ -26,7 +27,6 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 }
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
 func (r *wafHTTPRequestPbWrapper) TransactionID() string { return r.transactionID }
-func (r *wafHTTPRequestPbWrapper) RemoteAddr() string    { return r.pb.RemoteAddr }
 
 // TODO once protobuf has config id, need to be implemented
 func (r *wafHTTPRequestPbWrapper) ConfigID() string { return r.pb.ConfigID }
@@ -91,6 +91,13 @@ func (c *policyConfigWrapper) CustomRuleConfig() waf.CustomRuleConfig {
 
 	return &customRuleConfigImpl{pb: c.pb.CustomRuleConfig}
 }
+
+type geoIPDataRecordWrapper struct{ pb *pb.GeoIPDataRecord }
+
+func (rec *geoIPDataRecordWrapper) StartIP() uint32     { return rec.pb.StartIP }
+func (rec *geoIPDataRecordWrapper) EndIP() uint32       { return rec.pb.EndIP }
+func (rec *geoIPDataRecordWrapper) CountryCode() string { return rec.pb.CountryCode }
+
 func (c *policyConfigWrapper) IPReputationConfig() waf.IPReputationConfig {
 	if c.pb.IpReputationConfig == nil {
 		return nil

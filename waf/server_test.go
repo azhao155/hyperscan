@@ -247,13 +247,13 @@ type mockWafHTTPRequest struct{}
 
 func (r *mockWafHTTPRequest) Method() string                  { return "GET" }
 func (r *mockWafHTTPRequest) URI() string                     { return "/hello.php?arg1=aaaaaaabccc" }
+func (r *mockWafHTTPRequest) RemoteAddr() string              { return "0.0.0.0" }
 func (r *mockWafHTTPRequest) Headers() []HeaderPair           { return nil }
 func (r *mockWafHTTPRequest) ConfigID() string                { return "waf policy 1" }
 func (r *mockWafHTTPRequest) Version() int64                  { return 0 }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader           { return &bytes.Buffer{} }
 func (r *mockWafHTTPRequest) LogMetaData() RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string           { return "abc" }
-func (r *mockWafHTTPRequest) RemoteAddr() string              { return "0.0.0.0" }
 
 type mockLogMetaData struct {
 }
@@ -323,6 +323,10 @@ func (m *mockCustomRuleEngineFactory) NewEngine(c CustomRuleConfig) (engine Cust
 
 func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) CustomRuleEvaluation {
 	return &mockCustomRuleEvaluation{}
+}
+
+func (s *mockCustomRuleEngine) GeoDB() GeoDB {
+	return nil
 }
 
 type mockCustomRuleEvaluation struct{}

@@ -156,14 +156,14 @@ type mockWafHTTPRequest struct {
 	uri string
 }
 
-func (r *mockWafHTTPRequest) Method() string               { return "GET" }
-func (r *mockWafHTTPRequest) URI() string                  { return r.uri }
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair    { return nil }
-func (r *mockWafHTTPRequest) ConfigID() string             { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader        { return &bytes.Buffer{} }
+func (r *mockWafHTTPRequest) Method() string                      { return "GET" }
+func (r *mockWafHTTPRequest) URI() string                         { return r.uri }
+func (r *mockWafHTTPRequest) RemoteAddr() string                  { return "0.0.0.0" }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return nil }
+func (r *mockWafHTTPRequest) ConfigID() string                    { return "SecRuleConfig1" }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return &bytes.Buffer{} }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
-func (r *mockWafHTTPRequest) RemoteAddr() string        { return "0.0.0.0" }
 
 type mockLogMetaData struct {
 }

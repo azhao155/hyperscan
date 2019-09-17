@@ -100,6 +100,7 @@ const (
 	IPMatch
 	IPMatchFromFile
 	Rbl
+	CallBack
 )
 
 // Transformation is what will be applied to the input before it is evaluated against the operator/input of the rule.

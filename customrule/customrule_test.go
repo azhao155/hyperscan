@@ -8,6 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var mdb = &mockGeoDB{}
+var rl = &ruleLoader{geoDB: mdb}
+
 func TestToSimpleSecRule(t *testing.T) {
 	assert := assert.New(t)
 	cr := mockCustomRule{
@@ -37,7 +40,7 @@ func TestToSimpleSecRule(t *testing.T) {
 		},
 	}
 
-	st, err := toSecRule(cr)
+	st, err := rl.toSecRule(cr)
 	assert.Nil(err)
 
 	esr := &secrule.Rule{
@@ -98,7 +101,7 @@ func TestToSecRuleWithMultiples(t *testing.T) {
 		},
 	}
 
-	st, err := toSecRule(cr)
+	st, err := rl.toSecRule(cr)
 	assert.Nil(err)
 
 	esr := &secrule.Rule{
@@ -133,10 +136,10 @@ func TestToSecruleTarget(t *testing.T) {
 		variableName: "RequestHeaders",
 	}
 
-	at1, _ := toSecRuleTarget(mv1)
+	at1, _ := rl.toSecRuleTarget(mv1)
 	assert.Equal("REQUEST_COOKIES:C1", at1)
 
-	at2, _ := toSecRuleTarget(mv2)
+	at2, _ := rl.toSecRuleTarget(mv2)
 	assert.Equal("REQUEST_HEADERS", at2)
 }
 
@@ -149,7 +152,7 @@ func TestToSecruleMatchValueIpMatch(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("192.168.0.1", av1)
 
 	mc2 := &mockMatchCondition{
@@ -160,7 +163,7 @@ func TestToSecruleMatchValueIpMatch(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("192.168.0.1,192.168.0.2", av2)
 }
 
@@ -173,7 +176,7 @@ func TestToSecruleMatchValueContains(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("(str1)", av1)
 
 	mc2 := &mockMatchCondition{
@@ -184,7 +187,7 @@ func TestToSecruleMatchValueContains(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("(str1|str2)", av2)
 }
 
@@ -197,7 +200,7 @@ func TestToSecruleMatchValueBeginsWith(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("^(str1)", av1)
 
 	mc2 := &mockMatchCondition{
@@ -208,7 +211,7 @@ func TestToSecruleMatchValueBeginsWith(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("^(str1|str2)", av2)
 }
 
@@ -221,7 +224,7 @@ func TestToSecruleMatchValueEndsWith(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("(str1)$", av1)
 
 	mc2 := &mockMatchCondition{
@@ -232,7 +235,7 @@ func TestToSecruleMatchValueEndsWith(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("(str1|str2)$", av2)
 }
 
@@ -245,7 +248,7 @@ func TestToSecruleMatchValueEquals(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("^(str1)$", av1)
 
 	mc2 := &mockMatchCondition{
@@ -256,7 +259,7 @@ func TestToSecruleMatchValueEquals(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("^(str1|str2)$", av2)
 }
 
@@ -269,7 +272,7 @@ func TestToSecruleMatchValueLessThan(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
 	mc2 := &mockMatchCondition{
@@ -280,7 +283,7 @@ func TestToSecruleMatchValueLessThan(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("15", av2)
 }
 
@@ -293,7 +296,7 @@ func TestToSecruleMatchValueLessThanOrEqual(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
 	mc2 := &mockMatchCondition{
@@ -304,7 +307,7 @@ func TestToSecruleMatchValueLessThanOrEqual(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("15", av2)
 }
 
@@ -317,7 +320,7 @@ func TestToSecruleMatchValueGreaterThan(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
 	mc2 := &mockMatchCondition{
@@ -328,7 +331,7 @@ func TestToSecruleMatchValueGreaterThan(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("12", av2)
 }
 
@@ -341,7 +344,7 @@ func TestToSecruleMatchValueGreaterThanOrEqual(t *testing.T) {
 		},
 	}
 
-	av1 := toSecRuleMatchValue(mc1)
+	av1 := rl.toSecRuleMatchValue(mc1)
 	assert.Equal("12", av1)
 
 	mc2 := mockMatchCondition{
@@ -352,6 +355,6 @@ func TestToSecruleMatchValueGreaterThanOrEqual(t *testing.T) {
 		},
 	}
 
-	av2 := toSecRuleMatchValue(mc2)
+	av2 := rl.toSecRuleMatchValue(mc2)
 	assert.Equal("12", av2)
 }

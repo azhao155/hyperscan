@@ -33,6 +33,7 @@ var operatorsMap = map[string]secrule.Operator{
 	"BeginsWith":         secrule.Rx,
 	"EndsWith":           secrule.Rx,
 	"Regex":              secrule.Rx,
+	"GeoMatch":           secrule.CallBack,
 }
 
 var transformMap = map[string]secrule.Transformation{
@@ -45,7 +46,7 @@ var transformMap = map[string]secrule.Transformation{
 	"HtmlEntityDecode": secrule.HTMLEntityDecode,
 }
 
-func toSecRule(cr waf.CustomRule) (st secrule.Statement, err error) {
+func (rl *ruleLoader) toSecRule(cr waf.CustomRule) (st secrule.Statement, err error) {
 
 	rule := &secrule.Rule{
 		ID:    int(cr.Priority()),
@@ -54,7 +55,7 @@ func toSecRule(cr waf.CustomRule) (st secrule.Statement, err error) {
 
 	sri := secrule.RuleItem{}
 	for _, mc := range cr.MatchConditions() {
-		sri, err = toSecRuleItem(mc)
+		sri, err = rl.toSecRuleItem(mc)
 		if err != nil {
 			return
 		}
@@ -80,10 +81,10 @@ func toSecRule(cr waf.CustomRule) (st secrule.Statement, err error) {
 	return
 }
 
-func toSecRuleItem(mc waf.MatchCondition) (ri secrule.RuleItem, err error) {
+func (rl *ruleLoader) toSecRuleItem(mc waf.MatchCondition) (ri secrule.RuleItem, err error) {
 	t := ""
 	for _, mv := range mc.MatchVariables() {
-		t, err = toSecRuleTarget(mv)
+		t, err = rl.toSecRuleTarget(mv)
 		if err != nil {
 			return
 		}
@@ -91,8 +92,11 @@ func toSecRuleItem(mc waf.MatchCondition) (ri secrule.RuleItem, err error) {
 	}
 
 	ri.Predicate.Op = operatorsMap[mc.Operator()]
+	if ri.Predicate.Op == secrule.CallBack {
+		ri.Predicate.CallBackOpFunc = rl.toOperatorFunc(mc.Operator())
+	}
 	ri.Predicate.Neg = mc.NegateCondition()
-	ri.Predicate.Val = toSecRuleMatchValue(mc)
+	ri.Predicate.Val = rl.toSecRuleMatchValue(mc)
 
 	for _, tr := range mc.Transforms() {
 		ri.Transformations = append(ri.Transformations, transformMap[tr])
@@ -101,7 +105,7 @@ func toSecRuleItem(mc waf.MatchCondition) (ri secrule.RuleItem, err error) {
 	return
 }
 
-func toSecRuleMatchValue(mc waf.MatchCondition) (mv string) {
+func (rl *ruleLoader) toSecRuleMatchValue(mc waf.MatchCondition) (mv string) {
 
 	var ev []string
 	min := math.MaxInt64
@@ -141,7 +145,7 @@ func toSecRuleMatchValue(mc waf.MatchCondition) (mv string) {
 	return
 }
 
-func toSecRuleTarget(mv waf.MatchVariable) (target string, err error) {
+func (rl *ruleLoader) toSecRuleTarget(mv waf.MatchVariable) (target string, err error) {
 	target = targetsMap[mv.VariableName()]
 	if mv.Selector() != "" {
 		target = target + ":" + regexp.QuoteMeta(mv.Selector())

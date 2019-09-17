@@ -9,14 +9,15 @@ import (
 type mockWafHTTPRequest struct {
 	uri        string
 	method     string
+	remoteAddr string
 	headers    []waf.HeaderPair
 	configID   string
 	body       string
-	remoteAddr string
 }
 
 func (r *mockWafHTTPRequest) Method() string            { return r.method }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
+func (r *mockWafHTTPRequest) RemoteAddr() string        { return r.remoteAddr }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
 func (r *mockWafHTTPRequest) ConfigID() string          { return r.configID }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader {
@@ -26,7 +27,6 @@ func (r *mockWafHTTPRequest) BodyReader() io.Reader {
 }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
-func (r *mockWafHTTPRequest) RemoteAddr() string                  { return "0.0.0.0" }
 
 type mockHeaderPair struct {
 	k string

@@ -20,6 +20,7 @@ type engineInstances struct {
 type Server interface {
 	EvalRequest(HTTPRequest) (allow bool, err error)
 	PutConfig(Config) error
+	PutGeoIPData([]GeoIPDataRecord) error
 	DisposeConfig(int) error
 	PutIPReputationList([]string)
 }
@@ -33,6 +34,7 @@ type serverImpl struct {
 	requestBodyParser       RequestBodyParser
 	resultsLogger           ResultsLogger
 	customRuleEngineFactory CustomRuleEngineFactory
+	geodb                   GeoDB
 }
 
 // NewServer creates a new top level AzWaf.
@@ -196,6 +198,10 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 
 	s.resultsLogger.SetLogMetaData(c.LogMetaData())
 	return
+}
+
+func (s *serverImpl) PutGeoIPData(geoIPData []GeoIPDataRecord) (err error) {
+	return s.geodb.PutGeoIPData(geoIPData)
 }
 
 func (s *serverImpl) DisposeConfig(version int) (err error) {
