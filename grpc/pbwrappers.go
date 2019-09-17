@@ -32,6 +32,10 @@ func (r *wafHTTPRequestPbWrapper) RemoteAddr() string    { return r.pb.RemoteAdd
 func (r *wafHTTPRequestPbWrapper) ConfigID() string { return r.pb.ConfigID }
 
 func (r *wafHTTPRequestPbWrapper) LogMetaData() waf.RequestLogMetaData {
+	if r.pb.MetaData == nil {
+		return nil
+	}
+
 	return &requestLogMetaDataPbWrapper{pb: r.pb.MetaData}
 }
 
@@ -74,12 +78,24 @@ type policyConfigWrapper struct{ pb *pb.PolicyConfig }
 
 func (c *policyConfigWrapper) ConfigID() string { return c.pb.ConfigID }
 func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
+	if c.pb.SecRuleConfig == nil {
+		return nil
+	}
+
 	return &secRuleConfigImpl{pb: c.pb.SecRuleConfig}
 }
 func (c *policyConfigWrapper) CustomRuleConfig() waf.CustomRuleConfig {
+	if c.pb.CustomRuleConfig == nil {
+		return nil
+	}
+
 	return &customRuleConfigImpl{pb: c.pb.CustomRuleConfig}
 }
 func (c *policyConfigWrapper) IPReputationConfig() waf.IPReputationConfig {
+	if c.pb.IpReputationConfig == nil {
+		return nil
+	}
+
 	return &ipReputationConfigImpl{pb: c.pb.IpReputationConfig}
 }
 
@@ -153,6 +169,10 @@ func (c *configPbWrapper) PolicyConfigs() []waf.PolicyConfig {
 }
 
 func (c *configPbWrapper) LogMetaData() waf.ConfigLogMetaData {
+	if c.pb.MetaData == nil{
+		return nil
+	}
+	
 	return &configLogMetaDataPbWrapper{pb: c.pb.MetaData}
 }
 

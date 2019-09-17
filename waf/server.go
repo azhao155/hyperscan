@@ -113,16 +113,22 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 		return
 	}
 
-	secRuleEvaluation := engines.sre.NewEvaluation(logger, req)
-	defer secRuleEvaluation.Close()
+	var secRuleEvaluation SecRuleEvaluation
+	if engines.sre != nil {
+		secRuleEvaluation = engines.sre.NewEvaluation(logger, req)
+		defer secRuleEvaluation.Close()
 
-	err = secRuleEvaluation.ScanHeaders()
-	if err != nil {
-		return
+		err = secRuleEvaluation.ScanHeaders()
+		if err != nil {
+			return
+		}
+
 	}
 
 	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
-		err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+		if secRuleEvaluation != nil {
+			err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+		}
 		// TODO add other engines who also need to do body scanning here
 		return
 	})
@@ -142,7 +148,9 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 		return
 	}
 
-	allow = secRuleEvaluation.EvalRules()
+	if secRuleEvaluation != nil {
+		allow = secRuleEvaluation.EvalRules()
+	}
 
 	return
 }
