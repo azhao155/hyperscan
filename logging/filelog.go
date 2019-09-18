@@ -11,10 +11,10 @@ import (
 )
 
 // Path is the azwaf log path
-const Path = "/appgwroot/log/waf/"
+const Path = "/appgwroot/log/azwaf/"
 
 // FileName is the azwaf log file name
-const FileName = "azwaf.log"
+const FileName = "waf_json.log"
 
 type filelogResultsLogger struct {
 	fileSystem   LogFileSystem
