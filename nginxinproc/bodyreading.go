@@ -26,6 +26,7 @@ type bodyReader struct {
 	curInMemChain    *C.ngx_chain_t
 	curInMemBufPos   int
 	bodyFilePos      int
+	reachedEOF       bool
 }
 
 func (b *bodyReader) Read(p []byte) (n int, err error) {
@@ -33,6 +34,11 @@ func (b *bodyReader) Read(p []byte) (n int, err error) {
 
 	if r.request_body == nil {
 		// This probably never happens. Nginx usually always populates this field, but will leave both temp_file and bufs as null if there was no request body.
+		err = io.EOF
+		return
+	}
+
+	if b.reachedEOF {
 		err = io.EOF
 		return
 	}
@@ -45,9 +51,11 @@ func (b *bodyReader) Read(p []byte) (n int, err error) {
 			n = ret
 			b.bodyFilePos += ret
 			if n < len(p) {
+				b.reachedEOF = true
 				err = io.EOF
 			}
 		} else if ret == 0 {
+			b.reachedEOF = true
 			err = io.EOF
 		} else {
 			err = fmt.Errorf("error code %d while reading Nginx request body", ret)
@@ -74,11 +82,13 @@ func (b *bodyReader) Read(p []byte) (n int, err error) {
 
 			// If there was no next buffer in the ngx_chain_t, then we are done.
 			if b.curInMemChain == nil {
+				b.reachedEOF = true
 				err = io.EOF
 			}
 		}
 	} else {
 		// There was no request body. For example a GET request.
+		b.reachedEOF = true
 		err = io.EOF
 	}
 

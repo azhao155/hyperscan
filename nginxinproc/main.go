@@ -37,8 +37,10 @@ import (
 	"azwaf/logging"
 	"azwaf/secrule"
 	"azwaf/waf"
+	"fmt"
 	"github.com/rs/zerolog"
 	"io"
+	"math/rand"
 	"os"
 	"reflect"
 	"time"
@@ -75,9 +77,13 @@ func getInstance(secruleconf string) waf.Server {
 	}
 
 	// Initialize common dependencies
-	loglevel := zerolog.Disabled
+	loglevel := zerolog.FatalLevel
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
-	secruleResLog, wafResLog := logging.NewZerologResultsLogger(logger)
+	secruleResLog, wafResLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Error while creating file logger")
+	}
+
 	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
 	p := secrule.NewRuleParser()
 	rlfs := secrule.NewRuleLoaderFileSystem()
@@ -123,6 +129,7 @@ func newNginxReqWrapper(input *C.ngx_http_request_t, ngxReadFileCb C.ngxReadFile
 			underlyingNgxReq: input,
 			ngxReadFileCb:    ngxReadFileCb,
 		},
+		transactionID: fmt.Sprintf("%X", rand.Int())[:7], // TODO pass a txid down with the request from Nginx
 	}
 
 	// Make ngxStrToGoStr-versions of each header
@@ -152,9 +159,10 @@ type nginxReqWrapper struct {
 
 	// Storing as strings rather than using underlyingNgxReq for each of these, in order to avoid having to recreate string headers in ngxStrToGoStr every time a value is needed.
 	// Because string headers are used in ngxStrToGoStr, the underlying memory for the strings actually still point to the original memory allocated by Nginx.
-	uri     string
-	method  string
-	headers []waf.HeaderPair
+	uri           string
+	method        string
+	headers       []waf.HeaderPair
+	transactionID string
 }
 
 func (r *nginxReqWrapper) Method() string            { return r.method }
@@ -164,6 +172,9 @@ func (r *nginxReqWrapper) ConfigID() string          { return "" }
 func (r *nginxReqWrapper) BodyReader() io.Reader {
 	return &r.bodyReader
 }
+func (r *nginxReqWrapper) LogMetaData() waf.RequestLogMetaData { return nil }
+func (r *nginxReqWrapper) TransactionID() string               { return r.transactionID }
+func (r *nginxReqWrapper) RemoteAddr() string                  { return "" }
 
 type headerPair struct {
 	k string
