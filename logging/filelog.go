@@ -168,6 +168,12 @@ func (l *filelogResultsLogger) BodyParseError(request waf.HTTPRequest, err error
 		iID = l.metaData.InstanceID()
 	}
 
+	var policyScope, policyScopeName string
+	if request.LogMetaData() != nil {
+		policyScope = request.LogMetaData().Scope()
+		policyScopeName = request.LogMetaData().ScopeName()
+	}
+
 	c := customerFirewallBodyParseLogEntryProperty{
 		InstanceID:      iID,
 		RequestURI:      request.URI(),
@@ -175,8 +181,8 @@ func (l *filelogResultsLogger) BodyParseError(request waf.HTTPRequest, err error
 		Action:          "Blocked",
 		TransactionID:   request.TransactionID(),
 		PolicyID:        request.ConfigID(),
-		PolicyScope:     request.LogMetaData().Scope(),
-		PolicyScopeName: request.LogMetaData().ScopeName(),
+		PolicyScope:     policyScope,
+		PolicyScopeName: policyScopeName,
 		Details: customerFirewallLogBodyParseDetailsEntry{
 			Message: err.Error(),
 		},
