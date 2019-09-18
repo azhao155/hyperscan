@@ -16,7 +16,7 @@ type SecRuleEngine interface {
 type SecRuleEvaluation interface {
 	ScanHeaders() error
 	ScanBodyField(contentType ContentType, fieldName string, data string) error
-	EvalRules() bool
+	EvalRules() (wafDecision Decision)
 	Close()
 }
 

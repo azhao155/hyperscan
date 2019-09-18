@@ -21,7 +21,8 @@ func TestCustomRuleEngineEvalRequest(t *testing.T) {
 	err := ev.ScanHeaders()
 	assert.Nil(err)
 
-	assert.True(ev.EvalRules())
+	r := ev.EvalRules()
+	assert.Equal(waf.Pass, r)
 }
 
 type mockSecRuleEngine struct{}
@@ -40,8 +41,8 @@ func (s *mockSecRuleEvaluation) ScanBodyField(contentType waf.ContentType, field
 	return nil
 }
 
-func (s *mockSecRuleEvaluation) EvalRules() bool {
-	return true
+func (s *mockSecRuleEvaluation) EvalRules() (decision waf.Decision) {
+	return waf.Pass
 }
 
 func (s *mockSecRuleEvaluation) Close() {

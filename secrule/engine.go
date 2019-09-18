@@ -103,7 +103,7 @@ func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, field
 	return s.reqScannerEvaluation.ScanBodyField(contentType, fieldName, data, s.scanResults)
 }
 
-func (s *secRuleEvaluationImpl) EvalRules() bool {
+func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 	if s.logger.Debug() != nil {
 		for key, match := range s.scanResults.rxMatches {
 			s.logger.Debug().
@@ -115,23 +115,18 @@ func (s *secRuleEvaluationImpl) EvalRules() bool {
 		}
 	}
 
-	// TODO: populate initial values as part of TxState task
 	perRequestEnv := newEnvMap()
 
-	allow, statusCode, err := s.engine.ruleEvaluator.Process(s.logger, perRequestEnv, s.engine.statements, s.scanResults, s.ruleTriggeredCb)
+	wafDecision, statusCode, err := s.engine.ruleEvaluator.Process(s.logger, perRequestEnv, s.engine.statements, s.scanResults, s.ruleTriggeredCb)
 	if err != nil {
 		s.logger.Debug().Err(err).Msg("SecRule engine got rule evaluation error")
-		return false
+		return
 	}
 
-	s.logger.Debug().Bool("allow", allow).Int("statusCode", statusCode).Msg("SecRule engine rule evaluation decision")
+	s.logger.Debug().Int("wafDecision", int(wafDecision)).Int("statusCode", statusCode).Msg("SecRule engine rule evaluation decision")
 
 	// TODO return status code
-	if !allow {
-		return false
-	}
-
-	return true
+	return
 }
 
 // Release resources.

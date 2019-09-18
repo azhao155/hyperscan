@@ -16,7 +16,8 @@ func TestWafServerEvalRequest(t *testing.T) {
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
-	mcre := &mockCustomRuleEngine{}
+	mcrev := &mockCustomRuleEvaluation{}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
@@ -33,6 +34,31 @@ func TestWafServerEvalRequest(t *testing.T) {
 	s.EvalRequest(req)
 
 	// Assert
+
+	if mcref.newEngineCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEngineFactory.NewEngine: %v", mcref.newEngineCalled)
+	}
+
+	if mcre.newEvaluationCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEngine.NewEvaluation: %v", mcre.newEvaluationCalled)
+	}
+
+	if mcrev.scanHeadersCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.ScanHeaders: %v", mcrev.scanHeadersCalled)
+	}
+
+	if mcrev.scanBodyFieldCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.ScanBodyField: %v", mcrev.scanBodyFieldCalled)
+	}
+
+	if mcrev.evalRulesCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.EvalRules: %v", mcrev.evalRulesCalled)
+	}
+
+	if mcrev.closeCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.Close: %v", mcrev.closeCalled)
+	}
+
 	if msref.newEngineCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEngineFactory.NewEngine: %v", msref.newEngineCalled)
 	}
@@ -119,7 +145,8 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
-	mcre := &mockCustomRuleEngine{}
+	mcrev := &mockCustomRuleEvaluation{}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
@@ -146,8 +173,8 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 		t.Fatalf("Unexpected error from EvalRequest: %s", err)
 	}
 
-	if r != false {
-		t.Fatalf("EvalRequest did not return false")
+	if r != Block {
+		t.Fatalf("EvalRequest did not return block")
 	}
 
 	if mrl.fieldBytesLimitExceededCalled != expectedFieldBytesLimitExceededCalled {
@@ -200,9 +227,9 @@ func (m *mockSecRuleEvaluation) ScanBodyField(contentType ContentType, fieldName
 	m.scanBodyFieldCalled++
 	return
 }
-func (m *mockSecRuleEvaluation) EvalRules() bool {
+func (m *mockSecRuleEvaluation) EvalRules() Decision {
 	m.evalRulesCalled++
-	return true
+	return Pass
 }
 func (m *mockSecRuleEvaluation) Close() {
 	m.closeCalled++
@@ -308,6 +335,8 @@ func (m *mockConfigMgr) DisposeConfig(version int) ([]string, error) {
 }
 
 type mockCustomRuleEngine struct {
+	newEvaluationCalled int
+	mcrev               *mockCustomRuleEvaluation
 }
 
 type mockCustomRuleEngineFactory struct {
@@ -322,23 +351,36 @@ func (m *mockCustomRuleEngineFactory) NewEngine(c CustomRuleConfig) (engine Cust
 }
 
 func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) CustomRuleEvaluation {
-	return &mockCustomRuleEvaluation{}
+	s.newEvaluationCalled++
+	return s.mcrev
+}
+
+type mockCustomRuleEvaluation struct {
+	scanHeadersCalled   int
+	scanBodyFieldCalled int
+	evalRulesCalled     int
+	closeCalled         int
 }
 
 func (s *mockCustomRuleEngine) GeoDB() GeoDB {
 	return nil
 }
 
-type mockCustomRuleEvaluation struct{}
-
 func (s *mockCustomRuleEvaluation) ScanHeaders() error {
+	s.scanHeadersCalled++
 	return nil
 }
 
 func (s *mockCustomRuleEvaluation) ScanBodyField(contentType ContentType, fieldName string, data string) error {
+	s.scanBodyFieldCalled++
 	return nil
 }
 
-func (s *mockCustomRuleEvaluation) EvalRules() bool {
-	return true
+func (s *mockCustomRuleEvaluation) EvalRules() Decision {
+	s.evalRulesCalled++
+	return Pass
+}
+
+func (s *mockCustomRuleEvaluation) Close() {
+	s.closeCalled++
 }

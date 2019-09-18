@@ -31,8 +31,8 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	r := ev.EvalRules()
 
 	// Assert
-	if r != true {
-		t.Fatalf("EvalRequest did not return true")
+	if r != waf.Pass {
+		t.Fatalf("EvalRequest did not return pass")
 	}
 }
 
@@ -87,7 +87,7 @@ func (f *mockReqScannerFactory) NewReqScanner(statements []Statement) (r ReqScan
 
 type mockRuleEvaluator struct{}
 
-func (r *mockRuleEvaluator) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
-	allow = true
+func (r *mockRuleEvaluator) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
+	decision = waf.Pass
 	return
 }

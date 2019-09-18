@@ -129,12 +129,13 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 		transactionID: fmt.Sprintf("%X", rand.Int())[:7], // TODO pass a txid down with the request from Nginx
 	}
 
-	allow, err = s.ws.EvalRequest(w)
+	decision, err := s.ws.EvalRequest(w)
 	if err != nil {
 		s.logger.Warn().Err(err).Msg("Error from s.ws.EvalRequest(w)")
 		allow = false
 	}
 
+	allow = (decision != waf.Block)
 	return stream.SendAndClose(&pb.WafDecision{Allow: allow})
 }
 

@@ -5,6 +5,7 @@ import (
 	"azwaf/secrule"
 	"azwaf/testutils"
 	"testing"
+	"azwaf/waf"
 
 	"github.com/rs/zerolog"
 )
@@ -37,10 +38,11 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
+
 	r := ev.EvalRules()
 
 	// Assert
-	if !r {
-		t.Fatalf("EvalRequest did not return true")
+	if r != waf.Pass {
+		t.Fatalf("EvalRequest did not return pass")
 	}
 }

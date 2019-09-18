@@ -493,7 +493,7 @@ type mockWafServer struct {
 	bodyReadBufSize           int
 }
 
-func (m *mockWafServer) EvalRequest(req waf.HTTPRequest) (allow bool, err error) {
+func (m *mockWafServer) EvalRequest(req waf.HTTPRequest) (decision waf.Decision, err error) {
 	m.evalRequestCalled++
 
 	if m.bodyReadBufSize == 0 {
@@ -512,7 +512,7 @@ func (m *mockWafServer) EvalRequest(req waf.HTTPRequest) (allow bool, err error)
 		}
 	}
 
-	allow = true
+	decision = waf.Pass
 	return
 }
 

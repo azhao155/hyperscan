@@ -16,5 +16,6 @@ type CustomRuleEngine interface {
 type CustomRuleEvaluation interface {
 	ScanHeaders() error
 	ScanBodyField(contentType ContentType, fieldName string, data string) error
-	EvalRules() bool
+	EvalRules() (wafDecision Decision)
+	Close()
 }

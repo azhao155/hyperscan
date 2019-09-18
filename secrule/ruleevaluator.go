@@ -1,14 +1,14 @@
 package secrule
 
 import (
-	"strings"
-
 	"github.com/rs/zerolog"
+	"strings"
+	"azwaf/waf"
 )
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error)
+	Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error)
 }
 
 // RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
@@ -21,21 +21,18 @@ func NewRuleEvaluator() RuleEvaluator {
 	return &ruleEvaluatorImpl{}
 }
 
-func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, err error) {
+func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
 	// The triggered callback is optional. Default to do nothing.
 	if triggeredCb == nil {
 		triggeredCb = func(stmt Statement, isDisruptive bool, msg string, logData string) {}
 	}
 
 	// Evaluate each phase, but stop if there was a disruptive action.
-	anyDisruptive := false
 	for phase := 1; phase <= 4; phase++ {
 		logger.Debug().Int("phase", phase).Msg("Starting rule evaluation phase")
-		phaseAllow, phaseStatusCode, phaseDisruptive := r.processPhase(logger, phase, perRequestEnv, statements, scanResults, triggeredCb)
+		var phaseDisruptive = false
+		decision, statusCode, phaseDisruptive = r.processPhase(logger, phase, perRequestEnv, statements, scanResults, triggeredCb)
 		if phaseDisruptive {
-			allow = phaseAllow
-			statusCode = phaseStatusCode
-			anyDisruptive = true
 			break
 		}
 	}
@@ -44,17 +41,15 @@ func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv envMap,
 	logger.Debug().Int("phase", 5).Msg("Starting rule evaluation phase")
 	r.processPhase(logger, 5, perRequestEnv, statements, scanResults, triggeredCb)
 
-	if !anyDisruptive {
-		allow = true
-		statusCode = 200
-	}
-
 	return
 }
 
-func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (allow bool, statusCode int, phaseDisruptive bool) {
+func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, phaseDisruptive bool) {
 	var skipAfter string
 
+	decision = waf.Pass
+	statusCode = 200
+	phaseDisruptive = false
 	for _, stmt := range statements {
 		// If we are currently looking for a skipAfter marker, then keep skipping until we find it.
 		if skipAfter != "" {
@@ -135,14 +130,12 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 
 				case *AllowAction:
 					phaseDisruptive = true
-					allow = true
-					statusCode = 200
+					decision = waf.Allow
 
 				case *DenyAction:
 					phaseDisruptive = true
-					allow = false
+					decision = waf.Block
 					statusCode = 403
-
 				}
 			}
 		}

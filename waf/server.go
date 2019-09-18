@@ -18,7 +18,7 @@ type engineInstances struct {
 
 // Server is the top level interface to AzWaf.
 type Server interface {
-	EvalRequest(HTTPRequest) (allow bool, err error)
+	EvalRequest(HTTPRequest) (wafDecision Decision, err error)
 	PutConfig(Config) error
 	PutGeoIPData([]GeoIPDataRecord) error
 	DisposeConfig(int) error
@@ -90,7 +90,7 @@ func NewStandaloneSecruleServer(logger zerolog.Logger, sre SecRuleEngine, rbp Re
 	return
 }
 
-func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
+func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error) {
 	// Create a sub-logger with a transaction ID
 	logger := s.logger.With().Str("txid", req.TransactionID()).Logger()
 
@@ -98,7 +98,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 		logger.Info().Str("uri", req.URI()).Msg("WAF got request")
 		startTime := time.Now()
 		defer func() {
-			logger.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Bool("allow", allow).Msg("WAF completed request")
+			logger.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Int("decision", int(decision)).Msg("WAF completed request")
 		}()
 	}
 
@@ -111,27 +111,35 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 		return
 	}
 	if engines.ire != nil && !engines.ire.EvalRequest(req) {
-		allow = false
+		decision = Block
 		return
 	}
 
-	var secRuleEvaluation SecRuleEvaluation
-	if engines.sre != nil {
-		secRuleEvaluation = engines.sre.NewEvaluation(logger, req)
-		defer secRuleEvaluation.Close()
+	customRuleEvaluation := engines.cre.NewEvaluation(logger, req)
+	defer customRuleEvaluation.Close()
 
-		err = secRuleEvaluation.ScanHeaders()
-		if err != nil {
-			return
-		}
+	err = customRuleEvaluation.ScanHeaders()
+	if err != nil {
+		return
+	}
 
+	secRuleEvaluation := engines.sre.NewEvaluation(logger, req)
+	defer secRuleEvaluation.Close()
+
+	err = secRuleEvaluation.ScanHeaders()
+	if err != nil {
+		return
 	}
 
 	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
+		err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+		if err != nil {
+			return err
+		}
+
 		if secRuleEvaluation != nil {
 			err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
 		}
-		// TODO add other engines who also need to do body scanning here
 		return
 	})
 	if err != nil {
@@ -150,12 +158,18 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (allow bool, err error) {
 			s.resultsLogger.BodyParseError(req, err)
 		}
 
-		allow = false
+		decision = Block
+		return
+	}
+
+	// Custom rule evaluation always occurs first
+	decision = customRuleEvaluation.EvalRules()
+	if decision == Allow || decision == Block {
 		return
 	}
 
 	if secRuleEvaluation != nil {
-		allow = secRuleEvaluation.EvalRules()
+		decision = secRuleEvaluation.EvalRules()
 	}
 
 	return

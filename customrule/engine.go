@@ -36,8 +36,12 @@ func (c *customRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 	return c.secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
 }
 
-func (c *customRuleEvaluationImpl) EvalRules() bool {
+func (c *customRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 	return c.secRuleEvaluation.EvalRules()
+}
+
+func (c *customRuleEvaluationImpl) Close() {
+	c.secRuleEvaluation.Close()
 }
 
 type secRuleEngineResultsLoggerAdapter struct {

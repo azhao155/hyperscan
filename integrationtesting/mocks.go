@@ -1,5 +1,6 @@
 package integrationtesting
 
+
 import (
 	"azwaf/waf"
 	"bytes"

@@ -4,6 +4,7 @@ import (
 	"azwaf/testutils"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"azwaf/waf"
 )
 
 func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
@@ -32,9 +33,9 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 
 	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -63,9 +64,9 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
-	assert.False(pass)
+	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
 }
 
@@ -103,9 +104,9 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Allow, decision)
 	assert.Equal(200, code)
 }
 
@@ -135,9 +136,9 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	tp := make(map[string]bool)
 	sr := &ScanResults{targetsPresent: tp}
 
-	allow, code, err := re.Process(logger, em, rules, sr, nil)
+	decision, code, err := re.Process(logger, em, rules, sr, nil)
 	assert.Nil(err)
-	assert.False(allow)
+	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
 }
 
@@ -168,11 +169,11 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.False(pass)
+	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
 }
 
@@ -202,11 +203,11 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -236,11 +237,11 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -275,11 +276,11 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.False(pass)
+	assert.Equal(waf.Block, decision)
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
@@ -303,11 +304,11 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
@@ -332,11 +333,11 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
@@ -367,11 +368,11 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.False(pass)
+	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
 }
 
@@ -398,11 +399,11 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.False(pass)
+	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
 }
 
@@ -751,11 +752,11 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -781,11 +782,11 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.False(pass)
+	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
 }
 
@@ -814,11 +815,11 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -846,11 +847,11 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -877,11 +878,11 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
 
@@ -908,10 +909,10 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	// Act
-	pass, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
 
 	// Assert
 	assert.Nil(err)
-	assert.True(pass)
+	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
 }
