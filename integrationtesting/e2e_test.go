@@ -1,6 +1,7 @@
 package integrationtesting
 
 import (
+	"azwaf/bodyparsing"
 	"azwaf/hyperscan"
 	"azwaf/secrule"
 	"azwaf/testutils"
@@ -10,7 +11,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
+func TestNewStandaloneSecruleServerEvalRequestCrs30(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	origLogLevel := zerolog.GlobalLevel()
@@ -30,19 +31,23 @@ func TestSecRuleEngineEvalRequestCrs30(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	req := &mockWafHTTPRequest{uri: "http://localhost:8080/", method: "GET"}
-
-	// Act
-	ev := e.NewEvaluation(logger, req)
-	err = ev.ScanHeaders()
+	var lengthLimits = waf.LengthLimits{
+		MaxLengthField:    1024 * 20,         // 20 KiB
+		MaxLengthPausable: 1024 * 128,        // 128 KiB
+		MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
+	}
+	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
+	wafServer, err := waf.NewStandaloneSecruleServer(logger, e, rbp, reslog)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
+	req := &mockWafHTTPRequest{uri: "http://localhost:8080/", method: "GET"}
 
-	r := ev.EvalRules()
+	// Act
+	decision, err := wafServer.EvalRequest(req)
 
 	// Assert
-	if r != waf.Pass {
+	if decision != waf.Pass {
 		t.Fatalf("EvalRequest did not return pass")
 	}
 }

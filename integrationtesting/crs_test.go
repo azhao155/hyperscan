@@ -186,6 +186,13 @@ func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secru
 	return
 }
 
+func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.HTTPRequest, limit int) { }
+func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.HTTPRequest, limit int) { }
+func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.HTTPRequest, limit int) { }
+func (l *mockResultsLogger) BodyParseError(request waf.HTTPRequest, err error) { }
+func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) { }
+
+
 type mockSecRuleConfig struct {
 	ruleSetID string
 }

@@ -115,13 +115,17 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		return
 	}
 
-	customRuleEvaluation := engines.cre.NewEvaluation(logger, req)
-	defer customRuleEvaluation.Close()
+	var customRuleEvaluation CustomRuleEvaluation
+	if engines.cre != nil {
+		customRuleEvaluation = engines.cre.NewEvaluation(logger, req)
+		defer customRuleEvaluation.Close()
 
-	err = customRuleEvaluation.ScanHeaders()
-	if err != nil {
-		return
+		err = customRuleEvaluation.ScanHeaders()
+		if err != nil {
+			return
+		}
 	}
+
 
 	secRuleEvaluation := engines.sre.NewEvaluation(logger, req)
 	defer secRuleEvaluation.Close()
@@ -132,9 +136,11 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
-		err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
-		if err != nil {
-			return err
+		if customRuleEvaluation != nil {
+			err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+			if err != nil {
+				return err
+			}
 		}
 
 		if secRuleEvaluation != nil {
@@ -163,9 +169,11 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	// Custom rule evaluation always occurs first
-	decision = customRuleEvaluation.EvalRules()
-	if decision == Allow || decision == Block {
-		return
+	if customRuleEvaluation != nil {
+		decision = customRuleEvaluation.EvalRules()
+		if decision == Allow || decision == Block {
+			return
+		}
 	}
 
 	if secRuleEvaluation != nil {
