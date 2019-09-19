@@ -1,31 +1,25 @@
-// +build nginxinproc
-
 package main
 
 /*
  *
  * Used by the Nginx module that runs Azwaf in-proc within an Nginx worker, as opposed to running as a standalone process connected via gRPC.
  *
- * Compile the Azwaf as a C shared library like this:
- *   go build -tags=nginxinproc -buildmode=c-shared -o azwafnginxinproc.so azwaf/nginxinproc
- *
  * Compile the C part into your Nginx by adding this to your Nginx configure-line:
  *   --add-module=/home/youruser/azwaf/nginxinproc/nginx-azwaf
  *
- * This code uses dlsym to load at runtime in the Nginx worker, rather than statically or dynamically linking.
+ * Before compiling the Azwaf Go code, you must create a symlink to the appropriate Nginx source tree path you are building for:
+ *   ln -s /home/user1/dev/roxy/nginx /tmp/azwafnginx
+ *
+ * Compile Azwaf as a C shared library:
+ *   go build -tags=nginxinproc -buildmode=c-shared -o azwafnginxinproc.so azwaf/nginxinproc
+ *
+ * The C code uses dlsym to load at runtime in the Nginx worker, rather than statically or dynamically linking.
  * The reason for this is a workaround for an issue with Nginx working together with CGo.
  * Details can be found in the issues section here: https://github.com/robinmonjo/ngx_http_l
  *
  */
 
 /*
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/src/core
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/src/http
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/objs
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/src/os/unix
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/src/event
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/src/http/v2
-#cgo CFLAGS: -I${SRCDIR}/../../nginx/src/http/modules
 #include <ngx_http.h>
 #include "bodyreading.h"
 */
@@ -41,10 +35,10 @@ import (
 	"github.com/rs/zerolog"
 	"io"
 	"math/rand"
-	"os"
 	"reflect"
-	"time"
 	"unsafe"
+	"os"
+	"time"
 )
 
 var lengthLimits = waf.LengthLimits{
@@ -60,25 +54,32 @@ func AzwafEvalRequest(secruleconfngx C.ngx_str_t, input *C.ngx_http_request_t, n
 
 	req := newNginxReqWrapper(input, ngxReadFileCb)
 
-	allow, err := instance.EvalRequest(req)
+	decision, err := instance.EvalRequest(req)
 	if err != nil {
+		logger.Warn().Err(err).Msg("Error from s.ws.EvalRequest(w)")
 		return false
 	}
 
-	return allow
+	return decision != waf.Block
 }
 
 // TODO Having a separate object tree here is a very memory-ineffecient way of having multiple configs. Most objects could be shared.
 var nginxWafInstances map[string]*waf.Server = make(map[string]*waf.Server)
+var loggerInitialized bool
+var logger zerolog.Logger
 
 func getInstance(secruleconf string) waf.Server {
 	if instance, ok := nginxWafInstances[secruleconf]; ok {
 		return *instance
 	}
 
+	if loggerInitialized == false {
+		loglevel := zerolog.FatalLevel
+		logger = zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
+		loggerInitialized = true
+	}
+
 	// Initialize common dependencies
-	loglevel := zerolog.FatalLevel
-	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
 	secruleResLog, wafResLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")

@@ -1,5 +1,3 @@
-// +build nginxinproc
-
 package main
 
 /*
