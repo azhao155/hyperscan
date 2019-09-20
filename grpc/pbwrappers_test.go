@@ -145,3 +145,22 @@ func TestConfigsConversion(t *testing.T) {
 		t.Fatalf("TestConfigConvertion MatchVariable has wrong Transform")
 	}
 }
+
+func TestConfigsConversionMissingJsonString(t *testing.T) {
+	converter := &ConfigConverterImpl{}
+
+	json := `{"configVersion":1}`
+	c, e := converter.DeserializeFromJSON(json)
+
+	if e != nil {
+		t.Fatalf("Fail to convert the string which is missing fields")
+	}
+
+	if len(c.PolicyConfigs()) != 0 {
+		t.Fatalf("Policy configs field is missing, but still contain policy config")
+	}
+
+	if c.LogMetaData() != nil {
+		t.Fatalf("LogMetaData is missing, but still not nil")
+	}
+}
