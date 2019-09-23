@@ -130,12 +130,13 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 	}
 
 	decision, err := s.ws.EvalRequest(w)
+	allow = (decision != waf.Block)
+
 	if err != nil {
 		s.logger.Warn().Err(err).Msg("Error from s.ws.EvalRequest(w)")
 		allow = false
 	}
 
-	allow = (decision != waf.Block)
 	return stream.SendAndClose(&pb.WafDecision{Allow: allow})
 }
 
