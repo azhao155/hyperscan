@@ -178,7 +178,7 @@ type mockResultsLogger struct {
 	ruleMatched map[int]bool
 }
 
-func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+func (l *mockResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	r, ok := stmt.(*secrule.Rule)
 	if ok {
 		l.ruleMatched[r.ID] = true
@@ -186,10 +186,10 @@ func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt secru
 	return
 }
 
-func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.HTTPRequest, limit int) { }
-func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.HTTPRequest, limit int) { }
-func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.HTTPRequest, limit int) { }
-func (l *mockResultsLogger) BodyParseError(request waf.HTTPRequest, err error) { }
+func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) { }
+func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) { }
+func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) { }
+func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) { }
 func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) { }
 
 

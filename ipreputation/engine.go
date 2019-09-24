@@ -33,7 +33,7 @@ func (e *engineImpl) PutIPReputationList(ips []string) {
 	e.ipMatcher = newBinaryTrie(ips)
 }
 
-func (e *engineImpl) EvalRequest(req waf.HTTPRequest) bool {
+func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) bool {
 	isMatch := e.ipMatcher.match(req.RemoteAddr())
 	return isMatch
 }

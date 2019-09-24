@@ -48,6 +48,6 @@ type secRuleEngineResultsLoggerAdapter struct {
 	logger zerolog.Logger
 }
 
-func (l *secRuleEngineResultsLoggerAdapter) SecRuleTriggered(request waf.HTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+func (l *secRuleEngineResultsLoggerAdapter) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	// TODO adapt the secrule results logger to a custom rules results logger in a way that makes sense (rule ids, line numbers, and file names, etc. don't really make sense here as they do in secrule results logs).
 }

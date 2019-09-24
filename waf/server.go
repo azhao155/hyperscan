@@ -126,7 +126,6 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-
 	secRuleEvaluation := engines.sre.NewEvaluation(logger, req)
 	defer secRuleEvaluation.Close()
 

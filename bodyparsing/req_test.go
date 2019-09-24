@@ -656,14 +656,8 @@ type mockWafHTTPRequest struct {
 	headers    []waf.HeaderPair
 }
 
-func (r *mockWafHTTPRequest) Method() string                      { return "GET" }
-func (r *mockWafHTTPRequest) URI() string                         { return r.uri }
-func (r *mockWafHTTPRequest) RemoteAddr() string                  { return r.remoteAddr }
-func (r *mockWafHTTPRequest) ConfigID() string                    { return "SecRuleConfig1" }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return r.headers }
 func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return r.bodyReader }
-func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
-func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 
 type mockHeaderPair struct {
 	k string

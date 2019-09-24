@@ -3,8 +3,6 @@ package logging
 import (
 	"azwaf/secrule"
 	"azwaf/waf"
-	"bytes"
-	"io"
 	"os"
 	"testing"
 	"time"
@@ -74,16 +72,8 @@ type mockWafHTTPRequest struct {
 	body       string
 }
 
-func (r *mockWafHTTPRequest) Method() string            { return r.method }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
-func (r *mockWafHTTPRequest) RemoteAddr() string        { return r.remoteAddr }
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
 func (r *mockWafHTTPRequest) ConfigID() string          { return r.configID }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader {
-	var b bytes.Buffer
-	b.WriteString(r.body)
-	return &b
-}
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 

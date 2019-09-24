@@ -29,7 +29,7 @@ func (r *reqBodyParserImpl) LengthLimits() waf.LengthLimits {
 	return r.lengthLimits
 }
 
-func (r *reqBodyParserImpl) Parse(logger zerolog.Logger, req waf.HTTPRequest, cb waf.ParsedBodyFieldCb) (err error) {
+func (r *reqBodyParserImpl) Parse(logger zerolog.Logger, req waf.RequestBodyParserHTTPRequest, cb waf.ParsedBodyFieldCb) (err error) {
 	// Find the content-length and content-type
 	contentLength, contentType, err := r.getLengthAndTypeFromHeaders(req)
 	if err != nil {
@@ -82,7 +82,7 @@ func (r *reqBodyParserImpl) Parse(logger zerolog.Logger, req waf.HTTPRequest, cb
 	return
 }
 
-func (r *reqBodyParserImpl) getLengthAndTypeFromHeaders(req waf.HTTPRequest) (contentLength int, contentType string, err error) {
+func (r *reqBodyParserImpl) getLengthAndTypeFromHeaders(req waf.RequestBodyParserHTTPRequest) (contentLength int, contentType string, err error) {
 	for _, h := range req.Headers() {
 		k := h.Key()
 		v := h.Value()

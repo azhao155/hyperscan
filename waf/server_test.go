@@ -151,7 +151,7 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{
-		parseCb: func(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) (err error) {
+		parseCb: func(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) (err error) {
 			err = expectedErr
 			return
 		},
@@ -195,10 +195,10 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 }
 
 type mockRequestBodyParser struct {
-	parseCb func(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) error
+	parseCb func(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) error
 }
 
-func (r *mockRequestBodyParser) Parse(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) (err error) {
+func (r *mockRequestBodyParser) Parse(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) (err error) {
 	if r.parseCb != nil {
 		err = r.parseCb(logger, req, cb)
 	} else {
@@ -265,7 +265,7 @@ func (m *mockIPReputationEngine) PutIPReputationList([]string) {
 	m.putIPReputationListCount++
 }
 
-func (m *mockIPReputationEngine) EvalRequest(req HTTPRequest) bool {
+func (m *mockIPReputationEngine) EvalRequest(req IPReputationEngineHTTPRequest) bool {
 	m.evalRequestCount++
 	return false
 }
@@ -295,16 +295,16 @@ type mockResultsLogger struct {
 	bodyParseErrorCalled             int
 }
 
-func (r *mockResultsLogger) FieldBytesLimitExceeded(request HTTPRequest, limit int) {
+func (r *mockResultsLogger) FieldBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
 	r.fieldBytesLimitExceededCalled++
 }
-func (r *mockResultsLogger) PausableBytesLimitExceeded(request HTTPRequest, limit int) {
+func (r *mockResultsLogger) PausableBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
 	r.pausableBytesLimitExceededCalled++
 }
-func (r *mockResultsLogger) TotalBytesLimitExceeded(request HTTPRequest, limit int) {
+func (r *mockResultsLogger) TotalBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
 	r.totalBytesLimitExceededCalled++
 }
-func (r *mockResultsLogger) BodyParseError(request HTTPRequest, err error) {
+func (r *mockResultsLogger) BodyParseError(request ResultsLoggerHTTPRequest, err error) {
 	r.bodyParseErrorCalled++
 }
 

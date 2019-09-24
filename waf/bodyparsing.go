@@ -3,6 +3,7 @@ package waf
 import (
 	"errors"
 	"github.com/rs/zerolog"
+	"io"
 )
 
 // ParsedBodyFieldCb is will be called for each parsed field.
@@ -10,8 +11,14 @@ type ParsedBodyFieldCb = func(contentType ContentType, fieldName string, data st
 
 // RequestBodyParser parses HTTP request bodies.
 type RequestBodyParser interface {
-	Parse(logger zerolog.Logger, req HTTPRequest, cb ParsedBodyFieldCb) error
+	Parse(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) error
 	LengthLimits() LengthLimits
+}
+
+// RequestBodyParserHTTPRequest represents an HTTP request to be evaluated by RequestBodyParser.
+type RequestBodyParserHTTPRequest interface {
+	Headers() []HeaderPair
+	BodyReader() io.Reader
 }
 
 // ContentType of the body field being parsed.

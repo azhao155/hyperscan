@@ -42,10 +42,10 @@ func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
 
 type mockResultsLogger struct {
-	cb func(request waf.HTTPRequest, stmt Statement, action string, msg string, logData string)
+	cb func(request ResultsLoggerHTTPRequest, stmt Statement, action string, msg string, logData string)
 }
 
-func (l *mockResultsLogger) SecRuleTriggered(request waf.HTTPRequest, stmt Statement, action string, msg string, logData string) {
+func (l *mockResultsLogger) SecRuleTriggered(request ResultsLoggerHTTPRequest, stmt Statement, action string, msg string, logData string) {
 	if l.cb != nil {
 		l.cb(request, stmt, action, msg, logData)
 	}
