@@ -126,12 +126,15 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	secRuleEvaluation := engines.sre.NewEvaluation(logger, req)
-	defer secRuleEvaluation.Close()
+	var secRuleEvaluation SecRuleEvaluation
+	if engines.sre != nil {
+		secRuleEvaluation = engines.sre.NewEvaluation(logger, req)
+		defer secRuleEvaluation.Close()
 
-	err = secRuleEvaluation.ScanHeaders()
-	if err != nil {
-		return
+		err = secRuleEvaluation.ScanHeaders()
+		if err != nil {
+			return
+		}
 	}
 
 	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
