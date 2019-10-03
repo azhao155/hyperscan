@@ -45,7 +45,7 @@ func main() {
 	// Initialize common dependencies
 	loglevel, _ := zerolog.ParseLevel(*logLevel)
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
-	secruleResLog, wafResLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
+	resLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
@@ -71,12 +71,12 @@ func main() {
 			logger.Fatal().Err(err).Msg("Error while loading rules")
 		}
 
-		sre, err := secrule.NewEngine(stmts, rsf, re, secruleResLog)
+		sre, err := secrule.NewEngine(stmts, rsf, re, resLog)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 		}
 
-		wafServer, err = waf.NewStandaloneSecruleServer(logger, sre, rbp, wafResLog)
+		wafServer, err = waf.NewStandaloneSecruleServer(logger, sre, rbp, resLog)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating standalone SecRule engine WAF")
 		}
@@ -92,10 +92,10 @@ func main() {
 		crl := customrule.NewCustomRuleLoader(geoDB)
 		cref := customrule.NewEngineFactory(logger, crl, rsf, re)
 		rl := secrule.NewCrsRuleLoader(p, rlfs)
-		sref := secrule.NewEngineFactory(logger, rl, rsf, re, secruleResLog)
+		sref := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
-		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, wafResLog, cref, ire)
+		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, resLog, cref, ire)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating service manager")
 		}

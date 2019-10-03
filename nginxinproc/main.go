@@ -80,7 +80,7 @@ func getInstance(secruleconf string) waf.Server {
 	}
 
 	// Initialize common dependencies
-	secruleResLog, wafResLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
+	resLog, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
@@ -100,12 +100,12 @@ func getInstance(secruleconf string) waf.Server {
 		logger.Fatal().Err(err).Msg("Error while loading rules")
 	}
 
-	sre, err := secrule.NewEngine(stmts, rsf, re, secruleResLog)
+	sre, err := secrule.NewEngine(stmts, rsf, re, resLog)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 	}
 
-	instance, err := waf.NewStandaloneSecruleServer(logger, sre, rbp, wafResLog)
+	instance, err := waf.NewStandaloneSecruleServer(logger, sre, rbp, resLog)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating standalone SecRule engine WAF")
 	}

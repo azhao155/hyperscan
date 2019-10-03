@@ -24,10 +24,13 @@ func TestSecRuleTriggered(t *testing.T) {
 	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
 	fileSystem := &mockFileSystem{}
 	fileSystem.fmap = make(map[string]LogFile)
-	logger1, logger2, _ := NewFileResultsLogger(fileSystem, zeroLogger)
+	logger, err := NewFileResultsLogger(fileSystem, zeroLogger)
+	if err != nil {
+		t.Fatalf("Unexpected error %T: %v", err, err)
+	}
 
-	logger2.SetLogMetaData(&mockConfigLogMetaData{})
-	logger1.SecRuleTriggered(request, stat, "deny", "abc", "bce")
+	logger.SetLogMetaData(&mockConfigLogMetaData{})
+	logger.SecRuleTriggered(request, stat, "deny", "abc", "bce")
 	log := fileSystem.Get(Path + FileName)
 
 	expected := `{"resourceId":"appgw","operationName":"ApplicationGatewayFirewall","category":"ApplicationGatewayFirewallLog","properties":{"instanceId":"vm1","clientIp":"","clientPort":"","requestUri":"/a","ruleSetType":"","ruleSetVersion":"","ruleId":"11","ruleGroup":"","message":"abc","action":"deny","details":{"message":"bce","data":"","file":"","line":""},"hostname":"","transactionId":"abc","policyId":"waf1","policyScope":"Global","policyScopeName":"Default Policy"}}`

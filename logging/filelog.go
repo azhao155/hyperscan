@@ -16,7 +16,7 @@ const Path = "/appgwroot/log/azwaf/"
 // FileName is the azwaf log file name
 const FileName = "waf_json.log"
 
-type filelogResultsLogger struct {
+type filelogResultsLoggerImpl struct {
 	fileSystem   LogFileSystem
 	file         LogFile
 	logger       zerolog.Logger
@@ -25,20 +25,30 @@ type filelogResultsLogger struct {
 	metaData     waf.ConfigLogMetaData
 }
 
+// FilelogResultsLogger writes customer facing logs to a file.
+type FilelogResultsLogger interface {
+	FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int)
+	PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int)
+	TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int)
+	BodyParseError(request waf.ResultsLoggerHTTPRequest, err error)
+	SetLogMetaData(data waf.ConfigLogMetaData)
+	SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string)
+}
+
 // NewFileResultsLogger creates a results logger that write log messages to file.
-func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (secrule.ResultsLogger, waf.ResultsLogger, error) {
-	r := &filelogResultsLogger{fileSystem: fileSystem, logger: logger}
+func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (FilelogResultsLogger, error) {
+	r := &filelogResultsLoggerImpl{fileSystem: fileSystem, logger: logger}
 
 	err := fileSystem.MkDir(Path)
 	if err != nil {
 		logger.Error().Err(err).Str("path", Path).Msg("Failed to create the directory while initializing")
-		return nil, nil, err
+		return nil, err
 	}
 
 	r.file, err = fileSystem.Open(Path + FileName)
 	if err != nil {
 		logger.Error().Err(err).Str("file", Path+FileName).Msg("Failed to open the file at initiation")
-		return nil, nil, err
+		return nil, err
 	}
 
 	r.writelogline = make(chan []byte)
@@ -51,10 +61,10 @@ func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (secr
 		}
 	}()
 
-	return r, r, nil
+	return r, nil
 }
 
-func (l *filelogResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+func (l *filelogResultsLoggerImpl) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	var ruleID int
 	switch stmt := stmt.(type) {
 	case *secrule.Rule:
@@ -107,19 +117,19 @@ func (l *filelogResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTT
 	<-l.writeDone
 }
 
-func (l *filelogResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+func (l *filelogResultsLoggerImpl) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body contained a field longer than the limit (%d bytes)", limit))
 }
 
-func (l *filelogResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+func (l *filelogResultsLoggerImpl) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length (excluding file upload fields) exceeded the limit (%d bytes)", limit))
 }
 
-func (l *filelogResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+func (l *filelogResultsLoggerImpl) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes)", limit))
 }
 
-func (l *filelogResultsLogger) bytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, msg string) {
+func (l *filelogResultsLoggerImpl) bytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, msg string) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {
@@ -160,7 +170,7 @@ func (l *filelogResultsLogger) bytesLimitExceeded(request waf.ResultsLoggerHTTPR
 	<-l.writeDone
 }
 
-func (l *filelogResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
+func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {
@@ -204,6 +214,6 @@ func (l *filelogResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPReque
 	<-l.writeDone
 }
 
-func (l *filelogResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) {
+func (l *filelogResultsLoggerImpl) SetLogMetaData(metaData waf.ConfigLogMetaData) {
 	l.metaData = metaData
 }
