@@ -83,8 +83,8 @@ func TestWafServerEvalRequest(t *testing.T) {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.Close: %v", msrev.closeCalled)
 	}
 
-	if mire.evalRequestCount != 0 {
-		t.Fatalf("Unexpected number of calls to mockIPReputationEngine.NewEngine: %v", mire.evalRequestCount)
+	if mire.evalRequestCount != 1 {
+		t.Fatalf("Unexpected number of calls to mockIPReputationEngine.EvalRequest: %v", mire.evalRequestCount)
 	}
 }
 

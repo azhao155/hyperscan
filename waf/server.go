@@ -11,9 +11,9 @@ import (
 )
 
 type engineInstances struct {
-	sre SecRuleEngine
-	cre CustomRuleEngine
-	ire IPReputationEngine
+	sre        SecRuleEngine
+	cre        CustomRuleEngine
+	ireEnabled bool
 }
 
 // Server is the top level interface to AzWaf.
@@ -110,10 +110,6 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
 		return
 	}
-	if engines.ire != nil && !engines.ire.EvalRequest(req) {
-		decision = Block
-		return
-	}
 
 	var customRuleEvaluation CustomRuleEvaluation
 	if engines.cre != nil {
@@ -178,6 +174,13 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
+	if engines.ireEnabled {
+		if s.ipReputationEngine.EvalRequest(req) {
+			decision = Block
+			return
+		}
+	}
+
 	if secRuleEvaluation != nil {
 		decision = secRuleEvaluation.EvalRules()
 	}
@@ -215,6 +218,11 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 				return
 			}
 			engines.cre = cre
+		}
+
+		// Populate IpReputation Enabled
+		if ipReputationConfig := config.IPReputationConfig(); ipReputationConfig != nil {
+			engines.ireEnabled = ipReputationConfig.Enabled()
 		}
 
 		s.engines[configID] = engines

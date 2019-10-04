@@ -16,10 +16,14 @@ func (c *mockCustomRuleConfig) CustomRules() []CustomRule { return []CustomRule{
 
 type mockPolicyConfig struct{}
 
+type mockIPReputationConfig struct{}
+
+func (c *mockIPReputationConfig) Enabled() bool { return true }
+
 func (c *mockPolicyConfig) ConfigID() string                       { return "waf policy 1" }
 func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig           { return &mockSecRuleConfig{} }
 func (c *mockPolicyConfig) CustomRuleConfig() CustomRuleConfig     { return &mockCustomRuleConfig{} }
-func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return nil }
+func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return &mockIPReputationConfig{} }
 
 type mockConfigLogMetaData struct {
 }
