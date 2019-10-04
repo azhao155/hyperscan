@@ -1,6 +1,7 @@
 package ipreputation
 
 import (
+	"azwaf/waf"
 	"errors"
 	"testing"
 )
@@ -67,6 +68,54 @@ func TestCIDR(t *testing.T) {
 	}
 }
 
+func TestXForwardedForHeaders(t *testing.T) {
+	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine.PutIPReputationList([]string{"127.0.0.0/8"})
+	request := &mockHTTPRequest{
+		remoteAddr: "0.0.0.0",
+		headers:    []waf.HeaderPair{&mockHeaderPair{key: "X-Forwarded-For", value: "127.0.0.0:3000"}},
+	}
+
+	isMatch := engine.EvalRequest(request)
+	if !isMatch {
+		t.Fatalf("IPReputationEngine.EvalRequest false negative")
+	}
+
+	request = &mockHTTPRequest{remoteAddr: "128.12.7.0"}
+	isMatch = engine.EvalRequest(request)
+	if isMatch {
+		t.Fatalf("IPReputationEngine.EvalRequest false positive")
+	}
+}
+
+func TestXForwardedForHeadersWithoutPort(t *testing.T) {
+	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine.PutIPReputationList([]string{"127.0.0.0/8"})
+	request := &mockHTTPRequest{
+		remoteAddr: "0.0.0.0",
+		headers:    []waf.HeaderPair{&mockHeaderPair{key: "X-Forwarded-For", value: "127.0.0.0"}},
+	}
+
+	isMatch := engine.EvalRequest(request)
+	if !isMatch {
+		t.Fatalf("IPReputationEngine.EvalRequest false negative")
+	}
+}
+
+func TestXForwardedForHeadersWithWhiteSpace(t *testing.T) {
+	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine.PutIPReputationList([]string{"127.0.0.0/8"})
+	request := &mockHTTPRequest{
+		remoteAddr: "0.0.0.0",
+		headers:    []waf.HeaderPair{&mockHeaderPair{key: "X-Forwarded-For", value: " 1.2.3.4:80 , 127.0.0.0:3000 "}},
+	}
+
+	isMatch := engine.EvalRequest(request)
+	if !isMatch {
+		t.Fatalf("IPReputationEngine.EvalRequest false negative")
+	}
+}
+
 func TestNewIPReputationEngine(t *testing.T) {
 	mockFs := &mockFileSystem{content: "0.0.0.0/32\n255.255.255.255"}
 	engine := NewIPReputationEngine(mockFs)
@@ -121,6 +170,16 @@ func (m *mockFileSystem) readFile(fileName string) (data []byte, err error) {
 
 type mockHTTPRequest struct {
 	remoteAddr string
+	headers    []waf.HeaderPair
 }
 
-func (r *mockHTTPRequest) RemoteAddr() string { return r.remoteAddr }
+func (r *mockHTTPRequest) RemoteAddr() string        { return r.remoteAddr }
+func (r *mockHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
+
+type mockHeaderPair struct {
+	key   string
+	value string
+}
+
+func (h *mockHeaderPair) Key() string   { return h.key }
+func (h *mockHeaderPair) Value() string { return h.value }

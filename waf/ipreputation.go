@@ -9,4 +9,5 @@ type IPReputationEngine interface {
 // IPReputationEngineHTTPRequest represents an HTTP request to be evaluated by IPReputationEngine.
 type IPReputationEngineHTTPRequest interface {
 	RemoteAddr() string
+	Headers() []HeaderPair
 }

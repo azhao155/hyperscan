@@ -34,8 +34,36 @@ func (e *engineImpl) PutIPReputationList(ips []string) {
 }
 
 func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) bool {
-	isMatch := e.ipMatcher.match(req.RemoteAddr())
-	return isMatch
+	var ips []string
+	for _, header := range req.Headers() {
+		if strings.EqualFold(header.Key(), "X-Forwarded-For") {
+			ips = parseXForwardedForHeaderIps(header.Value())
+		}
+	}
+	ips = append(ips, req.RemoteAddr())
+
+	for _, ip := range ips {
+		if e.ipMatcher.match(ip) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func parseXForwardedForHeaderIps(header string) []string {
+	ips := strings.Split(header, ",")
+	for index, ip := range ips {
+		ip = strings.TrimSpace(ip)
+		ip = stripPortFromIP(ip)
+		ips[index] = ip
+	}
+	return ips
+}
+
+func stripPortFromIP(ipWithPort string) string {
+	ipAndPort := strings.Split(ipWithPort, ":")
+	return ipAndPort[0]
 }
 
 func (e *engineImpl) readFromDisk(fileName string) (ips []string) {
@@ -71,7 +99,7 @@ func (t *binaryTrie) clear() {
 
 func (t *binaryTrie) populate(ips []string) {
 	for _, ip := range ips {
-		ipInt, mask := extractIPAndMask(ip)
+		ipOctets, mask := parseIP(ip)
 		node := t.root
 		var i uint
 		depth := 0
@@ -85,7 +113,7 @@ func (t *binaryTrie) populate(ips []string) {
 				break
 			}
 
-			curBit := getBitAtIndex(ipInt, i)
+			curBit := getBitAtIndex(ipOctets, i)
 			var child *nodeImpl
 			if curBit == 0 {
 				child = node.getZero()
@@ -105,10 +133,9 @@ func (t *binaryTrie) populate(ips []string) {
 }
 
 func (t *binaryTrie) match(ip string) bool {
-	numbers := strings.Split(ip, ".")
 	node := t.root
 
-	ipInt := toIPInt(numbers)
+	ipOctets := ipStringToOctets(ip)
 	var i uint
 	for i = 0; i < ipSize; i++ {
 		isMatch := node.isMatch()
@@ -116,7 +143,7 @@ func (t *binaryTrie) match(ip string) bool {
 			return isMatch
 		}
 
-		curBit := getBitAtIndex(ipInt, i)
+		curBit := getBitAtIndex(ipOctets, i)
 		if curBit == 1 {
 			node = node.getOne()
 		} else {
@@ -166,22 +193,22 @@ func (n *nodeImpl) setMatch() {
 	n.match = true
 }
 
-// Takes the 4 numbers and inserts them at the 24th, 16th, 8th and 0th bit respectively
-func toIPInt(numbers []string) int {
-	var ipInt int
+// Converts IP address string into 4 octets
+func ipStringToOctets(ip string) int {
+	numbers := strings.Split(ip, ".")
+	var ipOctets int
 	numCount := 4
 	numSize := 8
 	for i := 0; i < numCount; i++ {
 		num, _ := strconv.Atoi(numbers[i])
-		ipInt |= num << uint(numSize*(numCount-1-i))
+		ipOctets |= num << uint(numSize*(numCount-1-i))
 	}
-	return ipInt
+	return ipOctets
 }
 
-func extractIPAndMask(ip string) (ipInt int, mask int) {
+func parseIP(ip string) (ipOctets int, mask int) {
 	split := strings.Split(ip, "/")
-	numbers := strings.Split(split[0], ".")
-	ipInt = toIPInt(numbers)
+	ipOctets = ipStringToOctets(split[0])
 
 	if len(split) == 2 {
 		maskString := split[1]
