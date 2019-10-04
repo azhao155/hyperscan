@@ -265,9 +265,9 @@ func (m *mockIPReputationEngine) PutIPReputationList([]string) {
 	m.putIPReputationListCount++
 }
 
-func (m *mockIPReputationEngine) EvalRequest(req IPReputationEngineHTTPRequest) bool {
+func (m *mockIPReputationEngine) EvalRequest(req IPReputationEngineHTTPRequest) Decision {
 	m.evalRequestCount++
-	return false
+	return Pass
 }
 
 type mockWafHTTPRequest struct{}

@@ -7,14 +7,15 @@ import (
 	"azwaf/testutils"
 	"azwaf/waf"
 	"flag"
-	"github.com/rs/zerolog"
-	"github.com/stretchr/testify/assert"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 )
 
 type testSuite struct {
@@ -173,29 +174,3 @@ func TestCrsRules(t *testing.T) {
 
 	assert.Equal(total, pass)
 }
-
-type mockResultsLogger struct {
-	ruleMatched map[int]bool
-}
-
-func (l *mockResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
-	r, ok := stmt.(*secrule.Rule)
-	if ok {
-		l.ruleMatched[r.ID] = true
-	}
-	return
-}
-
-func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) { }
-func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) { }
-func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) { }
-func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) { }
-func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) { }
-
-
-type mockSecRuleConfig struct {
-	ruleSetID string
-}
-
-func (c *mockSecRuleConfig) Enabled() bool     { return false }
-func (c *mockSecRuleConfig) RuleSetID() string { return c.ruleSetID }

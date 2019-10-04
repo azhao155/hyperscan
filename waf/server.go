@@ -102,6 +102,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}()
 	}
 
+	decision = Block
 	configID := req.ConfigID()
 
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
@@ -175,8 +176,8 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	if engines.ireEnabled {
-		if s.ipReputationEngine.EvalRequest(req) {
-			decision = Block
+		decision = s.ipReputationEngine.EvalRequest(req)
+		if decision == Allow || decision == Block {
 			return
 		}
 	}
@@ -199,7 +200,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		configID := config.ConfigID()
 
 		// Create SecRuleEngine.
-		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil {
+		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil && secRuleConfig.Enabled() {
 			var sre SecRuleEngine
 			sre, err = s.secRuleEngineFactory.NewEngine(secRuleConfig)
 			if err != nil {
@@ -210,7 +211,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		}
 
 		// Create CustomRuleEngine.
-		if customRuleConfig := config.CustomRuleConfig(); customRuleConfig != nil {
+		if customRuleConfig := config.CustomRuleConfig(); customRuleConfig != nil && len(customRuleConfig.CustomRules()) > 0 {
 			var cre CustomRuleEngine
 			cre, err = s.customRuleEngineFactory.NewEngine(customRuleConfig)
 			if err != nil {

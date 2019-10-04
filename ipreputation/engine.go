@@ -15,11 +15,11 @@ const badBotsfileName = "badbots.txt"
 type engineImpl struct {
 	ipMatcher  *binaryTrie
 	writeMutex sync.Mutex
-	fs         fileSystem
+	fs         FileSystem
 }
 
 // NewIPReputationEngine creates a engine for determining an ip's reputation
-func NewIPReputationEngine(fs fileSystem) waf.IPReputationEngine {
+func NewIPReputationEngine(fs FileSystem) waf.IPReputationEngine {
 	e := &engineImpl{fs: fs}
 	ips := e.readFromDisk(badBotsfileName)
 	e.ipMatcher = newBinaryTrie(ips)
@@ -33,7 +33,7 @@ func (e *engineImpl) PutIPReputationList(ips []string) {
 	e.ipMatcher = newBinaryTrie(ips)
 }
 
-func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) bool {
+func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) waf.Decision {
 	var ips []string
 	for _, header := range req.Headers() {
 		if strings.EqualFold(header.Key(), "X-Forwarded-For") {
@@ -44,11 +44,11 @@ func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) bool {
 
 	for _, ip := range ips {
 		if e.ipMatcher.match(ip) {
-			return true
+			return waf.Block
 		}
 	}
 
-	return false
+	return waf.Pass
 }
 
 func parseXForwardedForHeaderIps(header string) []string {
@@ -67,8 +67,8 @@ func stripPortFromIP(ipWithPort string) string {
 }
 
 func (e *engineImpl) readFromDisk(fileName string) (ips []string) {
-	data, err := e.fs.readFile(fileName)
-	if err != nil {
+	data, err := e.fs.ReadFile(fileName)
+	if err != nil || data == nil {
 		ips = make([]string, 0)
 	} else {
 		content := string(data)
@@ -80,7 +80,7 @@ func (e *engineImpl) readFromDisk(fileName string) (ips []string) {
 func (e *engineImpl) writeToDisk(fileName string, ips []string) {
 	content := strings.Join(ips, "\n")
 	data := []byte(content)
-	e.fs.writeFile(fileName, data)
+	e.fs.WriteFile(fileName, data)
 }
 
 type binaryTrie struct {

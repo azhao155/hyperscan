@@ -7,12 +7,20 @@ import (
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) Enabled() bool     { return false }
+func (c *mockSecRuleConfig) Enabled() bool     { return true }
 func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
+
+type mockCustomRule struct{}
+
+func (mcr *mockCustomRule) Name() string                      { return "" }
+func (mcr *mockCustomRule) Priority() int                     { return 0 }
+func (mcr *mockCustomRule) RuleType() string                  { return "" }
+func (mcr *mockCustomRule) MatchConditions() []MatchCondition { return []MatchCondition{} }
+func (mcr *mockCustomRule) Action() string                    { return "" }
 
 type mockCustomRuleConfig struct{}
 
-func (c *mockCustomRuleConfig) CustomRules() []CustomRule { return []CustomRule{} }
+func (c *mockCustomRuleConfig) CustomRules() []CustomRule { return []CustomRule{&mockCustomRule{}} }
 
 type mockPolicyConfig struct{}
 
@@ -118,7 +126,7 @@ func TestPutConfig(t *testing.T) {
 	}
 
 	secRule := policyConfig[0].SecRuleConfig()
-	if secRule.Enabled() != false {
+	if secRule.Enabled() != true {
 		t.Fatalf("PutConfig SecRule has wrong Enabled field")
 	}
 

@@ -2,7 +2,7 @@ package waf
 
 // IPReputationEngine compares incoming requests' IPs to a list of known malicious IPs.
 type IPReputationEngine interface {
-	EvalRequest(req IPReputationEngineHTTPRequest) bool
+	EvalRequest(req IPReputationEngineHTTPRequest) Decision
 	PutIPReputationList([]string)
 }
 
