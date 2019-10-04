@@ -16,4 +16,11 @@ if [[ $rc1 != 0 ]] ; then
     exit 1
 fi
 
+# This ensures that non-test code does not refer to code in _test.go files
+go build azwaf/...
+rc2=$?
+if [[ $rc2 != 0 ]] ; then
+    exit 1
+fi
+
 exit 0
