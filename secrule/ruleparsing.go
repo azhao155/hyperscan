@@ -296,19 +296,56 @@ func (r *ruleParserImpl) parseSecMarker(s string, curRule **Rule, statements *[]
 }
 
 // Parse a SecRule targets field (aka. variables field).
-func (r *ruleParserImpl) parseTargets(s string) (targets []string, exceptTargets []string, rest string, err error) {
+func (r *ruleParserImpl) parseTargets(s string) (targets []Target, exceptTargets []Target, rest string, err error) {
 	s, rest = r.nextArg(s)
 
 	for {
-		var target string
-		target, s = r.findConsume(targetRegex, s)
-		if target == "" {
+		var targetStr string
+		targetStr, s = r.findConsume(targetRegex, s)
+		if targetStr == "" {
 			err = fmt.Errorf("unable to parse targets")
 			return
 		}
 
-		if target[0] == '!' {
-			exceptTargets = append(exceptTargets, target[1:])
+		isNegate := false
+		if targetStr[0] == '!' {
+			isNegate = true
+			targetStr = targetStr[1:]
+		}
+
+		isCount := false
+		if targetStr[0] == '&' {
+			isCount = true
+			targetStr = targetStr[1:]
+		}
+
+		var name, selector string
+		colonIdx := strings.Index(targetStr, ":")
+		if colonIdx != -1 {
+			name = targetStr[:colonIdx]
+			selector = targetStr[colonIdx+1:]
+		} else {
+			name = targetStr
+		}
+
+		isRegexSelector := false
+		if len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
+			isRegexSelector = true
+			selector = selector[1:len(selector)-1]
+		} else if len(selector) >= 2 && selector[0] == '\'' && selector[len(selector)-1] == '\'' {
+			// Reusing nextArg to unquote and unescape
+			selector, _ = r.nextArg(selector)
+		}
+
+		target := Target {
+			Name: name,
+			Selector: selector,
+			IsRegexSelector: isRegexSelector,
+			IsCount: isCount,
+		}
+
+		if isNegate {
+			exceptTargets = append(exceptTargets, target)
 		} else {
 			targets = append(targets, target)
 		}

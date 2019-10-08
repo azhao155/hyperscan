@@ -38,7 +38,7 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Unexpected target XML:/* present")
 	}
 
-	m, ok := sr.GetRxResultsFor(300, 0, "REQUEST_URI_RAW")
+	m, ok := sr.GetRxResultsFor(300, 0, Target{Name: "REQUEST_URI_RAW"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -52,7 +52,7 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 0, "ARGS")
+	m, ok = sr.GetRxResultsFor(200, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -66,7 +66,7 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 1, "ARGS")
+	m, ok = sr.GetRxResultsFor(200, 1, Target{Name: "ARGS"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
@@ -224,12 +224,12 @@ func TestReqScannerBodyField(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(300, 0, "REQUEST_URI_RAW")
+	m, ok := sr.GetRxResultsFor(300, 0, Target{Name: "REQUEST_URI_RAW"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 0, "ARGS")
+	m, ok = sr.GetRxResultsFor(200, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -243,7 +243,7 @@ func TestReqScannerBodyField(t *testing.T) {
 		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 1, "ARGS")
+	m, ok = sr.GetRxResultsFor(200, 1, Target{Name: "ARGS"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
@@ -258,7 +258,7 @@ func TestReqScannerSimpleSelectorUrl(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS:myarg"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -280,12 +280,12 @@ func TestReqScannerSimpleSelectorUrl(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "ARGS"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
 
-	_, ok = sr.GetRxResultsFor(100, 0, "ARGS:myarg")
+	_, ok = sr.GetRxResultsFor(100, 0, Target{Name: "ARGS", Selector: "myarg"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -300,7 +300,7 @@ func TestReqScannerSimpleSelectorBody(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS:myarg"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -326,12 +326,12 @@ func TestReqScannerSimpleSelectorBody(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err3)
 	}
 
-	_, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "ARGS"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
 
-	_, ok = sr.GetRxResultsFor(100, 0, "ARGS:myarg")
+	_, ok = sr.GetRxResultsFor(100, 0, Target{Name: "ARGS", Selector: "myarg"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -346,7 +346,7 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"REQUEST_HEADERS:My-Header"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_HEADERS", Selector: "My-Header"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -369,12 +369,12 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetRxResultsFor(100, 0, "REQUEST_HEADERS")
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_HEADERS"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
 
-	_, ok = sr.GetRxResultsFor(100, 0, "REQUEST_HEADERS:My-Header")
+	_, ok = sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_HEADERS", Selector: "My-Header"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -389,7 +389,7 @@ func TestReqScannerFilename(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"REQUEST_FILENAME"}, Op: Rx, Val: "/p1/a%20bc.php"}, // REQUEST_FILENAME should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_FILENAME"}}, Op: Rx, Val: "/p1/a%20bc.php"}, // REQUEST_FILENAME should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -411,7 +411,7 @@ func TestReqScannerFilename(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_FILENAME")
+	m, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_FILENAME"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -430,7 +430,7 @@ func TestReqScannerFilename2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"REQUEST_FILENAME"}, Op: Rx, Val: "/"}, // REQUEST_FILENAME should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_FILENAME"}}, Op: Rx, Val: "/"}, // REQUEST_FILENAME should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -452,7 +452,7 @@ func TestReqScannerFilename2(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_FILENAME")
+	m, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_FILENAME"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -471,7 +471,7 @@ func TestReqScannerRequestLine(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"REQUEST_LINE"}, Op: Rx, Val: "a%20bc"}, // REQUEST_LINE should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_LINE"}}, Op: Rx, Val: "a%20bc"}, // REQUEST_LINE should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -493,7 +493,7 @@ func TestReqScannerRequestLine(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(100, 0, "REQUEST_LINE")
+	m, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_LINE"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -512,7 +512,7 @@ func TestReqCookies(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -534,7 +534,7 @@ func TestReqCookies(t *testing.T) {
 	if err2 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
-	_, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_COOKIES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -549,7 +549,7 @@ func TestReqCookiesSelectors(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"REQUEST_COOKIES:mycookie1"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "mycookie1"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -571,11 +571,55 @@ func TestReqCookiesSelectors(t *testing.T) {
 	if err2 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
-	_, ok := sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES")
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_COOKIES"})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
-	_, ok = sr.GetRxResultsFor(100, 0, "REQUEST_COOKIES:mycookie1")
+	_, ok = sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_COOKIES", Selector: "mycookie1"})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
+func TestReqCookiesRegexSelector(t *testing.T) {
+	// TODO Remove this skip when regex selectors are fully implemented
+	t.SkipNow()
+
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "S?SESS[a-f0-9]+", IsRegexSelector: true}}, Op: Rx, Val: "ab+c"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "zzzSSESS1a2bzzz=aaaaaaabccc"})
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_COOKIES"})
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+	_, ok = sr.GetRxResultsFor(100, 0, Target{Name: "REQUEST_COOKIES", Selector: "S?SESS[a-f0-9]+", IsRegexSelector: true})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -602,7 +646,7 @@ func TestReqScannerMultiArgs(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(200, 0, "ARGS")
+	m, ok := sr.GetRxResultsFor(200, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -610,7 +654,7 @@ func TestReqScannerMultiArgs(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 1, "ARGS")
+	m, ok = sr.GetRxResultsFor(200, 1, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -628,7 +672,7 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg1"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg1"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -637,7 +681,7 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg2"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg2"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -658,7 +702,7 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(100, 0, "ARGS_NAMES")
+	m, ok := sr.GetRxResultsFor(100, 0, Target{Name: "ARGS_NAMES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -666,7 +710,7 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 0, "ARGS_NAMES")
+	m, ok = sr.GetRxResultsFor(200, 0, Target{Name: "ARGS_NAMES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -684,7 +728,7 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg1"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg1"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -693,7 +737,7 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS_NAMES"}, Op: Rx, Val: "arg2"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg2"},
 					Transformations: []Transformation{},
 				},
 			},
@@ -714,7 +758,7 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(100, 0, "ARGS_NAMES")
+	m, ok := sr.GetRxResultsFor(100, 0, Target{Name: "ARGS_NAMES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -722,7 +766,7 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 0, "ARGS_NAMES")
+	m, ok = sr.GetRxResultsFor(200, 0, Target{Name: "ARGS_NAMES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -753,7 +797,7 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	m, ok := sr.GetRxResultsFor(100, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -767,7 +811,7 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
-	m, ok = sr.GetRxResultsFor(200, 1, "ARGS")
+	m, ok = sr.GetRxResultsFor(200, 1, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -819,7 +863,7 @@ func TestDetectXssOperator(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: DetectXSS, Val: ""},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: DetectXSS, Val: ""},
 					Transformations: []Transformation{},
 				},
 			},
@@ -839,7 +883,7 @@ func TestDetectXssOperator(t *testing.T) {
 	if err2 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
-	_, ok := sr.GetRxResultsFor(100, 0, "ARGS")
+	_, ok := sr.GetRxResultsFor(100, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}

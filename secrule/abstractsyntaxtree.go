@@ -25,6 +25,25 @@ type RuleItem struct {
 	PmPhrases       []string
 }
 
+// RulePredicate that determines whether a rule is triggered.
+type RulePredicate struct {
+	Targets         []Target
+	ExceptTargets   []Target // ExceptTargets are the targets that are exempt/excluded from being matched.
+	Op              Operator
+	CallBackOpFunc  CustomOpCallBackFunc
+	Neg             bool
+	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
+	valMacroMatches [][]string
+}
+
+// Target describes which field of the request we want to be scanning.
+type Target struct {
+	Name string // Example value: ARGS
+	Selector string // Example value: streetAddress
+	IsRegexSelector bool // Example of target where this is true: ARGS:/hel*o/
+	IsCount bool // Example of target where this is true, meaning number of args: &ARGS
+}
+
 // Action is any of the items in the actions-block of a SecRule or SecAction.
 type Action interface{}
 

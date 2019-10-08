@@ -82,13 +82,8 @@ func (rl *ruleLoader) toSecRule(cr waf.CustomRule) (st secrule.Statement, err er
 }
 
 func (rl *ruleLoader) toSecRuleItem(mc waf.MatchCondition) (ri secrule.RuleItem, err error) {
-	t := ""
 	for _, mv := range mc.MatchVariables() {
-		t, err = rl.toSecRuleTarget(mv)
-		if err != nil {
-			return
-		}
-		ri.Predicate.Targets = append(ri.Predicate.Targets, t)
+		ri.Predicate.Targets = append(ri.Predicate.Targets, rl.toSecRuleTarget(mv))
 	}
 
 	ri.Predicate.Op = operatorsMap[mc.Operator()]
@@ -145,10 +140,9 @@ func (rl *ruleLoader) toSecRuleMatchValue(mc waf.MatchCondition) (mv string) {
 	return
 }
 
-func (rl *ruleLoader) toSecRuleTarget(mv waf.MatchVariable) (target string, err error) {
-	target = targetsMap[mv.VariableName()]
-	if mv.Selector() != "" {
-		target = target + ":" + regexp.QuoteMeta(mv.Selector())
+func (rl *ruleLoader) toSecRuleTarget(mv waf.MatchVariable) secrule.Target {
+	return secrule.Target{
+		Name: targetsMap[mv.VariableName()],
+		Selector: regexp.QuoteMeta(mv.Selector()),
 	}
-	return
 }

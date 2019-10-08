@@ -102,7 +102,9 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 		for curRuleItemIdx := range curRule.Items {
 			curRuleItem := &curRule.Items[curRuleItemIdx]
 			for _, target := range curRuleItem.Predicate.Targets {
-				curScanTargets := scanPatterns[target]
+				t := target.toModSecFormat()
+
+				curScanTargets := scanPatterns[t]
 
 				// This target can have multiple different transformations. Find the right one or create one.
 				var curScanGroup *scanGroup
@@ -114,7 +116,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 				if curScanGroup == nil {
 					// This is the first time we see a RuleItem for this ARG with this transformation pipeline, so we'll create a scanGroup object for it.
 					curScanGroup = &scanGroup{transformations: curRuleItem.Transformations}
-					scanPatterns[target] = append(scanPatterns[target], curScanGroup)
+					scanPatterns[t] = append(scanPatterns[t], curScanGroup)
 				}
 
 				p := patternRef{curRule, curRuleItem, curRuleItemIdx}
@@ -129,7 +131,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 					curXSSGroup := &detectXSSGroup{}
 					curXSSGroup.transformations = curRuleItem.Transformations
 					curXSSGroup.backRefs = append(curXSSGroup.backRefs, p)
-					detectXSSPatterns[target] = append(detectXSSPatterns[target], curXSSGroup)
+					detectXSSPatterns[t] = append(detectXSSPatterns[t], curXSSGroup)
 				}
 			}
 		}
@@ -323,8 +325,11 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 }
 
 // GetRxResultsFor returns any results for regex matches that were done during the request scanning.
-func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target string) (m RxMatch, ok bool) {
-	m, ok = r.rxMatches[rxMatchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
+func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target Target) (m RxMatch, ok bool) {
+	// TODO Remove this conversion back to string when regex selectors are fully supported by using Target as part of the key in r.rxMatches
+	targetStr := target.toModSecFormat()
+
+	m, ok = r.rxMatches[rxMatchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: targetStr}]
 	return
 }
 
@@ -546,4 +551,12 @@ func parseQuery(query string) (values url.Values, err error) {
 	}
 
 	return
+}
+
+func (t *Target) toModSecFormat() string {
+	s := t.Name
+	if t.Selector != "" {
+		s += ":" + t.Selector
+	}
+	return s
 }

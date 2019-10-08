@@ -180,12 +180,11 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 	anyChecked := false
 
 	for _, target := range ruleItem.Predicate.Targets {
-		isCount := target[0] == '&'
-		isTxTarget := strings.EqualFold(target[:3], "tx:")
-		isTxTargetPresent := isTxTarget && env.hasKey(strings.Replace(target, ":", ".", 1))
+		isTxTarget := strings.EqualFold(target.Name, "tx")
+		isTxTargetPresent := isTxTarget && env.hasKey(target.Name + "." + target.Selector)
 
 		// For targets that we never even came across, we just always skip the predicate like ModSec does
-		if isCount {
+		if target.IsCount {
 			// Count-targets are special. They can be used to check in SecRule-lang whether a target was present. Therefore don't skip for now.
 			// TODO fully handle count-targets
 		} else if isTxTarget {
@@ -193,7 +192,13 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 				continue
 			}
 		} else {
-			if !scanResults.targetsPresent[target] {
+			// TODO Remove this conversion back to string when regex selectors are fully supported by using Target as part of the key in r.rxMatches
+			targetStr := target.Name
+			if target.Selector != "" {
+				targetStr += ":" + target.Selector
+			}
+
+			if !scanResults.targetsPresent[targetStr] {
 				continue
 			}
 		}

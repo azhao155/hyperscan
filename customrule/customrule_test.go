@@ -48,7 +48,7 @@ func TestToSimpleSecRule(t *testing.T) {
 		Phase: 0,
 		Items: []secrule.RuleItem{
 			{
-				Predicate:       secrule.RulePredicate{Targets: []string{"REQUEST_HEADERS:User-Agent"}, Neg: true, Op: secrule.Rx, Val: "(evilbot)"},
+				Predicate:       secrule.RulePredicate{Targets: []secrule.Target{{Name: "REQUEST_HEADERS", Selector: "User-Agent"}}, Neg: true, Op: secrule.Rx, Val: "(evilbot)"},
 				Transformations: []secrule.Transformation{secrule.Lowercase},
 				Actions:         []secrule.Action{&secrule.DenyAction{}},
 			},
@@ -109,12 +109,12 @@ func TestToSecRuleWithMultiples(t *testing.T) {
 		Phase: 0,
 		Items: []secrule.RuleItem{
 			{
-				Predicate:       secrule.RulePredicate{Targets: []string{"REQUEST_HEADERS:User-Agent"}, Neg: true, Op: secrule.Rx, Val: "(evilbot|badbot)"},
+				Predicate:       secrule.RulePredicate{Targets: []secrule.Target{{Name: "REQUEST_HEADERS", Selector: "User-Agent"}}, Neg: true, Op: secrule.Rx, Val: "(evilbot|badbot)"},
 				Transformations: []secrule.Transformation{secrule.Lowercase, secrule.Trim},
 				Actions:         []secrule.Action{&secrule.DenyAction{}},
 			},
 			{
-				Predicate:       secrule.RulePredicate{Targets: []string{"REMOTE_ADDR"}, Neg: false, Op: secrule.IPMatch, Val: "192.168.0.1,192.168.0.2"},
+				Predicate:       secrule.RulePredicate{Targets: []secrule.Target{{Name: "REMOTE_ADDR"}}, Neg: false, Op: secrule.IPMatch, Val: "192.168.0.1,192.168.0.2"},
 				Transformations: nil,
 			},
 		},
@@ -136,11 +136,11 @@ func TestToSecruleTarget(t *testing.T) {
 		variableName: "RequestHeaders",
 	}
 
-	at1, _ := rl.toSecRuleTarget(mv1)
-	assert.Equal("REQUEST_COOKIES:C1", at1)
+	at1 := rl.toSecRuleTarget(mv1)
+	assert.Equal(secrule.Target{Name: "REQUEST_COOKIES", Selector: "C1"}, at1)
 
-	at2, _ := rl.toSecRuleTarget(mv2)
-	assert.Equal("REQUEST_HEADERS", at2)
+	at2 := rl.toSecRuleTarget(mv2)
+	assert.Equal(secrule.Target{Name: "REQUEST_HEADERS"}, at2)
 }
 
 func TestToSecruleMatchValueIpMatch(t *testing.T) {

@@ -5,17 +5,6 @@ import (
 	"strings"
 )
 
-// RulePredicate that determines the action to be taken
-type RulePredicate struct {
-	Targets         []string
-	ExceptTargets   []string // ExceptTargets are the targets that are exempt/excluded from being matched.
-	Op              Operator
-	CallBackOpFunc  CustomOpCallBackFunc
-	Neg             bool
-	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
-	valMacroMatches [][]string
-}
-
 func (rp *RulePredicate) eval(perRequestEnv envMap) (result bool, output string, err error) {
 	for _, target := range rp.Targets {
 		val, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
@@ -25,19 +14,19 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (result bool, output string,
 
 		//TODO: Support more variables
 		variable := ""
-		if strings.HasPrefix(target, "&TX") {
+		if target.IsCount && target.Name == "TX" {
 			// Variable counting
 			variable = "0"
-			if strings.Contains(target, ":") {
-				key := strings.Replace(target, ":", ".", 1)
-				if perRequestEnv.hasKey(key[1:]) {
+			if target.Selector != "" {
+				key := target.Name + "." + target.Selector
+				if perRequestEnv.hasKey(key) {
 					variable = "1"
 				}
 			}
 		}
 
-		if isCollection(target) {
-			key := strings.Replace(target, ":", ".", 1)
+		if isCollection(target) && !target.IsCount {
+			key := target.Name + "." + target.Selector
 
 			varObj, ok := perRequestEnv.get(key)
 			if !ok {
@@ -82,7 +71,7 @@ func expandMacros(s string, perRequestEnv envMap, matches [][]string) (string, e
 	return s, nil
 }
 
-func isCollection(target string) bool {
-	//TODO: Add more prefixes
-	return strings.HasPrefix(target, "TX:")
+func isCollection(target Target) bool {
+	//TODO: Add more ways of deciding whether collection
+	return target.Name == "TX"
 }

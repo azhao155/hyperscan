@@ -10,7 +10,7 @@ func TestVarCounting(t *testing.T) {
 	assert := assert.New(t)
 
 	rp := RulePredicate{
-		Targets: []string{"&TX:1"},
+		Targets: []Target{{Name: "TX", Selector: "1", IsCount: true}},
 		Op:      Gt,
 		Val:     "0",
 	}

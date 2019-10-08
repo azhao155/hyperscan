@@ -16,7 +16,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{sv},
 				},
@@ -48,7 +48,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{sv, &DenyAction{}},
 				},
@@ -78,7 +78,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{&AllowAction{}},
 				},
@@ -88,7 +88,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{&DenyAction{}},
 				},
@@ -114,7 +114,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	p := RulePredicate{Targets: []string{"TX:ANOMALY_SCORE"}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}"}
+	p := RulePredicate{Targets: []Target{{Name: "TX", Selector: "ANOMALY_SCORE"}}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}"}
 	p.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(p.Val, -1)
 	rules := []Statement{
 		&Rule{
@@ -152,10 +152,10 @@ func TestRuleEvaluatorChain(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
 				},
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -187,10 +187,10 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
 				},
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -221,11 +221,11 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
 				},
 			},
 		},
@@ -256,11 +256,11 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
 					Actions:   []Action{&sv1},
 				},
 			},
@@ -355,7 +355,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES", "ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -386,7 +386,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -417,7 +417,7 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&NoLogAction{}},
 				},
 			},
@@ -451,7 +451,7 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&NoLogAction{}, &LogAction{}},
 				},
 			},
@@ -485,11 +485,11 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{},
 				},
 				{
-					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&NoLogAction{}},
 				},
 			},
@@ -498,11 +498,11 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{&NoLogAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []string{"REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
 					Actions:   []Action{},
 				},
 			},
@@ -536,7 +536,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS", "REQUEST_COOKIES"}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
 				},
 			},
 		},
@@ -739,7 +739,7 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -770,7 +770,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS"}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -800,7 +800,7 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS", "ARGS_NAMES"}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -833,7 +833,7 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS", "ARGS_NAMES"}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -865,7 +865,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS:myarg1", "ARGS:myarg2"}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -896,7 +896,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []string{"ARGS:myarg1", "ARGS:myarg2"}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
