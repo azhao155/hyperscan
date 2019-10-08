@@ -107,7 +107,6 @@ message GeoIPDataRecord {
 }
 
 message PutGeoIPDataResponse {
-  bool success = 1;
 }
 
 message CustomRuleConfig {
@@ -132,5 +131,5 @@ message IpReputationList {
   repeated string ip = 1;
 }
 
-message PutIPReputationListResponse { 
+message PutIPReputationListResponse {
 }

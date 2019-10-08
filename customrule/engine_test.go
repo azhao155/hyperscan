@@ -3,9 +3,10 @@ package customrule
 import (
 	"azwaf/testutils"
 	"azwaf/waf"
+	"testing"
+
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestCustomRuleEngineEvalRequest(t *testing.T) {

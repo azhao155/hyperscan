@@ -67,7 +67,7 @@ func (rl *ruleLoader) toSecRule(cr waf.CustomRule) (st secrule.Statement, err er
 	case "Allow":
 		action = &secrule.AllowAction{}
 	case "Block":
-		action = &secrule.BlockAction{}
+		action = &secrule.DenyAction{}
 	case "Log":
 		action = &secrule.LogAction{}
 	default:
@@ -126,7 +126,7 @@ func (rl *ruleLoader) toSecRuleMatchValue(mc waf.MatchCondition) (mv string) {
 
 	//TODO: need to be aware of the HyperScan regex limit, consider splitting into multiple rules
 	switch mc.Operator() {
-	case "IPMatch":
+	case "IPMatch", "GeoMatch":
 		mv = strings.Join(mc.MatchValues(), ",")
 	case "Equals":
 		mv = "^(" + strings.Join(ev, "|") + ")$"

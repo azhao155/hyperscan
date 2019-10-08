@@ -152,30 +152,6 @@ func (s *serverImpl) PutConfig(ctx context.Context, in *pb.WAFConfig) (d *pb.Put
 	return
 }
 
-func (s *serverImpl) PutGeoIPData(stream pb.WafService_PutGeoIPDataServer) (err error) {
-	geoIPData := make([]waf.GeoIPDataRecord, 0)
-	for {
-		var r *pb.GeoIPData
-		r, err = stream.Recv()
-		if r == nil || err != nil {
-			break
-		}
-		recs := []waf.GeoIPDataRecord{}
-		for _, rec := range r.GeoIPDataRecords {
-			recs = append(recs, &geoIPDataRecordWrapper{rec})
-		}
-		geoIPData = append(geoIPData, recs...)
-	}
-
-	hasError := err != io.EOF
-	if !hasError {
-		err = s.ws.PutGeoIPData(geoIPData)
-	}
-
-	stream.SendAndClose(&pb.PutGeoIPDataResponse{Success: err != nil})
-	return
-}
-
 func (s *serverImpl) DisposeConfig(ctx context.Context, in *pb.WAFConfigVersion) (d *pb.DisposeConfigResponse, err error) {
 	err = s.ws.DisposeConfig(int(in.ConfigVersion))
 	if err != nil {
@@ -204,6 +180,30 @@ func (s *serverImpl) PutIPReputationList(stream pb.WafService_PutIPReputationLis
 
 	stream.SendAndClose(&pb.PutIPReputationListResponse{})
 	return err
+}
+
+func (s *serverImpl) PutGeoIPData(stream pb.WafService_PutGeoIPDataServer) (err error) {
+	geoIPData := make([]waf.GeoIPDataRecord, 0)
+	for {
+		var r *pb.GeoIPData
+		r, err = stream.Recv()
+		if r == nil || err != nil {
+			break
+		}
+		recs := []waf.GeoIPDataRecord{}
+		for _, rec := range r.GeoIPDataRecords {
+			recs = append(recs, &geoIPDataRecordWrapper{rec})
+		}
+		geoIPData = append(geoIPData, recs...)
+	}
+
+	hasError := err != io.EOF
+	if !hasError {
+		err = s.ws.PutGeoIPData(geoIPData)
+	}
+
+	stream.SendAndClose(&pb.PutGeoIPDataResponse{})
+	return
 }
 
 func (s *serverImpl) Serve() error {

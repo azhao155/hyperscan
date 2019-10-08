@@ -24,7 +24,8 @@ func TestWafServerEvalRequest(t *testing.T) {
 	mrbp := &mockRequestBodyParser{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire)
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -102,7 +103,8 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	mrbp := &mockRequestBodyParser{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire)
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -158,7 +160,8 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 	}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire)
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
@@ -384,3 +387,9 @@ func (s *mockCustomRuleEvaluation) EvalRules() Decision {
 func (s *mockCustomRuleEvaluation) Close() {
 	s.closeCalled++
 }
+
+type mockGeoDB struct {
+}
+
+func (mgdb *mockGeoDB) PutGeoIPData(geoIPData []GeoIPDataRecord) (err error) { return }
+func (mgdb *mockGeoDB) GeoLookup(ipAddr string) (countryCode string)         { return }

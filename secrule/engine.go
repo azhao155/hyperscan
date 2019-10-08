@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"azwaf/waf"
+
 	"github.com/rs/zerolog"
 )
 

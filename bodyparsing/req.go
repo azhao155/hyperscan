@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/rs/zerolog"
 	"io"
 	"mime"
 	"mime/multipart"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 // NewRequestBodyParser creates a RequestBodyParser.

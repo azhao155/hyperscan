@@ -74,7 +74,7 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	crl := customrule.NewCustomRuleLoader(geoDB)
 	cref := customrule.NewEngineFactory(logger, crl, rsf, re)
 	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{})
-	wafServer, err := waf.NewServer(logger, cm, c, sref, rbp, log, cref, ire)
+	wafServer, err := waf.NewServer(logger, cm, c, sref, rbp, log, cref, ire, geoDB)
 
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)

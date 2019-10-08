@@ -38,13 +38,19 @@ func ParseIPAddress(ipAddr string) (ip uint32, err error) {
 // prefix of an IP address space and its corresponding mask.
 func ParseCIDR(cidr string) (prefix uint32, mask uint32, err error) {
 	splitted := strings.Split(cidr, "/")
+
+	if len(splitted) == 1 {
+		addr, err := ParseIPAddress(cidr)
+		return addr, uint32(0xffffffff), err
+	}
+
 	if len(splitted) != 2 {
 		err = fmt.Errorf(errInvalidCIDRFmt, cidr)
 		return
 	}
 
-	ipAddr, suffix := splitted[0], splitted[1]
-	ip, err := ParseIPAddress(ipAddr)
+	addr, suffix := splitted[0], splitted[1]
+	ip, err := ParseIPAddress(addr)
 	if err != nil {
 		err = fmt.Errorf(errInvalidCIDRFmt, cidr)
 		return

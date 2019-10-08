@@ -50,7 +50,7 @@ func TestToSimpleSecRule(t *testing.T) {
 			{
 				Predicate:       secrule.RulePredicate{Targets: []string{"REQUEST_HEADERS:User-Agent"}, Neg: true, Op: secrule.Rx, Val: "(evilbot)"},
 				Transformations: []secrule.Transformation{secrule.Lowercase},
-				Actions:         []secrule.Action{&secrule.BlockAction{}},
+				Actions:         []secrule.Action{&secrule.DenyAction{}},
 			},
 		},
 	}
@@ -111,7 +111,7 @@ func TestToSecRuleWithMultiples(t *testing.T) {
 			{
 				Predicate:       secrule.RulePredicate{Targets: []string{"REQUEST_HEADERS:User-Agent"}, Neg: true, Op: secrule.Rx, Val: "(evilbot|badbot)"},
 				Transformations: []secrule.Transformation{secrule.Lowercase, secrule.Trim},
-				Actions:         []secrule.Action{&secrule.BlockAction{}},
+				Actions:         []secrule.Action{&secrule.DenyAction{}},
 			},
 			{
 				Predicate:       secrule.RulePredicate{Targets: []string{"REMOTE_ADDR"}, Neg: false, Op: secrule.IPMatch, Val: "192.168.0.1,192.168.0.2"},

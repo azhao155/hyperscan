@@ -1,23 +1,50 @@
 package customrule
 
 import (
+	"azwaf/hyperscan"
+	"azwaf/secrule"
 	"azwaf/waf"
+	"bytes"
 	"io"
+
+	"github.com/rs/zerolog"
 )
+
+func newEngineWithCustomRules(logger zerolog.Logger, rules ...waf.CustomRule) (waf.CustomRuleEngine, error) {
+	crl := NewCustomRuleLoader(&mockGeoDB{})
+
+	// Need a fully functional secrule engine to properly test custom rules.
+	hsfs := hyperscan.NewCacheFileSystem()
+	hscache := hyperscan.NewDbCache(hsfs)
+	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
+	rsf := secrule.NewReqScannerFactory(mref)
+	re := secrule.NewRuleEvaluator()
+
+	cref := NewEngineFactory(logger, crl, rsf, re)
+
+	config := &mockCustomRuleConfig{customRules: rules}
+	return cref.NewEngine(config)
+}
 
 type mockWafHTTPRequest struct {
 	uri        string
-	bodyReader io.Reader
+	method     string
+	remoteAddr string
 	headers    []waf.HeaderPair
+	configID   string
+	body       string
 }
 
-func (r *mockWafHTTPRequest) Method() string                      { return "GET" }
-func (r *mockWafHTTPRequest) URI() string                         { return r.uri }
-func (r *mockWafHTTPRequest) RemoteAddr() string                  { return "0.0.0.0" }
-func (r *mockWafHTTPRequest) ConfigID() string                    { return "SecRuleConfig1" }
-func (r *mockWafHTTPRequest) CustomRuleConfigID() string          { return "CustomRuleConfig1" }
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return r.headers }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return r.bodyReader }
+func (r *mockWafHTTPRequest) Method() string            { return r.method }
+func (r *mockWafHTTPRequest) URI() string               { return r.uri }
+func (r *mockWafHTTPRequest) RemoteAddr() string        { return r.remoteAddr }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
+func (r *mockWafHTTPRequest) ConfigID() string          { return r.configID }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader {
+	var b bytes.Buffer
+	b.WriteString(r.body)
+	return &b
+}
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 
@@ -29,16 +56,15 @@ type mockHeaderPair struct {
 func (h *mockHeaderPair) Key() string   { return h.k }
 func (h *mockHeaderPair) Value() string { return h.v }
 
-type mockGeoDB struct{}
-
-func (mdb *mockGeoDB) PutGeoIPData(geoIPData []waf.GeoIPDataRecord) error { return nil }
-func (mdb *mockGeoDB) GeoLookup(ipAddr string) string                     { return "" }
-
-type mockLogMetaData struct {
-}
+type mockLogMetaData struct{}
 
 func (h *mockLogMetaData) Scope() string     { return "Global" }
 func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
+
+type mockGeoDB struct{}
+
+func (mdb *mockGeoDB) PutGeoIPData(geoIPData []waf.GeoIPDataRecord) error { return nil }
+func (mdb *mockGeoDB) GeoLookup(ipAddr string) string                     { return "CC" }
 
 type mockMatchVariable struct {
 	variableName string
@@ -116,3 +142,39 @@ type mockCustomRuleConfig struct {
 func (mcrc mockCustomRuleConfig) CustomRules() []waf.CustomRule {
 	return mcrc.customRules
 }
+
+type mockResultsLogger struct {
+	ruleMatched map[int]bool
+}
+
+func (l *mockResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+	r, ok := stmt.(*secrule.Rule)
+	if ok {
+		l.ruleMatched[r.ID] = true
+	}
+	return
+}
+
+func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+}
+func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+}
+func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+}
+func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
+}
+func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) {
+}
+
+type mockFileSystem struct{}
+
+func (fs *mockFileSystem) ReadFile(name string) (string, error)     { return "", nil }
+func (fs *mockFileSystem) WriteFile(name string, json string) error { return nil }
+func (fs *mockFileSystem) RemoveFile(name string) error             { return nil }
+func (fs *mockFileSystem) ReadDir(name string) ([]string, error)    { return make([]string, 0), nil }
+func (fs *mockFileSystem) MkDir(name string) error                  { return nil }
+
+type mockConfigConverter struct{}
+
+func (c *mockConfigConverter) SerializeToJSON(waf.Config) (string, error)         { return "", nil }
+func (c *mockConfigConverter) DeserializeFromJSON(str string) (waf.Config, error) { return nil, nil }

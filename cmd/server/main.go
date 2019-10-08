@@ -95,7 +95,7 @@ func main() {
 		sref := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
-		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, resLog, cref, ire)
+		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, resLog, cref, ire, geoDB)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating service manager")
 		}

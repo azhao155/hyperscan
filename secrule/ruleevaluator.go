@@ -1,9 +1,10 @@
 package secrule
 
 import (
-	"github.com/rs/zerolog"
-	"strings"
 	"azwaf/waf"
+	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 // RuleEvaluator processes the incoming request against all parsed rules
@@ -230,6 +231,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 	if ruleItem.Predicate.Neg {
 		return !anyMatched
 	}
+
 	return anyMatched
 }
 

@@ -2,9 +2,10 @@ package secrule
 
 import (
 	"azwaf/testutils"
-	"github.com/stretchr/testify/assert"
-	"testing"
 	"azwaf/waf"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {

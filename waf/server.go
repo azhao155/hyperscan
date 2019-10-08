@@ -38,7 +38,7 @@ type serverImpl struct {
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory, ire IPReputationEngine) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
 	s := &serverImpl{
 		logger:                  logger,
 		configMgr:               cm,
@@ -47,6 +47,7 @@ func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRu
 		resultsLogger:           rl,
 		customRuleEngineFactory: cref,
 		ipReputationEngine:      ire,
+		geodb:                   geoDB,
 	}
 
 	s.engines = make(map[string]engineInstances)

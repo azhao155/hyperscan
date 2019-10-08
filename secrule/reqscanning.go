@@ -131,7 +131,6 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 					curXSSGroup.backRefs = append(curXSSGroup.backRefs, p)
 					detectXSSPatterns[target] = append(detectXSSPatterns[target], curXSSGroup)
 				}
-
 			}
 		}
 	}
@@ -231,6 +230,16 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 		return
 	}
 
+	err = r.scanTarget("REMOTE_ADDR", req.RemoteAddr(), results)
+	if err != nil {
+		return
+	}
+
+	err = r.scanTarget("REQUEST_METHOD", req.Method(), results)
+	if err != nil {
+		return
+	}
+
 	err = r.scanURI(req.URI(), results)
 	if err != nil {
 		return
@@ -283,6 +292,16 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 		}
 
 		err = r.scanTarget("ARGS:"+fieldName, data, results)
+		if err != nil {
+			return
+		}
+
+		err = r.scanTarget("ARGS_POST", data, results)
+		if err != nil {
+			return
+		}
+
+		err = r.scanTarget("ARGS_POST:"+fieldName, data, results)
 		if err != nil {
 			return
 		}
@@ -409,6 +428,11 @@ func getRxExprs(ruleItem *RuleItem) []string {
 }
 
 func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (err error) {
+	err = r.scanTarget("REQUEST_URI", URI, results)
+	if err != nil {
+		return
+	}
+
 	err = r.scanTarget("REQUEST_URI_RAW", URI, results)
 	if err != nil {
 		return
@@ -429,6 +453,11 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 
 	var uriParsed *url.URL
 	uriParsed, err = url.ParseRequestURI(URI)
+	if err != nil {
+		return
+	}
+
+	err = r.scanTarget("QUERY_STRING", uriParsed.RawQuery, results)
 	if err != nil {
 		return
 	}

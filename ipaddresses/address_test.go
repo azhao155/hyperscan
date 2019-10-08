@@ -100,8 +100,8 @@ func TestParseCIDRGood(t *testing.T) {
 	prefix, mask, err := ParseCIDR(cidr)
 
 	// Assert
-	assert.Equal(prefix, prefixRef)
-	assert.Equal(mask, maskRef)
+	assert.Equal(prefixRef, prefix)
+	assert.Equal(maskRef, mask)
 	assert.Nil(err)
 }
 
@@ -109,13 +109,17 @@ func TestParseCIDRNoSlash(t *testing.T) {
 	assert := assert.New(t)
 
 	// Arrange
-	cidrBad := "10.0.0.0"
+	cidr := "10.0.0.0"
+	prefixRef := uint32(0x0a000000)
+	maskRef := uint32(0xffffffff)
 
 	// Act
-	_, _, err := ParseCIDR(cidrBad)
+	prefix, mask, err := ParseCIDR(cidr)
 
 	// Assert
-	assert.Error(err)
+	assert.Equal(prefixRef, prefix)
+	assert.Equal(maskRef, mask)
+	assert.Nil(err)
 }
 
 func TestParseCIDRExtraSlash(t *testing.T) {
