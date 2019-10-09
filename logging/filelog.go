@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"azwaf/ipreputation"
 	"azwaf/secrule"
 	"azwaf/waf"
 	"encoding/json"
@@ -33,6 +34,7 @@ type FilelogResultsLogger interface {
 	BodyParseError(request waf.ResultsLoggerHTTPRequest, err error)
 	SetLogMetaData(data waf.ConfigLogMetaData)
 	SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string)
+	IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest)
 }
 
 // NewFileResultsLogger creates a results logger that write log messages to file.
@@ -108,13 +110,42 @@ func (l *filelogResultsLoggerImpl) SecRuleTriggered(request secrule.ResultsLogge
 		Properties:    c,
 	}
 
-	bb, err := json.Marshal(lg)
-	if err != nil {
-		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
+	l.sendLog(lg)
+}
+
+func (l *filelogResultsLoggerImpl) IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest) {
+	rID := ""
+	iID := ""
+	if l.metaData != nil {
+		rID = l.metaData.ResourceID()
+		iID = l.metaData.InstanceID()
 	}
 
-	l.writelogline <- bb
-	<-l.writeDone
+	var policyScope, policyScopeName string
+	if request.LogMetaData() != nil {
+		policyScope = request.LogMetaData().Scope()
+		policyScopeName = request.LogMetaData().ScopeName()
+	}
+
+	c := customerFirewallIPReputationLogEntryProperty{
+		InstanceID:      iID,
+		RequestURI:      request.URI(),
+		Message:         "IPReputationTriggered",
+		Action:          "Blocked",
+		TransactionID:   request.TransactionID(),
+		PolicyID:        request.ConfigID(),
+		PolicyScope:     policyScope,
+		PolicyScopeName: policyScopeName,
+	}
+
+	lg := &customerFirewallIPReputationLogEntry{
+		ResourceID:    rID,
+		OperationName: "ApplicationGatewayFirewall",
+		Category:      "ApplicationGatewayFirewallLog",
+		Properties:    c,
+	}
+
+	l.sendLog(lg)
 }
 
 func (l *filelogResultsLoggerImpl) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
@@ -161,13 +192,7 @@ func (l *filelogResultsLoggerImpl) bytesLimitExceeded(request waf.ResultsLoggerH
 		Properties:    c,
 	}
 
-	bb, err := json.Marshal(lg)
-	if err != nil {
-		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
-	}
-
-	l.writelogline <- bb
-	<-l.writeDone
+	l.sendLog(lg)
 }
 
 func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
@@ -205,7 +230,11 @@ func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPR
 		Properties:    c,
 	}
 
-	bb, err := json.Marshal(lg)
+	l.sendLog(lg)
+}
+
+func (l *filelogResultsLoggerImpl) sendLog(data interface{}) {
+	bb, err := json.Marshal(data)
 	if err != nil {
 		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}

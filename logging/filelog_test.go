@@ -22,8 +22,7 @@ func TestSecRuleTriggered(t *testing.T) {
 	}
 
 	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
-	fileSystem := &mockFileSystem{}
-	fileSystem.fmap = make(map[string]LogFile)
+	fileSystem := newMockFileSystem()
 	logger, err := NewFileResultsLogger(fileSystem, zeroLogger)
 	if err != nil {
 		t.Fatalf("Unexpected error %T: %v", err, err)
@@ -39,6 +38,30 @@ func TestSecRuleTriggered(t *testing.T) {
 	}
 }
 
+func TestIPReputationTriggered(t *testing.T) {
+
+	request := &mockWafHTTPRequest{
+		configID: "waf1",
+		uri:      "/a",
+	}
+
+	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
+	fileSystem := newMockFileSystem()
+	logger, err := NewFileResultsLogger(fileSystem, zeroLogger)
+	if err != nil {
+		t.Fatalf("Unexpected error %T: %v", err, err)
+	}
+
+	logger.SetLogMetaData(&mockConfigLogMetaData{})
+	logger.IPReputationTriggered(request)
+	log := fileSystem.Get(Path + FileName)
+
+	expected := `{"resourceId":"appgw","operationName":"ApplicationGatewayFirewall","category":"ApplicationGatewayFirewallLog","properties":{"instanceId":"vm1","clientIp":"","clientPort":"","requestUri":"/a","ruleSetType":"","ruleSetVersion":"","message":"IPReputationTriggered","action":"Blocked","hostname":"","transactionId":"abc","policyId":"waf1","policyScope":"Global","policyScopeName":"Default Policy"}}`
+	if log != expected+"\n" {
+		t.Fatalf("IPReputationTriggered get wrong log entry %v, expected %v", log, expected)
+	}
+}
+
 type mockFile struct {
 	Content string
 }
@@ -50,6 +73,12 @@ func (fs *mockFile) Append(content []byte) (err error) {
 
 type mockFileSystem struct {
 	fmap map[string]LogFile
+}
+
+func newMockFileSystem() *mockFileSystem {
+	fileSystem := &mockFileSystem{}
+	fileSystem.fmap = make(map[string]LogFile)
+	return fileSystem
 }
 
 func (fs *mockFileSystem) MkDir(name string) error {
@@ -75,8 +104,8 @@ type mockWafHTTPRequest struct {
 	body       string
 }
 
-func (r *mockWafHTTPRequest) URI() string               { return r.uri }
-func (r *mockWafHTTPRequest) ConfigID() string          { return r.configID }
+func (r *mockWafHTTPRequest) URI() string                         { return r.uri }
+func (r *mockWafHTTPRequest) ConfigID() string                    { return r.configID }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 

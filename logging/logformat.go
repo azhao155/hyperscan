@@ -83,3 +83,26 @@ type customerFirewallLogDetailsEntry struct {
 type customerFirewallLogBodyParseDetailsEntry struct {
 	Message string `json:"message"`
 }
+
+type customerFirewallIPReputationLogEntry struct {
+	ResourceID    string                           `json:"resourceId"`
+	OperationName string                           `json:"operationName"`
+	Category      string                           `json:"category"`
+	Properties    customerFirewallIPReputationLogEntryProperty `json:"properties"`
+}
+
+type customerFirewallIPReputationLogEntryProperty struct {
+	InstanceID      string                          `json:"instanceId"`
+	ClientIP        string                          `json:"clientIp"`
+	ClientPort      string                          `json:"clientPort"`
+	RequestURI      string                          `json:"requestUri"`
+	RuleSetType     string                          `json:"ruleSetType"`
+	RuleSetVersion  string                          `json:"ruleSetVersion"`
+	Message         string                          `json:"message"`
+	Action          string                          `json:"action"`
+	Hostname        string                          `json:"hostname"`
+	TransactionID   string                          `json:"transactionId"`
+	PolicyID        string                          `json:"policyId"`
+	PolicyScope     string                          `json:"policyScope"`
+	PolicyScopeName string                          `json:"policyScopeName"`
+}

@@ -7,7 +7,7 @@ import (
 )
 
 func TestEmptyList(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{})
 	request := &mockHTTPRequest{remoteAddr: "1.2.3.4"}
 
@@ -18,7 +18,7 @@ func TestEmptyList(t *testing.T) {
 }
 
 func TestSingleIP(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{"4.3.2.1"})
 
 	request := &mockHTTPRequest{remoteAddr: "4.3.2.1"}
@@ -35,7 +35,7 @@ func TestSingleIP(t *testing.T) {
 }
 
 func TestMultipleIPs(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{"0.0.0.0", "255.255.255.255"})
 
 	request := &mockHTTPRequest{remoteAddr: "0.0.0.0"}
@@ -52,7 +52,7 @@ func TestMultipleIPs(t *testing.T) {
 }
 
 func TestCIDR(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{remoteAddr: "127.12.7.0"}
 
@@ -69,7 +69,7 @@ func TestCIDR(t *testing.T) {
 }
 
 func TestXForwardedForHeaders(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
@@ -89,7 +89,7 @@ func TestXForwardedForHeaders(t *testing.T) {
 }
 
 func TestXForwardedForHeadersWithoutPort(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
@@ -103,7 +103,7 @@ func TestXForwardedForHeadersWithoutPort(t *testing.T) {
 }
 
 func TestXForwardedForHeadersWithWhiteSpace(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{})
+	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
@@ -116,9 +116,35 @@ func TestXForwardedForHeadersWithWhiteSpace(t *testing.T) {
 	}
 }
 
+func TestLogging(t *testing.T) {
+	logger := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{}, logger)
+	engine.PutIPReputationList([]string{"4.3.2.1"})
+
+	request := &mockHTTPRequest{remoteAddr: "4.3.2.1"}
+	engine.EvalRequest(request)
+
+	if logger.ipReputationTriggeredCalled != 1 {
+		t.Fatalf("IPReputationEngine failed to log blocked request")
+	}
+}
+
+func TestNoLogging(t *testing.T) {
+	logger := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{}, logger)
+	engine.PutIPReputationList([]string{"4.3.2.1"})
+
+	request := &mockHTTPRequest{remoteAddr: "0.0.0.0"}
+	engine.EvalRequest(request)
+
+	if logger.ipReputationTriggeredCalled != 0 {
+		t.Fatalf("IPReputationEngine logged non-blocked request")
+	}
+}
+
 func TestNewIPReputationEngine(t *testing.T) {
 	mockFs := &mockFileSystem{content: "0.0.0.0/32\n255.255.255.255"}
-	engine := NewIPReputationEngine(mockFs)
+	engine := NewIPReputationEngine(mockFs, &mockResultsLogger{})
 	if mockFs.readFileCalled != 1 {
 		t.Fatalf("NewIPReputationEngine didn't successfully read from disk")
 	}
@@ -138,7 +164,7 @@ func TestNewIPReputationEngine(t *testing.T) {
 
 func TestPutIPReputationList(t *testing.T) {
 	mockFs := &mockFileSystem{}
-	engine := NewIPReputationEngine(mockFs)
+	engine := NewIPReputationEngine(mockFs, &mockResultsLogger{})
 
 	engine.PutIPReputationList([]string{"0.0.0.0", "255.255.255.255/32"})
 	if mockFs.writeFileCalled != 1 {
@@ -173,8 +199,12 @@ type mockHTTPRequest struct {
 	headers    []waf.HeaderPair
 }
 
-func (r *mockHTTPRequest) RemoteAddr() string        { return r.remoteAddr }
-func (r *mockHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
+func (r *mockHTTPRequest) RemoteAddr() string                  { return r.remoteAddr }
+func (r *mockHTTPRequest) Headers() []waf.HeaderPair           { return r.headers }
+func (r *mockHTTPRequest) ConfigID() string                    { return "configid" }
+func (r *mockHTTPRequest) URI() string                         { return "uri" }
+func (r *mockHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockRequestLogMetaData{} }
+func (r *mockHTTPRequest) TransactionID() string               { return "transaction_id" }
 
 type mockHeaderPair struct {
 	key   string
@@ -183,3 +213,16 @@ type mockHeaderPair struct {
 
 func (h *mockHeaderPair) Key() string   { return h.key }
 func (h *mockHeaderPair) Value() string { return h.value }
+
+type mockRequestLogMetaData struct{}
+
+func (md *mockRequestLogMetaData) Scope() string     { return "scope" }
+func (md *mockRequestLogMetaData) ScopeName() string { return "scopename" }
+
+type mockResultsLogger struct {
+	ipReputationTriggeredCalled int
+}
+
+func (rl *mockResultsLogger) IPReputationTriggered(request ResultsLoggerHTTPRequest) {
+	rl.ipReputationTriggeredCalled++
+}

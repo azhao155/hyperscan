@@ -10,4 +10,5 @@ type IPReputationEngine interface {
 type IPReputationEngineHTTPRequest interface {
 	RemoteAddr() string
 	Headers() []HeaderPair
+	ResultsLoggerHTTPRequest
 }

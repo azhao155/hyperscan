@@ -93,7 +93,7 @@ func main() {
 		cref := customrule.NewEngineFactory(logger, crl, rsf, re)
 		rl := secrule.NewCrsRuleLoader(p, rlfs)
 		sref := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
-		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
+		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{}, resLog)
 
 		wafServer, err = waf.NewServer(logger, cm, c, sref, rbp, resLog, cref, ire, geoDB)
 		if err != nil {

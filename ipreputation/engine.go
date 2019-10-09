@@ -13,14 +13,15 @@ const ipSize = 32
 const badBotsfileName = "badbots.txt"
 
 type engineImpl struct {
-	ipMatcher  *binaryTrie
-	writeMutex sync.Mutex
-	fs         FileSystem
+	ipMatcher     *binaryTrie
+	writeMutex    sync.Mutex
+	fs            FileSystem
+	resultsLogger ResultsLogger
 }
 
 // NewIPReputationEngine creates a engine for determining an ip's reputation
-func NewIPReputationEngine(fs FileSystem) waf.IPReputationEngine {
-	e := &engineImpl{fs: fs}
+func NewIPReputationEngine(fs FileSystem, resultsLogger ResultsLogger) waf.IPReputationEngine {
+	e := &engineImpl{fs: fs, resultsLogger: resultsLogger}
 	ips := e.readFromDisk(badBotsfileName)
 	e.ipMatcher = newBinaryTrie(ips)
 	return e
@@ -44,6 +45,7 @@ func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) waf.Deci
 
 	for _, ip := range ips {
 		if e.ipMatcher.match(ip) {
+			e.resultsLogger.IPReputationTriggered(req)
 			return waf.Block
 		}
 	}
