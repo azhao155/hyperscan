@@ -163,6 +163,7 @@ func (s *serverImpl) DisposeConfig(ctx context.Context, in *pb.WAFConfigVersion)
 }
 
 func (s *serverImpl) PutIPReputationList(stream pb.WafService_PutIPReputationListServer) (err error) {
+	defer stream.SendAndClose(&pb.PutIPReputationListResponse{})
 	ips := make([]string, 0)
 	for {
 		var r *pb.IpReputationList
@@ -176,13 +177,14 @@ func (s *serverImpl) PutIPReputationList(stream pb.WafService_PutIPReputationLis
 	hasError := err != io.EOF
 	if !hasError {
 		s.ws.PutIPReputationList(ips)
+		return nil
 	}
 
-	stream.SendAndClose(&pb.PutIPReputationListResponse{})
 	return err
 }
 
 func (s *serverImpl) PutGeoIPData(stream pb.WafService_PutGeoIPDataServer) (err error) {
+	defer stream.SendAndClose(&pb.PutGeoIPDataResponse{})
 	geoIPData := make([]waf.GeoIPDataRecord, 0)
 	for {
 		var r *pb.GeoIPData
@@ -202,7 +204,6 @@ func (s *serverImpl) PutGeoIPData(stream pb.WafService_PutGeoIPDataServer) (err 
 		err = s.ws.PutGeoIPData(geoIPData)
 	}
 
-	stream.SendAndClose(&pb.PutGeoIPDataResponse{})
 	return
 }
 
