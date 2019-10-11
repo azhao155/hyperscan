@@ -89,6 +89,41 @@ func TestWafServerEvalRequest(t *testing.T) {
 	}
 }
 
+func TestWafDetectionMode(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+
+	// Block request
+	msrev := &mockSecRuleEvaluation{decision: Block}
+
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcrev := &mockCustomRuleEvaluation{}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: true}}
+	c[0] = mc
+	mrbp := &mockRequestBodyParser{}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+	req := &mockWafHTTPRequest{}
+
+	// Act
+	d, err := s.EvalRequest(req)
+
+	// Assert
+	if d != Allow {
+		t.Fatalf("Unexpected decision: %v", d)
+	}
+}
+
 func TestWafServerPutIPReputationList(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
@@ -220,6 +255,7 @@ type mockSecRuleEvaluation struct {
 	scanBodyFieldCalled int
 	evalRulesCalled     int
 	closeCalled         int
+	decision            Decision
 }
 
 func (m *mockSecRuleEvaluation) ScanHeaders() (err error) {
@@ -232,7 +268,7 @@ func (m *mockSecRuleEvaluation) ScanBodyField(contentType ContentType, fieldName
 }
 func (m *mockSecRuleEvaluation) EvalRules() Decision {
 	m.evalRulesCalled++
-	return Pass
+	return m.decision
 }
 func (m *mockSecRuleEvaluation) Close() {
 	m.closeCalled++

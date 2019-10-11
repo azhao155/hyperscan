@@ -82,6 +82,8 @@ message MatchVariable {
 
 message PolicyConfig {
   string configID = 1;
+  bool isDetectionMode = 5;
+
   SecRuleConfig secRuleConfig = 2;
   CustomRuleConfig customRuleConfig = 3;
   IPReputationConfig ipReputationConfig = 4;

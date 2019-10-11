@@ -77,6 +77,7 @@ func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
 type policyConfigWrapper struct{ pb *pb.PolicyConfig }
 
 func (c *policyConfigWrapper) ConfigID() string { return c.pb.ConfigID }
+func (c *policyConfigWrapper) IsDetectionMode() bool { return c.pb.IsDetectionMode }
 func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
 	if c.pb.SecRuleConfig == nil {
 		return nil

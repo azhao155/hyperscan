@@ -28,6 +28,7 @@ func (mc *mockWAFConfig) LogMetaData() waf.ConfigLogMetaData {
 
 type mockPolicyConfig struct {
 	configID           string
+	isDetectionMode    bool
 	secRuleConfig      waf.SecRuleConfig
 	customRuleConfig   waf.CustomRuleConfig
 	ipReputationConfig waf.IPReputationConfig
@@ -35,6 +36,10 @@ type mockPolicyConfig struct {
 
 func (mpc *mockPolicyConfig) ConfigID() string {
 	return mpc.configID
+}
+
+func (mpc *mockPolicyConfig) IsDetectionMode() bool {
+	return mpc.isDetectionMode
 }
 
 func (mpc *mockPolicyConfig) SecRuleConfig() waf.SecRuleConfig {

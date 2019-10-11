@@ -26,6 +26,7 @@ type IPReputationConfig interface {
 // PolicyConfig is config defined for each location
 type PolicyConfig interface {
 	ConfigID() string
+	IsDetectionMode() bool
 	SecRuleConfig() SecRuleConfig
 	CustomRuleConfig() CustomRuleConfig
 	IPReputationConfig() IPReputationConfig

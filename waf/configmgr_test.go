@@ -22,13 +22,16 @@ type mockCustomRuleConfig struct{}
 
 func (c *mockCustomRuleConfig) CustomRules() []CustomRule { return []CustomRule{&mockCustomRule{}} }
 
-type mockPolicyConfig struct{}
+type mockPolicyConfig struct {
+	isDetectionMode bool
+}
 
 type mockIPReputationConfig struct{}
 
 func (c *mockIPReputationConfig) Enabled() bool { return true }
 
 func (c *mockPolicyConfig) ConfigID() string                       { return "waf policy 1" }
+func (c *mockPolicyConfig) IsDetectionMode() bool                  { return c.isDetectionMode }
 func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig           { return &mockSecRuleConfig{} }
 func (c *mockPolicyConfig) CustomRuleConfig() CustomRuleConfig     { return &mockCustomRuleConfig{} }
 func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return &mockIPReputationConfig{} }
@@ -39,11 +42,13 @@ type mockConfigLogMetaData struct {
 func (h *mockConfigLogMetaData) ResourceID() string { return "appgwWaf" }
 func (h *mockConfigLogMetaData) InstanceID() string { return "vm1" }
 
-type mockConfig struct{}
+type mockConfig struct {
+	mpc mockPolicyConfig
+}
 
 func (c *mockConfig) ConfigVersion() int32 { return 0 }
 func (c *mockConfig) PolicyConfigs() []PolicyConfig {
-	return []PolicyConfig{&mockPolicyConfig{}}
+	return []PolicyConfig{&c.mpc}
 }
 
 func (c *mockConfig) LogMetaData() ConfigLogMetaData { return &mockConfigLogMetaData{} }

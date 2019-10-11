@@ -2,18 +2,18 @@ package waf
 
 import (
 	"fmt"
+	"github.com/rs/zerolog"
 	"net"
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/rs/zerolog"
 )
 
 type engineInstances struct {
-	sre        SecRuleEngine
-	cre        CustomRuleEngine
-	ireEnabled bool
+	sre             SecRuleEngine
+	cre             CustomRuleEngine
+	ireEnabled      bool
+	isDetectionMode bool
 }
 
 // Server is the top level interface to AzWaf.
@@ -105,13 +105,18 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	decision = Block
 	configID := req.ConfigID()
-
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
 	engines, idExists := s.engines[configID]
 	if !idExists {
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
 		return
 	}
+
+	defer func() {
+		if engines.isDetectionMode {
+			decision = Allow
+		}
+	}()
 
 	var customRuleEvaluation CustomRuleEvaluation
 	if engines.cre != nil {
@@ -199,6 +204,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 	for _, config := range c.PolicyConfigs() {
 		engines := engineInstances{}
 		configID := config.ConfigID()
+		engines.isDetectionMode = config.IsDetectionMode()
 
 		// Create SecRuleEngine.
 		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil && secRuleConfig.Enabled() {
