@@ -1,4 +1,4 @@
-package customrules2
+package customrule
 
 import "azwaf/waf"
 

@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"azwaf/customrules2"
+	"azwaf/customrule"
 	"azwaf/ipreputation"
 	"azwaf/secrule"
 	"azwaf/waf"
@@ -36,7 +36,7 @@ type FilelogResultsLogger interface {
 	SetLogMetaData(data waf.ConfigLogMetaData)
 	SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string)
 	IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest)
-	CustomRuleTriggered(request customrules2.ResultsLoggerHTTPRequest, rule waf.CustomRule)
+	CustomRuleTriggered(request customrule.ResultsLoggerHTTPRequest, rule waf.CustomRule)
 }
 
 // NewFileResultsLogger creates a results logger that write log messages to file.
@@ -235,7 +235,7 @@ func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPR
 	l.sendLog(lg)
 }
 
-func (l *filelogResultsLoggerImpl) CustomRuleTriggered(request customrules2.ResultsLoggerHTTPRequest, rule waf.CustomRule) {
+func (l *filelogResultsLoggerImpl) CustomRuleTriggered(request customrule.ResultsLoggerHTTPRequest, rule waf.CustomRule) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {

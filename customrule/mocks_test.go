@@ -1,29 +1,19 @@
 package customrule
 
 import (
-	"azwaf/hyperscan"
-	"azwaf/secrule"
 	"azwaf/waf"
 	"bytes"
 	"io"
-
-	"github.com/rs/zerolog"
 )
 
-func newEngineWithCustomRules(logger zerolog.Logger, rules ...waf.CustomRule) (waf.CustomRuleEngine, error) {
-	crl := NewCustomRuleLoader(&mockGeoDB{})
-
-	// Need a fully functional secrule engine to properly test custom rules.
-	hsfs := hyperscan.NewCacheFileSystem()
-	hscache := hyperscan.NewDbCache(hsfs)
-	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
-
-	cref := NewEngineFactory(logger, crl, rsf, re)
-
+func newEngineWithCustomRules(rules ...waf.CustomRule) (engine waf.CustomRuleEngine, resLog *mockResultsLogger, err error) {
+	geoDB := &mockGeoDB{}
+	mref := newMockMultiRegexEngineFactory()
+	resLog = newMockResultsLogger()
+	cref := NewEngineFactory(mref, resLog, geoDB)
 	config := &mockCustomRuleConfig{customRules: rules}
-	return cref.NewEngine(config)
+	engine, err = cref.NewEngine(config)
+	return
 }
 
 type mockWafHTTPRequest struct {
@@ -64,7 +54,12 @@ func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
 type mockGeoDB struct{}
 
 func (mdb *mockGeoDB) PutGeoIPData(geoIPData []waf.GeoIPDataRecord) error { return nil }
-func (mdb *mockGeoDB) GeoLookup(ipAddr string) string                     { return "CC" }
+func (mdb *mockGeoDB) GeoLookup(ipAddr string) string {
+	if ipAddr == "2.2.2.2" {
+		return "CC"
+	}
+	return ""
+}
 
 type mockMatchVariable struct {
 	variableName string
@@ -143,27 +138,19 @@ func (mcrc mockCustomRuleConfig) CustomRules() []waf.CustomRule {
 	return mcrc.customRules
 }
 
-type mockResultsLogger struct {
-	ruleMatched map[int]bool
-}
-
-func (l *mockResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
-	r, ok := stmt.(*secrule.Rule)
-	if ok {
-		l.ruleMatched[r.ID] = true
+func newMockResultsLogger() *mockResultsLogger {
+	return &mockResultsLogger{
+		ruleMatched: make(map[string]bool),
 	}
-	return
 }
 
-func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+type mockResultsLogger struct {
+	ruleMatched map[string]bool
 }
-func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
-}
-func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
-}
-func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
-}
-func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) {
+
+func (l *mockResultsLogger) CustomRuleTriggered(request ResultsLoggerHTTPRequest, rule waf.CustomRule) {
+	l.ruleMatched[rule.Name()] = true
+	return
 }
 
 type mockFileSystem struct{}
@@ -178,3 +165,85 @@ type mockConfigConverter struct{}
 
 func (c *mockConfigConverter) SerializeToJSON(waf.Config) (string, error)         { return "", nil }
 func (c *mockConfigConverter) DeserializeFromJSON(str string) (waf.Config, error) { return nil, nil }
+
+func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
+	return &mockMultiRegexEngineFactory{
+		newMultiRegexEngineMockFunc: func(mm []waf.MultiRegexEnginePattern) waf.MultiRegexEngine {
+			rxIds := make(map[string]int)
+			for _, m := range mm {
+				rxIds[m.Expr] = m.ID
+			}
+
+			return &mockMultiRegexEngine{
+				scanMockFunc: func(input []byte) []waf.MultiRegexEngineMatch {
+					type preCannedAnswer struct {
+						rx       string
+						val      string
+						startPos int
+						endPos   int
+						data     []byte
+					}
+					preCannedAnswers := []preCannedAnswer{
+						{"^john$", "john", 0, 4, []byte("john")},
+						{"john", "john", 0, 4, []byte("john")},
+						{"john", "firstname=john&lastname=lenon", 11, 15, []byte("john")},
+						{"neo", "neo+is+the+one", 0, 3, []byte("neo")},
+						{"^DELETE$", "DELETE", 0, 6, []byte("DELETE")},
+						{"^/sensitive\\.php", "/sensitive.php?password=12345", 0, 14, []byte("/sensitive.php?password=12345")},
+						{"abc", "a=abc", 2, 5, []byte("abc")},
+						{"def", "a=def", 2, 5, []byte("def")},
+						{"ab+c", "a=abbbc", 2, 7, []byte("abbbc")},
+						{"bc$", "a=abc", 4, 5, []byte("bc")},
+						{"^a=", "a=abc", 0, 2, []byte("a=")},
+						{"ab", "a=abc", 3, 4, []byte("ab")},
+						{"^a=abc$", "a=abc", 0, 6, []byte("a=abc")},
+						{"abc", "abc", 0, 3, []byte("abc")},
+						{"def", "def", 0, 3, []byte("def")},
+						{"^abc$", "abc", 0, 3, []byte("abc")},
+						{"^ABC$", "ABC", 0, 3, []byte("ABC")},
+						{"^ abc $", " abc ", 0, 5, []byte(" abc ")},
+						{"^%61%62%63$", "%61%62%63", 0, 9, []byte("%61%62%63")},
+						{"^a%20b$", "a%20b", 0, 5, []byte("a%20b")},
+						{"^a b$", "a b", 0, 3, []byte("a b")},
+						{"^a\x00bc$", "a\x00bc", 0, 4, []byte("a\x00bc")},
+						{"^a&#98;c$", "a&#98;c", 0, 4, []byte("a&#98;c")},
+					}
+
+					r := []waf.MultiRegexEngineMatch{}
+					for _, a := range preCannedAnswers {
+						if id, ok := rxIds[a.rx]; ok && bytes.Equal(input, []byte(a.val)) {
+							r = append(r, waf.MultiRegexEngineMatch{ID: id, StartPos: a.startPos, EndPos: a.endPos, Data: a.data})
+						}
+					}
+
+					return r
+				},
+			}
+		},
+	}
+}
+
+type mockMultiRegexEngine struct {
+	scanMockFunc func(input []byte) []waf.MultiRegexEngineMatch
+}
+
+func (m *mockMultiRegexEngine) Scan(input []byte, scratchSpace waf.MultiRegexEngineScratchSpace) (matches []waf.MultiRegexEngineMatch, err error) {
+	matches = m.scanMockFunc(input)
+	return
+}
+
+func (m *mockMultiRegexEngine) CreateScratchSpace() (scratchSpace waf.MultiRegexEngineScratchSpace, err error) {
+	return
+}
+
+func (m *mockMultiRegexEngine) Close() {
+}
+
+type mockMultiRegexEngineFactory struct {
+	newMultiRegexEngineMockFunc func(mm []waf.MultiRegexEnginePattern) waf.MultiRegexEngine
+}
+
+func (mf *mockMultiRegexEngineFactory) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern) (m waf.MultiRegexEngine, err error) {
+	m = mf.newMultiRegexEngineMockFunc(mm)
+	return
+}

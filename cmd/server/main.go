@@ -2,7 +2,7 @@ package main
 
 import (
 	"azwaf/bodyparsing"
-	"azwaf/customrules2"
+	"azwaf/customrule"
 	"azwaf/geodb"
 	"azwaf/grpc"
 	"azwaf/hyperscan"
@@ -89,7 +89,7 @@ func main() {
 
 		gfs := geodb.NewGeoIPFileSystem(logger)
 		geoDB := geodb.NewGeoDB(logger, gfs)
-		cref := customrules2.NewEngineFactory(mref, resLog, geoDB)
+		cref := customrule.NewEngineFactory(mref, resLog, geoDB)
 		rl := secrule.NewCrsRuleLoader(p, rlfs)
 		sref := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{}, resLog)

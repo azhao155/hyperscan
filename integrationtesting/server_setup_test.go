@@ -71,8 +71,7 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	// Setup customrule engine
 	gfs := geodb.NewGeoIPFileSystem(logger)
 	geoDB := geodb.NewGeoDB(logger, gfs)
-	crl := customrule.NewCustomRuleLoader(geoDB)
-	cref := customrule.NewEngineFactory(logger, crl, rsf, re)
+	cref := customrule.NewEngineFactory(mref, log, geoDB)
 	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{}, log)
 	wafServer, err := waf.NewServer(logger, cm, c, sref, rbp, log, cref, ire, geoDB)
 

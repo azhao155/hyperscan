@@ -45,13 +45,14 @@ func TestPostArgsEqualsBlockPositive(t *testing.T) {
 		},
 		body: content,
 	}
-	engine, err := newEngineWithCustomRules(logger, postArgsEqualsBlockRule)
+	engine, _, err := newEngineWithCustomRules(postArgsEqualsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "john")
 	err = eval.ScanBodyField(waf.URLEncodedContent, "lastName", "travolta")
@@ -77,13 +78,14 @@ func TestPostArgsEqualsBlockNegative(t *testing.T) {
 		},
 		body: content,
 	}
-	engine, err := newEngineWithCustomRules(logger, postArgsEqualsBlockRule)
+	engine, _, err := newEngineWithCustomRules(postArgsEqualsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "bob")
 	err = eval.ScanBodyField(waf.URLEncodedContent, "lastName", "dylan")

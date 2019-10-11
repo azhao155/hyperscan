@@ -3,6 +3,7 @@ package customrule
 import (
 	"azwaf/testutils"
 	"azwaf/waf"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestRequestHeadersContainsBlockPositive(t *testing.T) {
 			&mockHeaderPair{k: "X-Last-Name", v: "Travolta"},
 		},
 	}
-	engine, err := newEngineWithCustomRules(logger, requestHeadersContainsBlockRule)
+	engine, _, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -70,17 +71,69 @@ func TestRequestHeadersContainsBlockNegative(t *testing.T) {
 			&mockHeaderPair{k: "X-Last-Name", v: "Dylan"},
 		},
 	}
-	engine, err := newEngineWithCustomRules(logger, requestHeadersContainsBlockRule)
+	engine, _, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
+}
+
+// Content-Length - LessThan - Block
+var contentLengthLessThanBlockRule = &mockCustomRule{
+	name:     "contentLengthLessThanBlock",
+	priority: 1,
+	ruleType: "MatchRule",
+	matchConditions: []waf.MatchCondition{
+		&mockMatchCondition{
+			matchVariables: []waf.MatchVariable{
+				&mockMatchVariable{
+					variableName: "RequestHeaders",
+					selector:     "Content-Length",
+				},
+			},
+			operator:        "LessThan",
+			negateCondition: false,
+			matchValues:     []string{"65536"},
+		},
+	},
+	action: "Block",
+}
+
+func TestContentLengthLessThan(t *testing.T) {
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+
+	// Arrange
+	content := "john travolta"
+	req := &mockWafHTTPRequest{
+		uri:    "/",
+		method: "GET",
+		headers: []waf.HeaderPair{
+			&mockHeaderPair{k: "Content-Length", v: fmt.Sprint(len(content))},
+			&mockHeaderPair{k: "Content-Type", v: "text/plain"},
+		},
+	}
+	engine, _, err := newEngineWithCustomRules(contentLengthLessThanBlockRule)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Act
+	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
+	err = eval.ScanHeaders()
+	decision := eval.EvalRules()
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
 }

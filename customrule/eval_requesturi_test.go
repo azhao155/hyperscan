@@ -36,13 +36,14 @@ func TestRequestURIBeginsWithBlockPositive(t *testing.T) {
 		uri:    "/sensitive.php?password=12345",
 		method: "GET",
 	}
-	engine, err := newEngineWithCustomRules(logger, requestURIBeginsWithBlockRule)
+	engine, _, err := newEngineWithCustomRules(requestURIBeginsWithBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 
@@ -60,13 +61,14 @@ func TestRequestURIBeginsWithBlockNegative(t *testing.T) {
 		uri:    "/nonsensitive.php?password=12345",
 		method: "GET",
 	}
-	engine, err := newEngineWithCustomRules(logger, requestURIBeginsWithBlockRule)
+	engine, _, err := newEngineWithCustomRules(requestURIBeginsWithBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 

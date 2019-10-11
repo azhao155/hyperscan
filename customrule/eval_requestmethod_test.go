@@ -37,13 +37,14 @@ func TestRequestMethodEqualsBlockPositive(t *testing.T) {
 		uri:    "/",
 		method: "DELETE",
 	}
-	engine, err := newEngineWithCustomRules(logger, requestMethodEqualsBlockRule)
+	engine, _, err := newEngineWithCustomRules(requestMethodEqualsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 
@@ -61,13 +62,14 @@ func TestRequestMethodEqualsBlockNegative(t *testing.T) {
 		uri:    "/",
 		method: "GET",
 	}
-	engine, err := newEngineWithCustomRules(logger, requestMethodEqualsBlockRule)
+	engine, _, err := newEngineWithCustomRules(requestMethodEqualsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
 	eval := engine.NewEvaluation(logger, req)
+	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 
