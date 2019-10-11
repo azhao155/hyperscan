@@ -1,7 +1,7 @@
 package hyperscan
 
 import (
-	"azwaf/secrule"
+	"azwaf/waf"
 	"fmt"
 	hs "github.com/flier/gohs/hyperscan"
 	"regexp"
@@ -31,12 +31,12 @@ type scratchSpaceImpl struct {
 }
 
 // NewMultiRegexEngineFactory creates a MultiRegexEngineFactory which will create Hyperscan based MultiRegexEngines. DbCache is used to speed up initializing databases that was previously already built. This can be nil if you do not want to use a cache.
-func NewMultiRegexEngineFactory(dbCache DbCache) secrule.MultiRegexEngineFactory {
+func NewMultiRegexEngineFactory(dbCache DbCache) waf.MultiRegexEngineFactory {
 	return &engineFactoryImpl{dbCache: dbCache}
 }
 
 // NewMultiRegexEngine creates a MultiRegexEngine that uses Hyperscan in prefilter mode for the initial scan, and then uses Go regexp to re-validate matches and extract strings.
-func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePattern) (engine secrule.MultiRegexEngine, err error) {
+func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern) (engine waf.MultiRegexEngine, err error) {
 	h := &engineImpl{}
 
 	patterns := []*hs.Pattern{}
@@ -104,18 +104,18 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []secrule.MultiRegexEnginePat
 }
 
 // Scan scans the given input for all expressions that this engine was initialized with.
-func (h *engineImpl) Scan(input []byte, s secrule.MultiRegexEngineScratchSpace) (matches []secrule.MultiRegexEngineMatch, err error) {
+func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (matches []waf.MultiRegexEngineMatch, err error) {
 	scratchSpace, valid := s.(*scratchSpaceImpl)
 	if !valid || scratchSpace.belongsTo != h {
 		panic("scratch spaces can only be used with the Hyperscan DB they were initialized for.")
 	}
 
-	matches = []secrule.MultiRegexEngineMatch{}
+	matches = []waf.MultiRegexEngineMatch{}
 
 	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
 	if len(input) == 0 {
 		for _, ID := range h.emptyStringPatternIDs {
-			m := secrule.MultiRegexEngineMatch{ID: ID}
+			m := waf.MultiRegexEngineMatch{ID: ID}
 			matches = append(matches, m)
 		}
 		return
@@ -146,7 +146,7 @@ func (h *engineImpl) Scan(input []byte, s secrule.MultiRegexEngineScratchSpace) 
 			continue
 		}
 
-		m := secrule.MultiRegexEngineMatch{
+		m := waf.MultiRegexEngineMatch{
 			ID:       pmID,
 			StartPos: loc[0],
 			EndPos:   loc[1],
@@ -159,7 +159,7 @@ func (h *engineImpl) Scan(input []byte, s secrule.MultiRegexEngineScratchSpace) 
 	return
 }
 
-func (h *engineImpl) CreateScratchSpace() (scratchSpace secrule.MultiRegexEngineScratchSpace, err error) {
+func (h *engineImpl) CreateScratchSpace() (scratchSpace waf.MultiRegexEngineScratchSpace, err error) {
 	s := &scratchSpaceImpl{belongsTo: h}
 
 	if h.db == nil {

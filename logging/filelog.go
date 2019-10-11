@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"azwaf/customrules2"
 	"azwaf/ipreputation"
 	"azwaf/secrule"
 	"azwaf/waf"
@@ -35,6 +36,7 @@ type FilelogResultsLogger interface {
 	SetLogMetaData(data waf.ConfigLogMetaData)
 	SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string)
 	IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest)
+	CustomRuleTriggered(request customrules2.ResultsLoggerHTTPRequest, rule waf.CustomRule)
 }
 
 // NewFileResultsLogger creates a results logger that write log messages to file.
@@ -224,6 +226,41 @@ func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPR
 	}
 
 	lg := &customerFirewallBodyParseLogEntry{
+		ResourceID:    rID,
+		OperationName: "ApplicationGatewayFirewall",
+		Category:      "ApplicationGatewayFirewallLog",
+		Properties:    c,
+	}
+
+	l.sendLog(lg)
+}
+
+func (l *filelogResultsLoggerImpl) CustomRuleTriggered(request customrules2.ResultsLoggerHTTPRequest, rule waf.CustomRule) {
+	rID := ""
+	iID := ""
+	if l.metaData != nil {
+		rID = l.metaData.ResourceID()
+		iID = l.metaData.InstanceID()
+	}
+
+	var policyScope, policyScopeName string
+	if request.LogMetaData() != nil {
+		policyScope = request.LogMetaData().Scope()
+		policyScopeName = request.LogMetaData().ScopeName()
+	}
+
+	c := customerFirewallCustomRuleLogEntryProperties{
+		InstanceID:      iID,
+		RequestURI:      request.URI(),
+		RuleSetType:     "Custom",
+		Action:          rule.Action(),
+		TransactionID:   request.TransactionID(),
+		PolicyID:        request.ConfigID(),
+		PolicyScope:     policyScope,
+		PolicyScopeName: policyScopeName,
+	}
+
+	lg := &customerFirewallCustomRuleLogEntry{
 		ResourceID:    rID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",

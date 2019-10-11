@@ -67,6 +67,7 @@ func (cc *customRuleConfigImpl) CustomRules() []waf.CustomRule {
 	for _, cr := range cc.pb.CustomRules {
 		customRules = append(customRules, &customRuleWrapper{pb: cr})
 	}
+	// TODO consider caching the above, as the custom rules engine will call it many times during a request evaluation
 	return customRules
 }
 
@@ -177,10 +178,10 @@ func (c *configPbWrapper) PolicyConfigs() []waf.PolicyConfig {
 }
 
 func (c *configPbWrapper) LogMetaData() waf.ConfigLogMetaData {
-	if c.pb.MetaData == nil{
+	if c.pb.MetaData == nil {
 		return nil
 	}
-	
+
 	return &configLogMetaDataPbWrapper{pb: c.pb.MetaData}
 }
 

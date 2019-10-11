@@ -1,7 +1,7 @@
 package hyperscan
 
 import (
-	"azwaf/secrule"
+	"azwaf/waf"
 	hs "github.com/flier/gohs/hyperscan"
 	"testing"
 )
@@ -83,7 +83,7 @@ func TestHyperscanStandaloneEmptyStringBehaviour(t *testing.T) {
 
 func TestHyperscanSimple(t *testing.T) {
 	// Arrange
-	patterns := []secrule.MultiRegexEnginePattern{
+	patterns := []waf.MultiRegexEnginePattern{
 		{ID: 0, Expr: "a+bc"},
 		{ID: 1, Expr: "ab+c"},
 		{ID: 2, Expr: "abc+"},
@@ -127,7 +127,7 @@ func TestHyperscanSimple(t *testing.T) {
 func TestHyperscanSimpleTwoScans(t *testing.T) {
 	// Arrange
 	f := NewMultiRegexEngineFactory(nil)
-	e, err := f.NewMultiRegexEngine([]secrule.MultiRegexEnginePattern{
+	e, err := f.NewMultiRegexEngine([]waf.MultiRegexEnginePattern{
 		{ID: 1, Expr: "ab+"},
 		{ID: 2, Expr: "ac+"},
 	})
@@ -190,7 +190,7 @@ func TestHyperscanSimpleTwoScans(t *testing.T) {
 
 func TestExpressionWithPCREPossessiveQuantifier(t *testing.T) {
 	// Arrange
-	patterns := []secrule.MultiRegexEnginePattern{
+	patterns := []waf.MultiRegexEnginePattern{
 		{ID: 0, Expr: "a++bc"},
 	}
 
@@ -234,7 +234,7 @@ func TestExpressionWithPCREPossessiveQuantifier(t *testing.T) {
 
 func TestHyperscanEmptyString(t *testing.T) {
 	// Arrange
-	patterns := []secrule.MultiRegexEnginePattern{
+	patterns := []waf.MultiRegexEnginePattern{
 		{ID: 100, Expr: "^$"},
 	}
 

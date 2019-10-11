@@ -41,15 +41,15 @@ type ReqScannerFactory interface {
 }
 
 // NewReqScannerFactory creates a ReqScannerFactory. The ReqScanners it will create will use multi-regex engines created by the given MultiRegexEngineFactory.
-func NewReqScannerFactory(m MultiRegexEngineFactory) ReqScannerFactory {
+func NewReqScannerFactory(m waf.MultiRegexEngineFactory) ReqScannerFactory {
 	return &reqScannerFactoryImpl{m}
 }
 
 // ReqScannerScratchSpace is a collection of all the scratch spaces a ReqScanner will need. These can be reused for different requests, but cannot be shared concurrently.
-type ReqScannerScratchSpace map[*MultiRegexEngine]MultiRegexEngineScratchSpace
+type ReqScannerScratchSpace map[*waf.MultiRegexEngine]waf.MultiRegexEngineScratchSpace
 
 type reqScannerFactoryImpl struct {
-	multiRegexEngineFactory MultiRegexEngineFactory
+	multiRegexEngineFactory waf.MultiRegexEngineFactory
 }
 
 type rxMatchKey struct {
@@ -67,7 +67,7 @@ type patternRef struct {
 type scanGroup struct {
 	transformations []Transformation
 	patterns        []patternRef
-	rxEngine        MultiRegexEngine
+	rxEngine        waf.MultiRegexEngine
 	backRefs        []patternRef
 }
 
@@ -149,13 +149,13 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 			backRefs := []patternRef{}
 			backRefCurID := 0
 
-			patterns := []MultiRegexEnginePattern{}
+			patterns := []waf.MultiRegexEnginePattern{}
 			for _, p := range scanGroup.patterns {
 				exprs := getRxExprs(p.ruleItem)
 				for _, e := range exprs {
 					// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
 					backRefs = append(backRefs, p)
-					patterns = append(patterns, MultiRegexEnginePattern{backRefCurID, e})
+					patterns = append(patterns, waf.MultiRegexEnginePattern{backRefCurID, e})
 					backRefCurID++
 				}
 			}
@@ -349,7 +349,7 @@ func (r *reqScannerEvaluationImpl) scanTarget(targetName string, content string,
 
 		scratchSpace := (*r.scratchSpace)[&sg.rxEngine]
 
-		var matches []MultiRegexEngineMatch
+		var matches []waf.MultiRegexEngineMatch
 		matches, err = sg.rxEngine.Scan([]byte(contentTransformed), scratchSpace)
 		if err != nil {
 			return
@@ -459,6 +459,7 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	var uriParsed *url.URL
 	uriParsed, err = url.ParseRequestURI(URI)
 	if err != nil {
+		// TODO Is it too harsh to return on uri parsing error?
 		return
 	}
 

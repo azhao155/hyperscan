@@ -1,4 +1,4 @@
-package secrule
+package waf
 
 // MultiRegexEngineFactory is an interface to a factory that can create regex engines that can scan for multiple regexes at once that we will depend on, such as HyperScan or RE2::Set.
 type MultiRegexEngineFactory interface {

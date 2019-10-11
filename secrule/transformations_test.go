@@ -1,6 +1,7 @@
 package secrule
 
 import (
+	"azwaf/waf"
 	"fmt"
 	"strings"
 	"testing"
@@ -131,9 +132,9 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 	// A multi-regex engine mock that just keeps track of what we asked it to scan for.
 	var scannedFor []string
 	mf := &mockMultiRegexEngineFactory{
-		newMultiRegexEngineMockFunc: func(mm []MultiRegexEnginePattern) MultiRegexEngine {
+		newMultiRegexEngineMockFunc: func(mm []waf.MultiRegexEnginePattern) waf.MultiRegexEngine {
 			return &mockMultiRegexEngine{
-				scanMockFunc: func(input []byte) []MultiRegexEngineMatch {
+				scanMockFunc: func(input []byte) []waf.MultiRegexEngineMatch {
 					scannedFor = append(scannedFor, string(input))
 					return nil
 				},

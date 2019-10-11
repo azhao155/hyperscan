@@ -2,6 +2,7 @@ package hyperscan
 
 import (
 	"azwaf/secrule"
+	"azwaf/waf"
 	"fmt"
 	"io/ioutil"
 	"path"
@@ -82,7 +83,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 				}
 
 				// Act
-				e, err := f.NewMultiRegexEngine([]secrule.MultiRegexEnginePattern{
+				e, err := f.NewMultiRegexEngine([]waf.MultiRegexEnginePattern{
 					{ID: 1, Expr: item.Predicate.Val},
 				})
 
