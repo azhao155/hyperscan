@@ -270,7 +270,15 @@ func (e *customRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 		return
 	}
 
-	// TODO support the RequestBody match variable
+	err = e.scanTarget(matchVariable{variableName: "RequestBody"}, data, e.results)
+	if err != nil {
+		return
+	}
+
+	err = e.scanTarget(matchVariable{variableName: "RequestBody", selector: fieldName}, data, e.results)
+	if err != nil {
+		return
+	}
 
 	return
 }
