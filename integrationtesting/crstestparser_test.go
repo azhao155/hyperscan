@@ -14,8 +14,9 @@ import (
 	"strconv"
 	"strings"
 	"testing"
-	yaml "gopkg.in/yaml.v3"
+
 	"github.com/stretchr/testify/assert"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // TestCase for CRS regression test
@@ -114,16 +115,27 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: body}
 
 			hasContentType := false
+			hasContentLength := false
 			for k, v := range s.Stage.Input.Headers {
 				req.headers = append(req.headers, &mockHeaderPair{k: k, v: v})
+
 				if strings.EqualFold("content-type", k) {
 					hasContentType = true
+				}
+
+				if strings.EqualFold("content-length", k) {
+					hasContentLength = true
 				}
 			}
 
 			// Default content type
 			if len(body) > 0 && !hasContentType {
 				req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"})
+			}
+
+			// Default content length
+			if len(body) > 0 && !hasContentLength {
+				req.headers = append(req.headers, &mockHeaderPair{k: "Content-Length", v: strconv.Itoa(len(body))})
 			}
 
 			tc.Requests = append(tc.Requests, req)
@@ -164,7 +176,6 @@ func getBody(inputData interface{}) (body string) {
 	}
 	return
 }
-
 
 func TestGetTests(t *testing.T) {
 	assert := assert.New(t)
@@ -208,5 +219,3 @@ hello world 1
 	_, _ = buf.ReadFrom(r.BodyReader())
 	assert.Equal(expectedBody, buf.String())
 }
-
-
