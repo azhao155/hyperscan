@@ -3,13 +3,15 @@ package customrule
 import (
 	"azwaf/ipaddresses"
 	"azwaf/waf"
-	"github.com/rs/zerolog"
 	"html"
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 type customRuleEngineFactoryImpl struct {
@@ -30,13 +32,18 @@ func NewEngineFactory(multiRegexEngineFactory waf.MultiRegexEngineFactory, resul
 func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleConfig) (customRuleEngine waf.CustomRuleEngine, err error) {
 	engine := &customRuleEngineImpl{
 		resultsLogger:   f.resultsLogger,
-		config:          customRuleConfig,
+		rules:           customRuleConfig.CustomRules(),
 		geoDB:           f.geoDB,
 		conditionGroups: make(map[matchVariable]*conditionsWithSameMatchVar),
 	}
 
+	// Sort custom rules by priority
+	sort.Slice(engine.rules, func(i, j int) bool {
+		return engine.rules[i].Priority() < engine.rules[j].Priority()
+	})
+
 	// Construct an inverted view of the rules that maps from MatchVariables to MatchConditions
-	for ruleIdx, rule := range customRuleConfig.CustomRules() {
+	for ruleIdx, rule := range engine.rules {
 		if rule.RuleType() != "MatchRule" {
 			// TODO figure out what the meaning of other rule types are
 			continue
@@ -79,7 +86,7 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 		for stIdx, st := range cg.sameTransformations {
 			groupRegexPatterns := []waf.MultiRegexEnginePattern{}
 			for mcpIdx, path := range st.matchConditionPaths {
-				mc := customRuleConfig.CustomRules()[path.ruleIdx].MatchConditions()[path.mcIdx]
+				mc := engine.rules[path.ruleIdx].MatchConditions()[path.mcIdx]
 				for _, val := range mc.MatchValues() {
 					escapedVal := regexp.QuoteMeta(val)
 
@@ -127,7 +134,7 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 
 type customRuleEngineImpl struct {
 	resultsLogger    ResultsLogger
-	config           waf.CustomRuleConfig
+	rules            []waf.CustomRule
 	geoDB            waf.GeoDB
 	conditionGroups  map[matchVariable]*conditionsWithSameMatchVar
 	scratchSpaceNext chan *scratchSpaces
@@ -284,8 +291,8 @@ func (e *customRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 }
 
 func (e *customRuleEvaluationImpl) EvalRules() waf.Decision {
-	rules := e.engine.config.CustomRules()
-	// TODO order by priority
+	rules := e.engine.rules
+
 	for ruleIdx, rule := range rules {
 		allConditionsSatisfied := true
 		for mcIdx := range rule.MatchConditions() {
@@ -361,7 +368,7 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 		}
 
 		// Evaluate remaining conditions that are not evaluated by the regex engine
-		rules := e.engine.config.CustomRules()
+		rules := e.engine.rules
 		for _, mcp := range st.matchConditionPaths {
 			mc := rules[mcp.ruleIdx].MatchConditions()[mcp.mcIdx]
 			op := mc.Operator()

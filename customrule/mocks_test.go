@@ -184,6 +184,7 @@ func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
 						data     []byte
 					}
 					preCannedAnswers := []preCannedAnswer{
+						{"^true$", "true", 0, 4, []byte("true")},
 						{"^john$", "john", 0, 4, []byte("john")},
 						{"john", "john", 0, 4, []byte("john")},
 						{"john", "firstname=john&lastname=lenon", 11, 15, []byte("john")},

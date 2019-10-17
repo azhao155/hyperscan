@@ -60,15 +60,20 @@ type secRuleConfigImpl struct{ pb *pb.SecRuleConfig }
 func (c *secRuleConfigImpl) Enabled() bool     { return c.pb.Enabled }
 func (c *secRuleConfigImpl) RuleSetID() string { return c.pb.RuleSetId }
 
-type customRuleConfigImpl struct{ pb *pb.CustomRuleConfig }
+type customRuleConfigImpl struct {
+	pb               *pb.CustomRuleConfig
+	customRulesCache []waf.CustomRule
+}
 
 func (cc *customRuleConfigImpl) CustomRules() []waf.CustomRule {
-	customRules := make([]waf.CustomRule, 0)
-	for _, cr := range cc.pb.CustomRules {
-		customRules = append(customRules, &customRuleWrapper{pb: cr})
+	if cc.customRulesCache == nil {
+		for _, cr := range cc.pb.CustomRules {
+			crWrapped := &customRuleWrapper{pb: cr}
+			cc.customRulesCache = append(cc.customRulesCache, crWrapped)
+		}
 	}
-	// TODO consider caching the above, as the custom rules engine will call it many times during a request evaluation
-	return customRules
+
+	return cc.customRulesCache
 }
 
 type ipReputationConfigImpl struct{ pb *pb.IPReputationConfig }
@@ -77,7 +82,7 @@ func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
 
 type policyConfigWrapper struct{ pb *pb.PolicyConfig }
 
-func (c *policyConfigWrapper) ConfigID() string { return c.pb.ConfigID }
+func (c *policyConfigWrapper) ConfigID() string      { return c.pb.ConfigID }
 func (c *policyConfigWrapper) IsDetectionMode() bool { return c.pb.IsDetectionMode }
 func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
 	if c.pb.SecRuleConfig == nil {
@@ -104,7 +109,6 @@ func (c *policyConfigWrapper) IPReputationConfig() waf.IPReputationConfig {
 	if c.pb.IpReputationConfig == nil {
 		return nil
 	}
-
 	return &ipReputationConfigImpl{pb: c.pb.IpReputationConfig}
 }
 
@@ -113,30 +117,40 @@ type configLogMetaDataPbWrapper struct{ pb *pb.ConfigLogMetaData }
 func (h *configLogMetaDataPbWrapper) ResourceID() string { return h.pb.ResourceID }
 func (h *configLogMetaDataPbWrapper) InstanceID() string { return h.pb.InstanceID }
 
-type customRuleWrapper struct{ pb *pb.CustomRule }
+type customRuleWrapper struct {
+	pb                   *pb.CustomRule
+	matchConditionsCache []waf.MatchCondition
+}
 
 func (cr *customRuleWrapper) Name() string     { return cr.pb.Name }
 func (cr *customRuleWrapper) Priority() int    { return int(cr.pb.Priority) }
 func (cr *customRuleWrapper) RuleType() string { return cr.pb.RuleType }
 func (cr *customRuleWrapper) MatchConditions() []waf.MatchCondition {
-	matchConditions := make([]waf.MatchCondition, 0)
-	for _, mc := range cr.pb.MatchConditions {
-		matchConditions = append(matchConditions, &matchConditionWrapper{pb: mc})
+	if cr.matchConditionsCache == nil {
+		for _, mc := range cr.pb.MatchConditions {
+			mcWrapped := &matchConditionWrapper{pb: mc}
+			cr.matchConditionsCache = append(cr.matchConditionsCache, mcWrapped)
+		}
 	}
-	return matchConditions
+	return cr.matchConditionsCache
 }
 func (cr *customRuleWrapper) Action() string { return cr.pb.Action }
 
 type matchConditionWrapper struct {
-	pb *pb.MatchCondition
+	pb                  *pb.MatchCondition
+	matchVariablesCache []waf.MatchVariable
+	matchValuesCache    []string
+	transformsCache     []string
 }
 
 func (mc *matchConditionWrapper) MatchVariables() []waf.MatchVariable {
-	matchVariables := make([]waf.MatchVariable, 0)
-	for _, mv := range mc.pb.MatchVariables {
-		matchVariables = append(matchVariables, &matchVariableWrapper{pb: mv})
+	if mc.matchVariablesCache == nil {
+		for _, mv := range mc.pb.MatchVariables {
+			mvWrapped := &matchVariableWrapper{pb: mv}
+			mc.matchVariablesCache = append(mc.matchVariablesCache, mvWrapped)
+		}
 	}
-	return matchVariables
+	return mc.matchVariablesCache
 }
 
 func (mc *matchConditionWrapper) Operator() string { return mc.pb.Operator }
@@ -144,19 +158,21 @@ func (mc *matchConditionWrapper) Operator() string { return mc.pb.Operator }
 func (mc *matchConditionWrapper) NegateCondition() bool { return mc.pb.NegateCondition }
 
 func (mc *matchConditionWrapper) MatchValues() []string {
-	matchValues := make([]string, 0)
-	for _, mv := range mc.pb.MatchValues {
-		matchValues = append(matchValues, mv)
+	if mc.matchValuesCache == nil {
+		for _, mv := range mc.pb.MatchValues {
+			mc.matchValuesCache = append(mc.matchValuesCache, mv)
+		}
 	}
-	return matchValues
+	return mc.matchValuesCache
 }
 
 func (mc *matchConditionWrapper) Transforms() []string {
-	transforms := make([]string, 0)
-	for _, t := range mc.pb.Transforms {
-		transforms = append(transforms, t)
+	if mc.transformsCache == nil {
+		for _, t := range mc.pb.Transforms {
+			mc.transformsCache = append(mc.transformsCache, t)
+		}
 	}
-	return transforms
+	return mc.transformsCache
 }
 
 type matchVariableWrapper struct {
@@ -166,15 +182,20 @@ type matchVariableWrapper struct {
 func (mv *matchVariableWrapper) VariableName() string { return mv.pb.VariableName }
 func (mv *matchVariableWrapper) Selector() string     { return mv.pb.Selector }
 
-type configPbWrapper struct{ pb *pb.WAFConfig }
+type configPbWrapper struct {
+	pb                 *pb.WAFConfig
+	policyConfigsCache []waf.PolicyConfig
+}
 
 func (c *configPbWrapper) ConfigVersion() int32 { return c.pb.ConfigVersion }
 func (c *configPbWrapper) PolicyConfigs() []waf.PolicyConfig {
-	ss := make([]waf.PolicyConfig, 0)
-	for _, p := range c.pb.PolicyConfigs {
-		ss = append(ss, &policyConfigWrapper{pb: p})
+	if c.policyConfigsCache == nil {
+		for _, p := range c.pb.PolicyConfigs {
+			policyWrapped := &policyConfigWrapper{pb: p}
+			c.policyConfigsCache = append(c.policyConfigsCache, policyWrapped)
+		}
 	}
-	return ss
+	return c.policyConfigsCache
 }
 
 func (c *configPbWrapper) LogMetaData() waf.ConfigLogMetaData {
