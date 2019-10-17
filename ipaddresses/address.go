@@ -2,6 +2,7 @@ package ipaddresses
 
 import (
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 )
@@ -80,16 +81,11 @@ func ToOctets(ip uint32) string {
 
 // InAddressSpace checks if an IP address is part of the address space defined by a CIDR notation
 func InAddressSpace(ipAddr string, cidr string) (result bool, err error) {
-	ip, err := ParseIPAddress(ipAddr)
+	_, ipv4Net, err := net.ParseCIDR(cidr)
 	if err != nil {
 		return
 	}
-
-	prefix, mask, err := ParseCIDR(cidr)
-	if err != nil {
-		return
-	}
-
-	result = (ip & mask) == prefix
+	ip := net.ParseIP(ipAddr)
+	result = ipv4Net.Contains(ip)
 	return
 }

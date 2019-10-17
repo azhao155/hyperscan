@@ -73,7 +73,7 @@ func TestXForwardedForHeaders(t *testing.T) {
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
-		headers:    []waf.HeaderPair{&mockHeaderPair{key: "X-Forwarded-For", value: "127.0.0.0:3000"}},
+		headers:    []waf.HeaderPair{&mockHeaderPair{key: xForwardedForHeaderName, value: "127.0.0.0:3000"}},
 	}
 
 	isMatch := engine.EvalRequest(request) == waf.Block
@@ -93,7 +93,7 @@ func TestXForwardedForHeadersWithoutPort(t *testing.T) {
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
-		headers:    []waf.HeaderPair{&mockHeaderPair{key: "X-Forwarded-For", value: "127.0.0.0"}},
+		headers:    []waf.HeaderPair{&mockHeaderPair{key: xForwardedForHeaderName, value: "127.0.0.0"}},
 	}
 
 	isMatch := engine.EvalRequest(request) == waf.Block
@@ -107,7 +107,7 @@ func TestXForwardedForHeadersWithWhiteSpace(t *testing.T) {
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
-		headers:    []waf.HeaderPair{&mockHeaderPair{key: "X-Forwarded-For", value: " 1.2.3.4:80 , 127.0.0.0:3000 "}},
+		headers:    []waf.HeaderPair{&mockHeaderPair{key: xForwardedForHeaderName, value: " 1.2.3.4:80 , 127.0.0.0:3000 "}},
 	}
 
 	isMatch := engine.EvalRequest(request) == waf.Block

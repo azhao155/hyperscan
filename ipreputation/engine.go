@@ -1,6 +1,7 @@
 package ipreputation
 
 import (
+	"azwaf/ipaddresses"
 	"azwaf/waf"
 	"strconv"
 	"strings"
@@ -11,6 +12,7 @@ import (
 const ipSize = 32
 
 const badBotsfileName = "badbots.txt"
+const xForwardedForHeaderName = "X-Forwarded-For"
 
 type engineImpl struct {
 	ipMatcher     *binaryTrie
@@ -37,14 +39,20 @@ func (e *engineImpl) PutIPReputationList(ips []string) {
 func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) waf.Decision {
 	var ips []string
 	for _, header := range req.Headers() {
-		if strings.EqualFold(header.Key(), "X-Forwarded-For") {
+		if strings.EqualFold(header.Key(), xForwardedForHeaderName) {
 			ips = parseXForwardedForHeaderIps(header.Value())
 		}
 	}
 	ips = append(ips, req.RemoteAddr())
 
 	for _, ip := range ips {
-		if e.ipMatcher.match(ip) {
+		isMatch, err := e.ipMatcher.match(ip)
+		if err != nil {
+			e.resultsLogger.IPReputationTriggered(req)
+			return waf.Block
+		}
+		// TO DO: replace return waf.Block with config-specified action
+		if isMatch {
 			e.resultsLogger.IPReputationTriggered(req)
 			return waf.Block
 		}
@@ -101,21 +109,20 @@ func (t *binaryTrie) clear() {
 
 func (t *binaryTrie) populate(ips []string) {
 	for _, ip := range ips {
-		ipOctets, mask := parseIP(ip)
+		ipInt, mask := parseIP(ip)
 		node := t.root
 		var i uint
-		depth := 0
 
 		for i = 0; i <= ipSize; i++ {
 			if node.isMatch() {
 				break
 			}
-			if depth == mask {
+			if i == mask {
 				node.setMatch()
 				break
 			}
 
-			curBit := getBitAtIndex(ipOctets, i)
+			curBit := getBitAtIndex(ipInt, i)
 			var child *nodeImpl
 			if curBit == 0 {
 				child = node.getZero()
@@ -129,34 +136,34 @@ func (t *binaryTrie) populate(ips []string) {
 				}
 			}
 			node = child
-			depth++
 		}
 	}
 }
 
-func (t *binaryTrie) match(ip string) bool {
+func (t *binaryTrie) match(ip string) (isMatch bool, err error) {
 	node := t.root
 
-	ipOctets := ipStringToOctets(ip)
+	ipInt, err := ipaddresses.ParseIPAddress(ip)
 	var i uint
 	for i = 0; i < ipSize; i++ {
-		isMatch := node.isMatch()
+		isMatch = node.isMatch()
 		if isMatch {
-			return isMatch
+			return
 		}
 
-		curBit := getBitAtIndex(ipOctets, i)
+		curBit := getBitAtIndex(ipInt, i)
 		if curBit == 1 {
 			node = node.getOne()
 		} else {
 			node = node.getZero()
 		}
 		if node == nil {
-			return false
+			isMatch = false
+			return
 		}
 	}
-
-	return node.isMatch()
+	isMatch = node.isMatch()
+	return
 }
 
 type nodeImpl struct {
@@ -195,26 +202,14 @@ func (n *nodeImpl) setMatch() {
 	n.match = true
 }
 
-// Converts IP address string into 4 octets
-func ipStringToOctets(ip string) int {
-	numbers := strings.Split(ip, ".")
-	var ipOctets int
-	numCount := 4
-	numSize := 8
-	for i := 0; i < numCount; i++ {
-		num, _ := strconv.Atoi(numbers[i])
-		ipOctets |= num << uint(numSize*(numCount-1-i))
-	}
-	return ipOctets
-}
-
-func parseIP(ip string) (ipOctets int, mask int) {
+func parseIP(ip string) (ipInt uint32, mask uint) {
 	split := strings.Split(ip, "/")
-	ipOctets = ipStringToOctets(split[0])
+	ipInt, _ = ipaddresses.ParseIPAddress(split[0])
 
 	if len(split) == 2 {
 		maskString := split[1]
-		mask, _ = strconv.Atoi(maskString)
+		maskNumber, _ := strconv.Atoi(maskString)
+		mask = uint(maskNumber)
 	} else {
 		// If there's no mask, default its value to 32
 		mask = 32
@@ -223,7 +218,7 @@ func parseIP(ip string) (ipOctets int, mask int) {
 }
 
 // Returns the value of the bit at index i
-func getBitAtIndex(num int, index uint) (curBit int) {
+func getBitAtIndex(num uint32, index uint) (curBit uint32) {
 	curBit = (num >> (ipSize - 1 - index)) & 1
 	return
 }
