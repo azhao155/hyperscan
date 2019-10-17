@@ -37,7 +37,7 @@ RUN_CRS_REGRESSION_TESTS=1 go test azwaf/integrationtesting -run TestCrsRules --
 
 # To run code style analysis
 go install golang.org/x/lint/golint
-golint ./...
+./stylechecks.sh
 
 # To generate a detailed code coverage report
 go test -count=1 -covermode=count -coverprofile=coverage.out azwaf/...
