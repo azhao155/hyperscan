@@ -24,9 +24,6 @@ var operatorFuncsMap = map[Operator]operatorFunc{
 	Pm:           wordListSearchOperatorEval,
 }
 
-// CustomOpCallBackFunc is how an operator is evaluated
-type CustomOpCallBackFunc func(string, string) (bool, string, error)
-
 type operatorFunc func(string, string) (bool, string, error)
 
 func toOperatorFunc(op Operator) operatorFunc {

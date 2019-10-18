@@ -36,12 +36,8 @@ func (rp *RulePredicate) eval(perRequestEnv envMap) (result bool, output string,
 			variable = varObj.ToString()
 		}
 
-		if rp.Op == CallBack {
-			result, output, err = rp.CallBackOpFunc(variable, val)
-		} else {
-			opFunc := toOperatorFunc(rp.Op)
-			result, output, err = opFunc(variable, val)
-		}
+		opFunc := toOperatorFunc(rp.Op)
+		result, output, err = opFunc(variable, val)
 
 		if err != nil {
 			return result, "", err

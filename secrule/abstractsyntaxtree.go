@@ -30,7 +30,6 @@ type RulePredicate struct {
 	Targets         []Target
 	ExceptTargets   []Target // ExceptTargets are the targets that are exempt/excluded from being matched.
 	Op              Operator
-	CallBackOpFunc  CustomOpCallBackFunc
 	Neg             bool
 	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
 	valMacroMatches [][]string
@@ -119,7 +118,6 @@ const (
 	IPMatch
 	IPMatchFromFile
 	Rbl
-	CallBack
 )
 
 // Transformation is what will be applied to the input before it is evaluated against the operator/input of the rule.
