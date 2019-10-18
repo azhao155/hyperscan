@@ -2,11 +2,11 @@ package waf
 
 import (
 	"fmt"
-	"github.com/rs/zerolog"
 	"net"
 	"sort"
 	"strings"
 	"time"
+	"github.com/rs/zerolog"
 )
 
 type engineInstances struct {
@@ -108,7 +108,8 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
 	engines, idExists := s.engines[configID]
 	if !idExists {
-		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
+		logger.Info().Str("ConfigId", configID).Msg("Unknown for Azwaf")
+		decision = Allow
 		return
 	}
 
