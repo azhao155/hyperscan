@@ -12,11 +12,11 @@ import (
 	"github.com/rs/zerolog"
 )
 
-const geoIPDataCacheName = "geoipdatacache.json"
+const geoIPDataCacheName = waf.Path + "geoipdatacache.json"
 
 // NewGeoDB instantiates a new GeoIP database.
 func NewGeoDB(logger zerolog.Logger, fs GeoIPFileSystem) waf.GeoDB {
-	db := &geoDBImpl{logger: logger, fs: fs}
+	db := &geoDBImpl{tree: btree.New(2), logger: logger, fs: fs}
 
 	// Load data from cache if available.
 	if geoIPData, err := db.readDataFromCache(geoIPDataCacheName); err == nil {
@@ -53,8 +53,8 @@ func (db *geoDBImpl) GeoLookup(ipAddr string) (countryCode string) {
 	foundNode := db.tree.Get(ipNode)
 
 	// The data set does not contain known reserved addresses.
-	// Report as error if lookup returns a miss for non-reserved address
-	// and "" as country code.
+	// Log the event if lookup returns a miss for non-reserved address
+	// and return "" as country code.
 	if foundNode == nil || len(foundNode.(geoIPTreeNode).CountryCode) != 2 {
 		if special, _ := ipaddresses.IsSpecialPurposeAddress(ipAddr); !special {
 			db.logger.Warn().Msgf("GeoDB failed to look up record for IP address %s", ipAddr)
@@ -86,7 +86,7 @@ func (db *geoDBImpl) writeDataToCache(filename string, geoIPData []waf.GeoIPData
 		})
 	}
 
-	bytes, err := json.Marshal(geoIPData)
+	bytes, err := json.Marshal(data)
 
 	if err != nil {
 		return
@@ -166,9 +166,13 @@ func newGeoIPTreeNodeFromUInt32(ip uint32) geoIPTreeNode {
 }
 
 func newGeoIPTreeNodeFromGeoIPDataRecord(rec waf.GeoIPDataRecord) geoIPTreeNode {
+	// Safeguard for data cleanness.
+	countryCode := strings.ToUpper(rec.CountryCode())
+	countryCode = strings.TrimSpace(countryCode)
+
 	return geoIPTreeNode{
 		StartIP:     rec.StartIP(),
 		EndIP:       rec.EndIP(),
-		CountryCode: strings.ToUpper(rec.CountryCode()),
+		CountryCode: countryCode,
 	}
 }

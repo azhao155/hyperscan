@@ -11,20 +11,33 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type mockGeoIPDataRecord struct {
+	mockStartIP     uint32
+	mockEndIP       uint32
+	mockCountryCode string
+}
+
+func (m *mockGeoIPDataRecord) StartIP() uint32     { return m.mockStartIP }
+func (m *mockGeoIPDataRecord) EndIP() uint32       { return m.mockEndIP }
+func (m *mockGeoIPDataRecord) CountryCode() string { return m.mockCountryCode }
+
 // A sample from real Geo IP data set.
 var testGeoIPData = []waf.GeoIPDataRecord{
-	&geoIPDataRecordImpl{StartIPVal: 1143547336, EndIPVal: 1143547336, CountryCodeVal: "US"},
+	&mockGeoIPDataRecord{mockStartIP: 1491692113, mockEndIP: 1491692113, mockCountryCode: "TR"},
+	&mockGeoIPDataRecord{mockStartIP: 1823934982, mockEndIP: 1823934982, mockCountryCode: "US"},
+	&mockGeoIPDataRecord{mockStartIP: 1878097675, mockEndIP: 1878097719, mockCountryCode: "TW"},
+	&mockGeoIPDataRecord{mockStartIP: 3144112629, mockEndIP: 3144112629, mockCountryCode: "BR"},
+}
+
+var referenceGeoIPData = []waf.GeoIPDataRecord{
 	&geoIPDataRecordImpl{StartIPVal: 1491692113, EndIPVal: 1491692113, CountryCodeVal: "TR"},
-	&geoIPDataRecordImpl{StartIPVal: 1524801328, EndIPVal: 1524801343, CountryCodeVal: "SE"},
 	&geoIPDataRecordImpl{StartIPVal: 1823934982, EndIPVal: 1823934982, CountryCodeVal: "US"},
 	&geoIPDataRecordImpl{StartIPVal: 1878097675, EndIPVal: 1878097719, CountryCodeVal: "TW"},
-	&geoIPDataRecordImpl{StartIPVal: 2534662836, EndIPVal: 2534662839, CountryCodeVal: "IT"},
-	&geoIPDataRecordImpl{StartIPVal: 2999725405, EndIPVal: 2999725405, CountryCodeVal: "RU"},
 	&geoIPDataRecordImpl{StartIPVal: 3144112629, EndIPVal: 3144112629, CountryCodeVal: "BR"},
 }
 
 // JSON encoding of the above data.
-var testGeoIPDataEncoded, _ = json.Marshal(testGeoIPData)
+var testGeoIPDataEncoded, _ = json.Marshal(referenceGeoIPData)
 
 var mockFSFiles = map[string][]byte{
 	geoIPDataCacheName: testGeoIPDataEncoded,
@@ -120,11 +133,11 @@ func TestGeoDBGeoLookupWithOverlap(t *testing.T) {
 	db := &geoDBImpl{}
 	tree := btree.New(2)
 	geoIPData := []waf.GeoIPDataRecord{
-		&geoIPDataRecordImpl{StartIPVal: 0x00000000, EndIPVal: 0x3fffffff, CountryCodeVal: "03"},
-		&geoIPDataRecordImpl{StartIPVal: 0x40000000, EndIPVal: 0x7fffffff, CountryCodeVal: "47"},
-		&geoIPDataRecordImpl{StartIPVal: 0x80000000, EndIPVal: 0xbfffffff, CountryCodeVal: "8b"},
-		&geoIPDataRecordImpl{StartIPVal: 0xc0000000, EndIPVal: 0xffffffff, CountryCodeVal: "cf"},
-		&geoIPDataRecordImpl{StartIPVal: 0xbabeface, EndIPVal: 0xdeadbeef, CountryCodeVal: "bd"},
+		&mockGeoIPDataRecord{mockStartIP: 0x00000000, mockEndIP: 0x3fffffff, mockCountryCode: "03"},
+		&mockGeoIPDataRecord{mockStartIP: 0x40000000, mockEndIP: 0x7fffffff, mockCountryCode: "47"},
+		&mockGeoIPDataRecord{mockStartIP: 0x80000000, mockEndIP: 0xbfffffff, mockCountryCode: "8b"},
+		&mockGeoIPDataRecord{mockStartIP: 0xc0000000, mockEndIP: 0xffffffff, mockCountryCode: "cf"},
+		&mockGeoIPDataRecord{mockStartIP: 0xbabeface, mockEndIP: 0xdeadbeef, mockCountryCode: "bd"},
 	}
 
 	for _, rec := range geoIPData {
@@ -169,7 +182,7 @@ func TestWriteDataToCache(t *testing.T) {
 	testFilename := "TestWriteDataToCache"
 	db.writeDataToCache(testFilename, testGeoIPData)
 
-	assert.Equal(mockFSFiles[testFilename], testGeoIPDataEncoded)
+	assert.Equal(testGeoIPDataEncoded, mockFSFiles[testFilename])
 }
 
 func TestReadDataFromCache(t *testing.T) {
@@ -183,7 +196,7 @@ func TestReadDataFromCache(t *testing.T) {
 	data, err := db.readDataFromCache(testFilename)
 
 	assert.Nil(err)
-	assert.Equal(testGeoIPData, data)
+	assert.Equal(referenceGeoIPData, data)
 }
 
 func TestNewGeoIPTreeNodeFromIPOctets(t *testing.T) {
@@ -239,10 +252,10 @@ func TestValidateGeoIPDataNoError(t *testing.T) {
 	// Arrange
 	db := &geoDBImpl{}
 	geoIPData := []waf.GeoIPDataRecord{
-		&geoIPDataRecordImpl{StartIPVal: 0xc0000000, EndIPVal: 0xffffffff, CountryCodeVal: "cf"},
-		&geoIPDataRecordImpl{StartIPVal: 0x80000000, EndIPVal: 0xbfffffff, CountryCodeVal: "8b"},
-		&geoIPDataRecordImpl{StartIPVal: 0x40000000, EndIPVal: 0x7fffffff, CountryCodeVal: "47"},
-		&geoIPDataRecordImpl{StartIPVal: 0x00000000, EndIPVal: 0x3fffffff, CountryCodeVal: "03"},
+		&mockGeoIPDataRecord{mockStartIP: 0xc0000000, mockEndIP: 0xffffffff, mockCountryCode: "cf"},
+		&mockGeoIPDataRecord{mockStartIP: 0x80000000, mockEndIP: 0xbfffffff, mockCountryCode: "8b"},
+		&mockGeoIPDataRecord{mockStartIP: 0x40000000, mockEndIP: 0x7fffffff, mockCountryCode: "47"},
+		&mockGeoIPDataRecord{mockStartIP: 0x00000000, mockEndIP: 0x3fffffff, mockCountryCode: "03"},
 	}
 
 	// Act
@@ -258,10 +271,10 @@ func TestValidateGeoIPDataInvalidRecords(t *testing.T) {
 	// Arrange
 	db := &geoDBImpl{}
 	geoIPData := []waf.GeoIPDataRecord{
-		&geoIPDataRecordImpl{StartIPVal: 0xffffffff, EndIPVal: 0xc0000000, CountryCodeVal: "fc"},
-		&geoIPDataRecordImpl{StartIPVal: 0xbfffffff, EndIPVal: 0x80000000, CountryCodeVal: "b8"},
-		&geoIPDataRecordImpl{StartIPVal: 0x7fffffff, EndIPVal: 0x40000000, CountryCodeVal: "74"},
-		&geoIPDataRecordImpl{StartIPVal: 0x3fffffff, EndIPVal: 0x00000000, CountryCodeVal: "30"},
+		&mockGeoIPDataRecord{mockStartIP: 0xffffffff, mockEndIP: 0xc0000000, mockCountryCode: "fc"},
+		&mockGeoIPDataRecord{mockStartIP: 0xbfffffff, mockEndIP: 0x80000000, mockCountryCode: "b8"},
+		&mockGeoIPDataRecord{mockStartIP: 0x7fffffff, mockEndIP: 0x40000000, mockCountryCode: "74"},
+		&mockGeoIPDataRecord{mockStartIP: 0x3fffffff, mockEndIP: 0x00000000, mockCountryCode: "30"},
 	}
 
 	// Act
@@ -277,11 +290,11 @@ func TestValidateGeoIPDataOverlaps(t *testing.T) {
 	// Arrange
 	db := &geoDBImpl{}
 	geoIPData := []waf.GeoIPDataRecord{
-		&geoIPDataRecordImpl{StartIPVal: 0x00000000, EndIPVal: 0x3fffffff, CountryCodeVal: "03"},
-		&geoIPDataRecordImpl{StartIPVal: 0x40000000, EndIPVal: 0x7fffffff, CountryCodeVal: "47"},
-		&geoIPDataRecordImpl{StartIPVal: 0x80000000, EndIPVal: 0xbfffffff, CountryCodeVal: "8b"},
-		&geoIPDataRecordImpl{StartIPVal: 0xc0000000, EndIPVal: 0xffffffff, CountryCodeVal: "cf"},
-		&geoIPDataRecordImpl{StartIPVal: 0xbabeface, EndIPVal: 0xdeadbeef, CountryCodeVal: "no"},
+		&mockGeoIPDataRecord{mockStartIP: 0x00000000, mockEndIP: 0x3fffffff, mockCountryCode: "03"},
+		&mockGeoIPDataRecord{mockStartIP: 0x40000000, mockEndIP: 0x7fffffff, mockCountryCode: "47"},
+		&mockGeoIPDataRecord{mockStartIP: 0x80000000, mockEndIP: 0xbfffffff, mockCountryCode: "8b"},
+		&mockGeoIPDataRecord{mockStartIP: 0xc0000000, mockEndIP: 0xffffffff, mockCountryCode: "cf"},
+		&mockGeoIPDataRecord{mockStartIP: 0xbabeface, mockEndIP: 0xdeadbeef, mockCountryCode: "no"},
 	}
 
 	// Act

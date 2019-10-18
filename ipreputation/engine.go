@@ -11,7 +11,7 @@ import (
 // IPv4 addresses are composed of 4 separate 8-bit integers
 const ipSize = 32
 
-const badBotsfileName = "badbots.txt"
+const badBotsfileName = waf.Path + "badbots.txt"
 const xForwardedForHeaderName = "X-Forwarded-For"
 
 type engineImpl struct {

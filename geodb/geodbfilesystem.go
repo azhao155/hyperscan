@@ -7,8 +7,8 @@ import (
 )
 
 type geoIPDataRecordImpl struct {
-	StartIPVal     uint32 `json:"StartIPVal"`
-	EndIPVal       uint32 `json:"EndIPVal"`
+	StartIPVal     uint32 `json:"StartIP"`
+	EndIPVal       uint32 `json:"EndIP"`
 	CountryCodeVal string `json:"CountryCode"`
 }
 
