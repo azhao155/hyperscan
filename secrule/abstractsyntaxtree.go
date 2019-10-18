@@ -38,10 +38,10 @@ type RulePredicate struct {
 
 // Target describes which field of the request we want to be scanning.
 type Target struct {
-	Name string // Example value: ARGS
-	Selector string // Example value: streetAddress
-	IsRegexSelector bool // Example of target where this is true: ARGS:/hel*o/
-	IsCount bool // Example of target where this is true, meaning number of args: &ARGS
+	Name            string // Example value: ARGS
+	Selector        string // Example value: streetAddress
+	IsRegexSelector bool   // Example of target where this is true: ARGS:/hel*o/
+	IsCount         bool   // Example of target where this is true, meaning number of args: &ARGS
 }
 
 // Action is any of the items in the actions-block of a SecRule or SecAction.

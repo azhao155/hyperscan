@@ -25,11 +25,11 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-	key := rxMatchKey{100, 0, "ARGS"}
-	m := make(map[rxMatchKey]RxMatch)
-	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	key := matchKey{100, 0, Target{Name: "ARGS"}}
+	m := make(map[matchKey]Match)
+	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 
 	re := NewRuleEvaluator()
@@ -57,11 +57,11 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-	key := rxMatchKey{100, 0, "ARGS"}
-	m := make(map[rxMatchKey]RxMatch)
-	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	key := matchKey{100, 0, Target{Name: "ARGS"}}
+	m := make(map[matchKey]Match)
+	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -97,11 +97,11 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-	key := rxMatchKey{100, 0, "ARGS"}
-	m := make(map[rxMatchKey]RxMatch)
-	m[key] = RxMatch{StartPos: 0, EndPos: 10, Data: []byte{}}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	key := matchKey{100, 0, Target{Name: "ARGS"}}
+	m := make(map[matchKey]Match)
+	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -134,7 +134,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
 	re := NewRuleEvaluator()
 
-	tp := make(map[string]bool)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{targetsPresent: tp}
 
 	decision, code, err := re.Process(logger, em, rules, sr, nil)
@@ -161,11 +161,11 @@ func TestRuleEvaluatorChain(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m[matchKey{100, 1, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -196,10 +196,10 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 1, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -230,10 +230,10 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -266,11 +266,11 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	m[rxMatchKey{100, 1, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m[matchKey{100, 1, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -297,8 +297,8 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	rules := []Statement{
 		&ActionStmt{ID: 100, Actions: []Action{&sv}},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -326,8 +326,8 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	rules := []Statement{
 		&ActionStmt{ID: 100, Actions: []Action{&sv1, &sv2}},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -361,10 +361,10 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -392,10 +392,10 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -423,11 +423,11 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
-	tp["REQUEST_COOKIES"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
+	tp[Target{Name: "REQUEST_COOKIES"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
@@ -457,11 +457,11 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
-	tp["REQUEST_COOKIES"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
+	tp[Target{Name: "REQUEST_COOKIES"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
@@ -508,11 +508,11 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
-	tp["REQUEST_COOKIES"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
+	tp[Target{Name: "REQUEST_COOKIES"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
@@ -541,11 +541,11 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
-	tp["REQUEST_COOKIES"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
+	tp[Target{Name: "REQUEST_COOKIES"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 	cbCalled := false
@@ -570,8 +570,8 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 		&ActionStmt{ID: 100, Actions: []Action{&sv1}, Phase: 2},
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -597,8 +597,8 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 		&ActionStmt{ID: 100, Actions: []Action{&sv1}},           // Phase 2 is default
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -627,8 +627,8 @@ func TestSkipAfter(t *testing.T) {
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -662,8 +662,8 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}, Phase: 1},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -689,8 +689,8 @@ func TestMarkerCaseSensitive(t *testing.T) {
 		&Marker{Label: "heLLo1"},
 		&ActionStmt{ID: 200, Actions: []Action{&sv1}},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -713,8 +713,8 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 200},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
 	sr := &ScanResults{m, tp}
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
@@ -745,10 +745,10 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -776,9 +776,9 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
+	m := make(map[matchKey]Match)
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -806,12 +806,12 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	m[rxMatchKey{100, 0, "ARGS_NAMES"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true
-	tp["ARGS_NAMES"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m[matchKey{100, 0, Target{Name: "ARGS_NAMES"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true
+	tp[Target{Name: "ARGS_NAMES"}] = true
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -839,11 +839,11 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS"}] = RxMatch{}
-	m[rxMatchKey{100, 0, "ARGS_NAMES"}] = RxMatch{}
-	tp := make(map[string]bool)
-	tp["ARGS"] = true // Note: only ARGS, not ARGS_NAMES in this negative test
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m[matchKey{100, 0, Target{Name: "ARGS_NAMES"}}] = Match{}
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS"}] = true // Note: only ARGS, not ARGS_NAMES in this negative test
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -871,10 +871,10 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS:myarg1"}] = RxMatch{} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
-	tp := make(map[string]bool)
-	tp["ARGS:myarg1"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg1"}}] = Match{} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS", Selector: "myarg1"}] = true // TODO fix
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 
@@ -902,10 +902,10 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[rxMatchKey]RxMatch)
-	m[rxMatchKey{100, 0, "ARGS:myarg2"}] = RxMatch{} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
-	tp := make(map[string]bool)
-	tp["ARGS:myarg2"] = true
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg2"}}] = Match{} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
+	tp := make(map[Target]bool)
+	tp[Target{Name: "ARGS", Selector: "myarg2"}] = true // TODO fix
 	sr := &ScanResults{m, tp}
 	re := NewRuleEvaluator()
 

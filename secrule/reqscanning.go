@@ -22,8 +22,8 @@ type ReqScannerEvaluation interface {
 	ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) error
 }
 
-// RxMatch represents a regex match found while scanning.
-type RxMatch struct {
+// Match represents when a match was found during the request scanning phase.
+type Match struct {
 	StartPos int
 	EndPos   int
 	Data     []byte
@@ -31,8 +31,8 @@ type RxMatch struct {
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
-	rxMatches      map[rxMatchKey]RxMatch
-	targetsPresent map[string]bool
+	matches        map[matchKey]Match
+	targetsPresent map[Target]bool
 }
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
@@ -52,33 +52,32 @@ type reqScannerFactoryImpl struct {
 	multiRegexEngineFactory waf.MultiRegexEngineFactory
 }
 
-type rxMatchKey struct {
+type matchKey struct {
 	ruleID      int
 	ruleItemIdx int
-	target      string
+	target      Target
 }
 
-type patternRef struct {
+type conditionRef struct {
 	rule        *Rule
 	ruleItem    *RuleItem
 	ruleItemIdx int
+	target      Target
 }
 
+// Group of conditions that can be scanned together, because they are for the same target and with the same transformations.
 type scanGroup struct {
 	transformations []Transformation
-	patterns        []patternRef
 	rxEngine        waf.MultiRegexEngine
-	backRefs        []patternRef
-}
-
-type detectXSSGroup struct {
-	transformations []Transformation
-	backRefs        []patternRef
+	conditions      []conditionRef
+	backRefs        []conditionRef
 }
 
 type reqScannerImpl struct {
-	scanPatterns      map[string][]*scanGroup
-	detectXSSPatterns map[string][]*detectXSSGroup
+	allScanGroups        []*scanGroup
+	scanGroupsForTarget  map[Target][]*scanGroup
+	targetsSimple        map[Target]bool
+	targetsRegexSelector map[string][]*targetsRegexSelectorWithSameTargetName // map key is target name
 }
 
 type reqScannerEvaluationImpl struct {
@@ -86,12 +85,19 @@ type reqScannerEvaluationImpl struct {
 	scratchSpace *ReqScannerScratchSpace
 }
 
+type targetsRegexSelectorWithSameTargetName struct {
+	target                Target
+	regexSelectorCompiled *regexp.Regexp
+}
+
 // NewReqScanner creates a ReqScanner.
 func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScanner, err error) {
-	scanPatterns := make(map[string][]*scanGroup)
-	detectXSSPatterns := make(map[string][]*detectXSSGroup)
+	var allScanGroups []*scanGroup
+	scanGroupsForTarget := make(map[Target][]*scanGroup)
+	targetsSimple := make(map[Target]bool)
+	targetsRegexSelector := make(map[string][]*targetsRegexSelectorWithSameTargetName) // map key is target name
 
-	// Construct a inverted view of the rules that maps from targets to rules
+	// Construct a inverted view of the rules that maps from targets+selectors, to rule conditions
 	for _, curStmt := range statements {
 		curRule, ok := curStmt.(*Rule)
 		if !ok {
@@ -102,55 +108,70 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 		for curRuleItemIdx := range curRule.Items {
 			curRuleItem := &curRule.Items[curRuleItemIdx]
 			for _, target := range curRuleItem.Predicate.Targets {
-				t := target.toModSecFormat()
+				if target.IsRegexSelector {
+					// Add this target to targetsRegexSelector if not already present
+					aa := targetsRegexSelector[target.Name]
+					found := false
+					for _, a := range aa {
+						if a.target == target {
+							found = true
+							break
+						}
+					}
+					if !found {
+						var rx *regexp.Regexp
+						rx, err = regexp.Compile(target.Selector)
+						if err != nil {
+							return
+						}
+						aa = append(aa, &targetsRegexSelectorWithSameTargetName{
+							target:                target,
+							regexSelectorCompiled: rx,
+						})
+						targetsRegexSelector[target.Name] = aa
+					}
+				} else {
+					targetsSimple[target] = true
+				}
 
-				curScanTargets := scanPatterns[t]
-
-				// This target can have multiple different transformations. Find the right one or create one.
+				// This target+selector can have multiple different transformations. Find the right one or create one.
 				var curScanGroup *scanGroup
-				for _, sp := range curScanTargets {
-					if transformationListEquals(sp.transformations, curRuleItem.Transformations) {
-						curScanGroup = sp
+				for _, sg := range scanGroupsForTarget[target] {
+					if transformationListEquals(sg.transformations, curRuleItem.Transformations) {
+						curScanGroup = sg
+						break
 					}
 				}
 				if curScanGroup == nil {
-					// This is the first time we see a RuleItem for this ARG with this transformation pipeline, so we'll create a scanGroup object for it.
+					// This is the first time we see a RuleItem for this combination of target+selector+transformations, so we'll create a scanGroup object for it.
 					curScanGroup = &scanGroup{transformations: curRuleItem.Transformations}
-					scanPatterns[t] = append(scanPatterns[t], curScanGroup)
+					scanGroupsForTarget[target] = append(scanGroupsForTarget[target], curScanGroup)
+					allScanGroups = append(allScanGroups, curScanGroup)
 				}
 
-				p := patternRef{curRule, curRuleItem, curRuleItemIdx}
-
-				switch curRuleItem.Predicate.Op {
-				case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Streq, Strmatch, Within:
-					// The value can have macros that cannot be expanded at this time.
-					if len(curRuleItem.Predicate.valMacroMatches) == 0 {
-						curScanGroup.patterns = append(curScanGroup.patterns, p)
-					}
-				case DetectXSS:
-					curXSSGroup := &detectXSSGroup{}
-					curXSSGroup.transformations = curRuleItem.Transformations
-					curXSSGroup.backRefs = append(curXSSGroup.backRefs, p)
-					detectXSSPatterns[t] = append(detectXSSPatterns[t], curXSSGroup)
-				}
+				// Mark that this condition is subscribed to this scanGroup
+				p := conditionRef{curRule, curRuleItem, curRuleItemIdx, target}
+				curScanGroup.conditions = append(curScanGroup.conditions, p)
 			}
 		}
 	}
 
-	// Construct multi regex engine instances from the scan patterns.
-	for target, scanGroups := range scanPatterns {
-		for scanGroupIdx, scanGroup := range scanGroups {
-			if len(scanGroup.patterns) == 0 {
-				// TODO if scanPatterns only holds regex-based scan groups, then this should never happen
-				continue
-			}
+	// Construct multi regex engine instances.
+	for _, sg := range allScanGroups {
+		// When the multi regex engine finds a match, it gives us a single ID. BackRefs gets us from the ID to the actual rule.
+		// BackRefs is not the same as sg.conditions, because for @pmf there will be multiple patterns that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
+		backRefs := []conditionRef{}
+		backRefCurID := 0
 
-			// When the multi regex engine finds a match, it gives us a single ID. BackRefs gets us from the ID to the actual rule.
-			backRefs := []patternRef{}
-			backRefCurID := 0
+		patterns := []waf.MultiRegexEnginePattern{}
+		for _, p := range sg.conditions {
+			switch p.ruleItem.Predicate.Op {
+			case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Streq, Strmatch, Within:
+				// The value can have macros that cannot be expanded at this time.
+				if len(p.ruleItem.Predicate.valMacroMatches) > 0 {
+					continue
+				}
 
-			patterns := []waf.MultiRegexEnginePattern{}
-			for _, p := range scanGroup.patterns {
 				exprs := getRxExprs(p.ruleItem)
 				for _, e := range exprs {
 					// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
@@ -159,20 +180,49 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 					backRefCurID++
 				}
 			}
+		}
 
-			scanPatterns[target][scanGroupIdx].backRefs = backRefs
+		if len(patterns) == 0 {
+			// There were no conditions in this scan group that the regex engine can handle
+			continue
+		}
 
-			scanPatterns[target][scanGroupIdx].rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
-			if err != nil {
-				err = fmt.Errorf("failed to create multi-regex engine: %v", err)
-				return
-			}
+		sg.backRefs = backRefs
+		sg.rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
+		if err != nil {
+			err = fmt.Errorf("failed to create multi-regex engine: %v", err)
+			return
 		}
 	}
 
 	r = &reqScannerImpl{
-		scanPatterns:      scanPatterns,
-		detectXSSPatterns: detectXSSPatterns,
+		allScanGroups:        allScanGroups,
+		scanGroupsForTarget:  scanGroupsForTarget,
+		targetsSimple:        targetsSimple,
+		targetsRegexSelector: targetsRegexSelector,
+	}
+
+	return
+}
+
+func (r *reqScannerImpl) getTargets(targetName string, fieldName string) (targets []Target) {
+	// Are we looking for this simple target?
+	t := Target{Name: targetName, Selector: fieldName}
+	if r.targetsSimple[t] {
+		targets = append(targets, t)
+	}
+
+	// Are we looking for this simple count target?
+	t = Target{Name: targetName, Selector: fieldName, IsCount: true}
+	if r.targetsSimple[t] {
+		targets = append(targets, t)
+	}
+
+	// Are we looking for a target with regex selector that this field name matches?
+	for _, trs := range r.targetsRegexSelector[targetName] {
+		if trs.regexSelectorCompiled.MatchString(fieldName) {
+			targets = append(targets, trs.target)
+		}
 	}
 
 	return
@@ -188,18 +238,16 @@ func (r *reqScannerImpl) NewReqScannerEvaluation(scratchSpace *ReqScannerScratch
 // NewScratchSpace creates an instance of all the scratch spaces this ReqScanner will need.
 func (r *reqScannerImpl) NewScratchSpace() (scratchSpace *ReqScannerScratchSpace, err error) {
 	s := make(ReqScannerScratchSpace)
-	for _, scanGroups := range r.scanPatterns {
-		for _, scanGroup := range scanGroups {
-			if scanGroup.rxEngine == nil {
-				// Happens with scan groups with no patterns
-				// TODO if scanPatterns only holds regex-based scan groups, then this should never happen
-				continue
-			}
 
-			s[&scanGroup.rxEngine], err = scanGroup.rxEngine.CreateScratchSpace()
-			if err != nil {
-				return
-			}
+	for _, sg := range r.allScanGroups {
+		if sg.rxEngine == nil {
+			// Happens with scan groups with no regex patterns
+			continue
+		}
+
+		s[&sg.rxEngine], err = sg.rxEngine.CreateScratchSpace()
+		if err != nil {
+			return
 		}
 	}
 
@@ -216,8 +264,8 @@ func (s ReqScannerScratchSpace) Close() {
 
 func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
 	results = &ScanResults{
-		rxMatches:      make(map[rxMatchKey]RxMatch),
-		targetsPresent: make(map[string]bool),
+		matches:        make(map[matchKey]Match),
+		targetsPresent: make(map[Target]bool),
 	}
 
 	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
@@ -227,17 +275,17 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 	reqLine.WriteString(" ")
 	reqLine.WriteString(req.URI())
 	reqLine.WriteString(" HTTP/1.1") // TODO pass actual HTTP version through.
-	err = r.scanTarget("REQUEST_LINE", reqLine.String(), results)
+	err = r.scanField("REQUEST_LINE", "", reqLine.String(), results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanTarget("REMOTE_ADDR", req.RemoteAddr(), results)
+	err = r.scanField("REMOTE_ADDR", "", req.RemoteAddr(), results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanTarget("REQUEST_METHOD", req.Method(), results)
+	err = r.scanField("REQUEST_METHOD", "", req.Method(), results)
 	if err != nil {
 		return
 	}
@@ -256,18 +304,18 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 			r.scanCookies(v, results)
 		}
 
-		err = r.scanTarget("REQUEST_HEADERS_NAMES", k, results)
+		err = r.scanField("REQUEST_HEADERS_NAMES", "", k, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("REQUEST_HEADERS", v, results)
+		err = r.scanField("REQUEST_HEADERS", "", v, results)
 		if err != nil {
 			return
 		}
 
 		// TODO selector probably should not be case sensitive
-		err = r.scanTarget("REQUEST_HEADERS:"+k, v, results)
+		err = r.scanField("REQUEST_HEADERS", k, v, results)
 		if err != nil {
 			return
 		}
@@ -283,33 +331,33 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 	switch contentType {
 
 	case waf.MultipartFormDataContent, waf.URLEncodedContent:
-		err = r.scanTarget("ARGS_NAMES", fieldName, results)
+		err = r.scanField("ARGS_NAMES", "", fieldName, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("ARGS", data, results)
+		err = r.scanField("ARGS", "", data, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("ARGS:"+fieldName, data, results)
+		err = r.scanField("ARGS", fieldName, data, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("ARGS_POST", data, results)
+		err = r.scanField("ARGS_POST", "", data, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("ARGS_POST:"+fieldName, data, results)
+		err = r.scanField("ARGS_POST", fieldName, data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.XMLContent, waf.JSONContent:
-		err = r.scanTarget("XML:/*", data, results)
+		err = r.scanField("XML", "/*", data, results)
 		if err != nil {
 			return
 		}
@@ -319,77 +367,78 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 
 	}
 
-	// TODO handle regex selectors and other types of selectors
-
 	return
 }
 
-// GetRxResultsFor returns any results for regex matches that were done during the request scanning.
-func (r *ScanResults) GetRxResultsFor(ruleID int, ruleItemIdx int, target Target) (m RxMatch, ok bool) {
-	// TODO Remove this conversion back to string when regex selectors are fully supported by using Target as part of the key in r.rxMatches
-	targetStr := target.toModSecFormat()
-
-	m, ok = r.rxMatches[rxMatchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: targetStr}]
+// GetResultsFor returns any results for matches that were done during the request scanning.
+func (r *ScanResults) GetResultsFor(ruleID int, ruleItemIdx int, target Target) (m Match, ok bool) {
+	// TODO rename this function to just GetResultsFor
+	m, ok = r.matches[matchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
 	return
 }
 
-func (r *reqScannerEvaluationImpl) scanTarget(targetName string, content string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string, content string, results *ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
 
-	results.targetsPresent[targetName] = true
+	var scanGroups []*scanGroup
+	targets := r.reqScanner.getTargets(targetName, fieldName)
+	for _, target := range targets {
+		results.targetsPresent[target] = true
+		scanGroups = append(scanGroups, r.reqScanner.scanGroupsForTarget[target]...)
+	}
 
-	// TODO look up in scanPatterns not only based on full target names, but also based on selectors with regexes
-	for _, sg := range r.reqScanner.scanPatterns[targetName] {
-		if len(sg.patterns) == 0 {
-			continue
-		}
+	if len(scanGroups) == 0 {
+		return
+	}
 
+	for _, sg := range scanGroups {
 		contentTransformed := applyTransformations(content, sg.transformations)
 
-		scratchSpace := (*r.scratchSpace)[&sg.rxEngine]
+		// Handle all conditions in this scan group that the regex engine can handle
+		if sg.rxEngine != nil {
+			scratchSpace := (*r.scratchSpace)[&sg.rxEngine]
 
-		var matches []waf.MultiRegexEngineMatch
-		matches, err = sg.rxEngine.Scan([]byte(contentTransformed), scratchSpace)
-		if err != nil {
-			return
-		}
+			var matches []waf.MultiRegexEngineMatch
+			matches, err = sg.rxEngine.Scan([]byte(contentTransformed), scratchSpace)
+			if err != nil {
+				return
+			}
 
-		for _, m := range matches {
-			p := sg.backRefs[m.ID]
+			for _, m := range matches {
+				p := sg.backRefs[m.ID]
 
-			// Store the match for fast retrieval in the eval phase
-			key := rxMatchKey{p.rule.ID, p.ruleItemIdx, targetName}
-			if _, alreadyFound := results.rxMatches[key]; !alreadyFound {
-				results.rxMatches[key] = RxMatch{
-					StartPos: m.StartPos,
-					EndPos:   m.EndPos,
-					Data:     m.Data,
+				// Store the match for fast retrieval in the eval phase
+				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
+				if _, alreadyFound := results.matches[key]; !alreadyFound {
+					results.matches[key] = Match{
+						StartPos: m.StartPos,
+						EndPos:   m.EndPos,
+						Data:     m.Data,
+					}
 				}
 			}
 		}
-	}
 
-	for _, sg := range r.reqScanner.detectXSSPatterns[targetName] {
+		// Handle conditions that the regex engine could not handle
+		for _, cr := range sg.conditions {
+			switch cr.ruleItem.Predicate.Op {
+			case DetectXSS:
+				var match bool
+				match, _, err = detectXSSOperatorEval(contentTransformed, "")
+				if err != nil {
+					return
+				}
 
-		contentTransformed := applyTransformations(content, sg.transformations)
-
-		var match bool
-		match, _, err = detectXSSOperatorEval(contentTransformed, "")
-		if err != nil {
-			return
-		}
-
-		if match {
-			for _, p := range sg.backRefs {
-
-				// Store the match for fast retrieval in the eval phase
-				key := rxMatchKey{p.rule.ID, p.ruleItemIdx, targetName}
-				if _, alreadyFound := results.rxMatches[key]; !alreadyFound {
-					results.rxMatches[key] = RxMatch{
-						StartPos: 0,
-						EndPos:   0,
-						Data:     []byte{},
+				if match {
+					// Store the match for fast retrieval in the eval phase
+					key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
+					if _, alreadyFound := results.matches[key]; !alreadyFound {
+						results.matches[key] = Match{
+							StartPos: 0,
+							EndPos:   len(content),
+							Data:     []byte(content),
+						}
 					}
 				}
 			}
@@ -433,12 +482,12 @@ func getRxExprs(ruleItem *RuleItem) []string {
 }
 
 func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (err error) {
-	err = r.scanTarget("REQUEST_URI", URI, results)
+	err = r.scanField("REQUEST_URI", "", URI, results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanTarget("REQUEST_URI_RAW", URI, results)
+	err = r.scanField("REQUEST_URI_RAW", "", URI, results)
 	if err != nil {
 		return
 	}
@@ -451,7 +500,7 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		reqFilename = URI[:n]
 	}
 
-	err = r.scanTarget("REQUEST_FILENAME", reqFilename, results)
+	err = r.scanField("REQUEST_FILENAME", "", reqFilename, results)
 	if err != nil {
 		return
 	}
@@ -463,7 +512,7 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		return
 	}
 
-	err = r.scanTarget("QUERY_STRING", uriParsed.RawQuery, results)
+	err = r.scanField("QUERY_STRING", "", uriParsed.RawQuery, results)
 	if err != nil {
 		return
 	}
@@ -475,18 +524,18 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	}
 
 	for k, vv := range qvals {
-		err = r.scanTarget("ARGS_NAMES", k, results)
+		err = r.scanField("ARGS_NAMES", "", k, results)
 		if err != nil {
 			return
 		}
 
 		for _, v := range vv {
-			err = r.scanTarget("ARGS", v, results)
+			err = r.scanField("ARGS", "", v, results)
 			if err != nil {
 				return
 			}
 
-			err = r.scanTarget("ARGS:"+k, v, results)
+			err = r.scanField("ARGS", k, v, results)
 			if err != nil {
 				return
 			}
@@ -502,17 +551,17 @@ func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (
 	cookies := goReq.Cookies()
 	for _, cookie := range cookies {
 
-		err = r.scanTarget("REQUEST_COOKIES_NAMES", cookie.Name, results)
+		err = r.scanField("REQUEST_COOKIES_NAMES", "", cookie.Name, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("REQUEST_COOKIES", cookie.Value, results)
+		err = r.scanField("REQUEST_COOKIES", "", cookie.Value, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanTarget("REQUEST_COOKIES:"+cookie.Name, cookie.Value, results)
+		err = r.scanField("REQUEST_COOKIES", cookie.Name, cookie.Value, results)
 		if err != nil {
 			return
 		}

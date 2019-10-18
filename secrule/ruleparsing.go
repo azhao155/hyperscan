@@ -212,7 +212,7 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 		phase,
 		err = parseActions(rawActions)
 	if err != nil {
-		err = fmt.Errorf("error while parsing targets: %s", err)
+		err = fmt.Errorf("error while parsing actions: %s", err)
 		return
 	}
 
@@ -328,20 +328,29 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []Target, exceptTargets
 			name = targetStr
 		}
 
-		isRegexSelector := false
-		if len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
-			isRegexSelector = true
-			selector = selector[1:len(selector)-1]
-		} else if len(selector) >= 2 && selector[0] == '\'' && selector[len(selector)-1] == '\'' {
+		if len(selector) >= 2 && selector[0] == '\'' && selector[len(selector)-1] == '\'' {
 			// Reusing nextArg to unquote and unescape
 			selector, _ = r.nextArg(selector)
 		}
 
-		target := Target {
-			Name: name,
-			Selector: selector,
+		isRegexSelector := false
+		if name != "XML" && len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
+			isRegexSelector = true
+			selector = selector[1 : len(selector)-1]
+
+			// Ensure early that the regexp selector is valid, so we can fail with a helpful error message otherwise.
+			_, err = regexp.Compile(selector)
+			if err != nil {
+				err = fmt.Errorf("invalid regex target selector: %v", err)
+				return
+			}
+		}
+
+		target := Target{
+			Name:            name,
+			Selector:        selector,
 			IsRegexSelector: isRegexSelector,
-			IsCount: isCount,
+			IsCount:         isCount,
 		}
 
 		if isNegate {

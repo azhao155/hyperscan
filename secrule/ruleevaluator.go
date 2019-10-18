@@ -181,7 +181,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 
 	for _, target := range ruleItem.Predicate.Targets {
 		isTxTarget := strings.EqualFold(target.Name, "tx")
-		isTxTargetPresent := isTxTarget && env.hasKey(target.Name + "." + target.Selector)
+		isTxTargetPresent := isTxTarget && env.hasKey(target.Name+"."+target.Selector)
 
 		// For targets that we never even came across, we just always skip the predicate like ModSec does
 		if target.IsCount {
@@ -192,13 +192,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 				continue
 			}
 		} else {
-			// TODO Remove this conversion back to string when regex selectors are fully supported by using Target as part of the key in r.rxMatches
-			targetStr := target.Name
-			if target.Selector != "" {
-				targetStr += ":" + target.Selector
-			}
-
-			if !scanResults.targetsPresent[targetStr] {
+			if !scanResults.targetsPresent[target] {
 				continue
 			}
 		}
@@ -207,7 +201,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 
 		switch ruleItem.Predicate.Op {
 		case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within, DetectXSS:
-			_, ok := scanResults.GetRxResultsFor(rule.ID, curRuleItemIdx, target)
+			_, ok := scanResults.GetResultsFor(rule.ID, curRuleItemIdx, target)
 			if ok {
 				anyMatched = true
 				break
