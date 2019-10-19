@@ -18,7 +18,8 @@ const Path = "/appgwroot/log/azwaf/"
 // FileName is the azwaf log file name
 const FileName = "waf_json.log"
 
-type filelogResultsLoggerImpl struct {
+// FilelogResultsLogger writes customer facing logs to a file.
+type FilelogResultsLogger struct {
 	fileSystem   LogFileSystem
 	file         LogFile
 	logger       zerolog.Logger
@@ -27,21 +28,9 @@ type filelogResultsLoggerImpl struct {
 	metaData     waf.ConfigLogMetaData
 }
 
-// FilelogResultsLogger writes customer facing logs to a file.
-type FilelogResultsLogger interface {
-	FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int)
-	PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int)
-	TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int)
-	BodyParseError(request waf.ResultsLoggerHTTPRequest, err error)
-	SetLogMetaData(data waf.ConfigLogMetaData)
-	SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string)
-	IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest)
-	CustomRuleTriggered(request customrule.ResultsLoggerHTTPRequest, rule waf.CustomRule)
-}
-
 // NewFileResultsLogger creates a results logger that write log messages to file.
-func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (FilelogResultsLogger, error) {
-	r := &filelogResultsLoggerImpl{fileSystem: fileSystem, logger: logger}
+func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (*FilelogResultsLogger, error) {
+	r := &FilelogResultsLogger{fileSystem: fileSystem, logger: logger}
 
 	err := fileSystem.MkDir(Path)
 	if err != nil {
@@ -68,7 +57,8 @@ func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (File
 	return r, nil
 }
 
-func (l *filelogResultsLoggerImpl) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
+// SecRuleTriggered is to be called when a SecRule was triggered.
+func (l *FilelogResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
 	var ruleID int
 	switch stmt := stmt.(type) {
 	case *secrule.Rule:
@@ -115,7 +105,8 @@ func (l *filelogResultsLoggerImpl) SecRuleTriggered(request secrule.ResultsLogge
 	l.sendLog(lg)
 }
 
-func (l *filelogResultsLoggerImpl) IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest) {
+// IPReputationTriggered is to be called when a the IP reputation engine resulted in a request being blocked.
+func (l *FilelogResultsLogger) IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {
@@ -150,19 +141,22 @@ func (l *filelogResultsLoggerImpl) IPReputationTriggered(request ipreputation.Re
 	l.sendLog(lg)
 }
 
-func (l *filelogResultsLoggerImpl) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+// FieldBytesLimitExceeded is to be called when the request body contained a field longer than the limit.
+func (l *FilelogResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body contained a field longer than the limit (%d bytes)", limit))
 }
 
-func (l *filelogResultsLoggerImpl) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+// PausableBytesLimitExceeded is to be called when the request body length (excluding file upload fields) exceeded the limit.
+func (l *FilelogResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length (excluding file upload fields) exceeded the limit (%d bytes)", limit))
 }
 
-func (l *filelogResultsLoggerImpl) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+// TotalBytesLimitExceeded is to be called when the request body length exceeded the limit.
+func (l *FilelogResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes)", limit))
 }
 
-func (l *filelogResultsLoggerImpl) bytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, msg string) {
+func (l *FilelogResultsLogger) bytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, msg string) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {
@@ -197,7 +191,8 @@ func (l *filelogResultsLoggerImpl) bytesLimitExceeded(request waf.ResultsLoggerH
 	l.sendLog(lg)
 }
 
-func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
+// BodyParseError is to be called when the request body parser hit an error causing the request to be blocked.
+func (l *FilelogResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {
@@ -235,7 +230,8 @@ func (l *filelogResultsLoggerImpl) BodyParseError(request waf.ResultsLoggerHTTPR
 	l.sendLog(lg)
 }
 
-func (l *filelogResultsLoggerImpl) CustomRuleTriggered(request customrule.ResultsLoggerHTTPRequest, rule waf.CustomRule) {
+// CustomRuleTriggered is to be called when a custom rule was triggered.
+func (l *FilelogResultsLogger) CustomRuleTriggered(request customrule.ResultsLoggerHTTPRequest, rule waf.CustomRule) {
 	rID := ""
 	iID := ""
 	if l.metaData != nil {
@@ -270,7 +266,7 @@ func (l *filelogResultsLoggerImpl) CustomRuleTriggered(request customrule.Result
 	l.sendLog(lg)
 }
 
-func (l *filelogResultsLoggerImpl) sendLog(data interface{}) {
+func (l *FilelogResultsLogger) sendLog(data interface{}) {
 	bb, err := json.Marshal(data)
 	if err != nil {
 		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
@@ -280,6 +276,7 @@ func (l *filelogResultsLoggerImpl) sendLog(data interface{}) {
 	<-l.writeDone
 }
 
-func (l *filelogResultsLoggerImpl) SetLogMetaData(metaData waf.ConfigLogMetaData) {
+// SetLogMetaData is to be called during initialization to set data needed by the logger later.
+func (l *FilelogResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) {
 	l.metaData = metaData
 }
