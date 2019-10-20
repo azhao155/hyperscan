@@ -93,8 +93,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
-					Transformations: []Transformation{},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
 				},
 			},
 		},
@@ -102,8 +101,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc+"},
-					Transformations: []Transformation{},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc+"},
 				},
 				{
 					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "xyz"},
@@ -120,7 +118,14 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 				},
 			},
 		},
-	}
+		&Rule{
+			ID: 400,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "XML", Selector: "/*"}}, Op: Rx, Val: "abc+"},
+				},
+			},
+		}}
 
 	return
 }

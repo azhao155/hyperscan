@@ -249,6 +249,80 @@ func TestReqScannerBodyField(t *testing.T) {
 	}
 }
 
+func TestReqScannerBodyFieldXML(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+	err3 := rse.ScanBodyField(waf.XMLContent, "", "aaaaaaabccc", sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if err3 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: "ARGS"})
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+
+	_, ok = sr.GetResultsFor(400, 0, Target{Name: "XML", Selector: "/*"})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
+func TestReqScannerBodyFieldJSON(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+	err3 := rse.ScanBodyField(waf.JSONContent, "", "aaaaaaabccc", sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if err3 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(400, 0, Target{Name: "XML", Selector: "/*"})
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: "ARGS"})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
 func TestReqScannerSimpleSelectorUrl(t *testing.T) {
 	// Arrange
 	mf := newMockMultiRegexEngineFactory()
