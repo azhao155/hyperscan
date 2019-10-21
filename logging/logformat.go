@@ -115,16 +115,20 @@ type customerFirewallCustomRuleLogEntry struct {
 }
 
 type customerFirewallCustomRuleLogEntryProperties struct {
-	InstanceID      string `json:"instanceId"`
-	ClientIP        string `json:"clientIp"`
-	ClientPort      string `json:"clientPort"`
-	RequestURI      string `json:"requestUri"`
-	RuleSetType     string `json:"ruleSetType"`
-	Action          string `json:"action"`
-	RuleName        string `json:"ruleId"`
-	Hostname        string `json:"hostname"`
-	TransactionID   string `json:"transactionId"`
-	PolicyID        string `json:"policyId"`
-	PolicyScope     string `json:"policyScope"`
-	PolicyScopeName string `json:"policyScopeName"`
+	InstanceID      string                          `json:"instanceId"`
+	ClientIP        string                          `json:"clientIp"`
+	ClientPort      string                          `json:"clientPort"`
+	RequestURI      string                          `json:"requestUri"`
+	RuleSetType     string                          `json:"ruleSetType"`
+	RuleSetVersion  string                          `json:"ruleSetVersion"`
+	RuleID          string                          `json:"ruleId"`
+	RuleGroup       string                          `json:"ruleGroup"`
+	Message         string                          `json:"message"`
+	Action          string                          `json:"action"`
+	Details         customerFirewallLogDetailsEntry `json:"details"`
+	Hostname        string                          `json:"hostname"`
+	TransactionID   string                          `json:"transactionId"`
+	PolicyID        string                          `json:"policyId"`
+	PolicyScope     string                          `json:"policyScope"`
+	PolicyScopeName string                          `json:"policyScopeName"`
 }

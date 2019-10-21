@@ -249,6 +249,7 @@ func (l *FilelogResultsLogger) CustomRuleTriggered(request customrule.ResultsLog
 		InstanceID:      iID,
 		RequestURI:      request.URI(),
 		RuleSetType:     "Custom",
+		RuleID:          rule.Name(),
 		Action:          rule.Action(),
 		TransactionID:   request.TransactionID(),
 		PolicyID:        request.ConfigID(),
