@@ -45,7 +45,15 @@ message NextBodyChunk {
 
 
 message WafDecision {
-  bool allow = 1;
+  bool allow = 1 [deprecated=true];
+
+  enum Action {
+    UNINITIALIZED = 0;
+    PASS = 1;
+    ALLOW = 2;
+    BLOCK = 3;
+  }
+  Action action = 2;
 }
 
 message WAFConfig {

@@ -119,7 +119,7 @@ func TestWafDetectionMode(t *testing.T) {
 	d, err := s.EvalRequest(req)
 
 	// Assert
-	if d != Allow {
+	if d != Pass {
 		t.Fatalf("Unexpected decision: %v", d)
 	}
 }

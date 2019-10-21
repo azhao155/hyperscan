@@ -34,23 +34,25 @@ func NewServer(logger zerolog.Logger, ws waf.Server) Server {
 	}
 }
 
-func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
-	allow := true
+func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) (err error) {
+	var r *pb.WafHttpRequest
+	r, err = stream.Recv()
+	wafDecision := &pb.WafDecision{}
+	defer stream.SendAndClose(wafDecision)
 
-	r, err := stream.Recv()
 	if err != nil {
-		stream.SendAndClose(&pb.WafDecision{Allow: false})
+		wafDecision.Action = pb.WafDecision_BLOCK
 		s.logger.Warn().Err(err).Msg("Error from stream.Recv()")
-		return err
+		return
 	}
 
 	// First message has to be of type HeadersAndFirstChunk
 	m, ok := r.Content.(*pb.WafHttpRequest_HeadersAndFirstChunk)
 	if !ok {
-		stream.SendAndClose(&pb.WafDecision{Allow: false})
+		wafDecision.Action = pb.WafDecision_BLOCK
 		err = fmt.Errorf("first gRPC stream message was not HeadersAndFirstChunk")
 		s.logger.Warn().Msg(err.Error())
-		return err
+		return
 	}
 
 	// A callback used to get the rest of the body chunks that we'll get from the gRPC stream
@@ -129,15 +131,23 @@ func (s *serverImpl) EvalRequest(stream pb.WafService_EvalRequestServer) error {
 		transactionID: fmt.Sprintf("%X", rand.Int())[:7], // TODO pass a txid down with the request from Nginx
 	}
 
-	decision, err := s.ws.EvalRequest(w)
-	allow = (decision != waf.Block)
-
+	d, err := s.ws.EvalRequest(w)
 	if err != nil {
+		wafDecision.Action = pb.WafDecision_BLOCK
 		s.logger.Warn().Err(err).Msg("Error from s.ws.EvalRequest(w)")
-		allow = false
+		return
 	}
 
-	return stream.SendAndClose(&pb.WafDecision{Allow: allow})
+	switch d {
+	case waf.Pass:
+		wafDecision.Action = pb.WafDecision_PASS
+	case waf.Allow:
+		wafDecision.Action = pb.WafDecision_ALLOW
+	case waf.Block:
+		wafDecision.Action = pb.WafDecision_BLOCK
+	}
+
+	return
 }
 
 func (s *serverImpl) PutConfig(ctx context.Context, in *pb.WAFConfig) (d *pb.PutConfigResponse, err error) {

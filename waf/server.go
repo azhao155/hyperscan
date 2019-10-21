@@ -121,7 +121,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	defer func() {
 		if engines.isDetectionMode {
-			decision = Allow
+			decision = Pass
 		}
 	}()
 
