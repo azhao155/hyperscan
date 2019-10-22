@@ -69,7 +69,7 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	rbp := bodyparsing.NewRequestBodyParser(defaultLengthLimits)
 
 	// Setup customrule engine
-	gfs := geodb.NewGeoIPFileSystem(logger)
+	gfs := &mockGeoDBFileSystem{}
 	geoDB := geodb.NewGeoDB(logger, gfs)
 	cref := customrule.NewEngineFactory(mref, log, geoDB)
 	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{}, log)

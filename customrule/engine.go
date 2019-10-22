@@ -405,13 +405,11 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 						// Example content: "8.8.8.8:80,8.8.4.4,10.10.10.10:443".
 						for _, ipPortFromContent := range strings.Split(contentTransformed, ",") {
 							ipFromContent := strings.TrimSpace(strings.Split(ipPortFromContent, ":")[0])
-							for _, mvalCountryCode := range strings.Split(mval, ",") {
-								contentCountryCode := e.engine.geoDB.GeoLookup(ipFromContent)
+							contentCountryCode := e.engine.geoDB.GeoLookup(ipFromContent)
 
-								if strings.EqualFold(contentCountryCode, mvalCountryCode) {
-									results.matches[mcp] = match{Data: []byte(contentCountryCode)}
-									return
-								}
+							if strings.EqualFold(contentCountryCode, mval) {
+								results.matches[mcp] = match{Data: []byte(contentCountryCode)}
+								return
 							}
 						}
 

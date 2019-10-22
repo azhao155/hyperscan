@@ -34,6 +34,22 @@ func (fs *mockFileSystem) RemoveFile(name string) error             { return nil
 func (fs *mockFileSystem) ReadDir(name string) ([]string, error)    { return make([]string, 0), nil }
 func (fs *mockFileSystem) MkDir(name string) error                  { return nil }
 
+var mockFSFiles = make(map[string][]byte, 0)
+
+type mockGeoDBFileSystem struct{}
+
+func (mfs *mockGeoDBFileSystem) ReadFile(filename string) (buf []byte, err error) {
+	if data, ok := mockFSFiles[filename]; ok {
+		return data, nil
+	}
+	return
+}
+
+func (mfs *mockGeoDBFileSystem) WriteFile(filename string, buf []byte) error {
+	mockFSFiles[filename] = buf
+	return nil
+}
+
 type mockConfigConverter struct{}
 
 func (c *mockConfigConverter) SerializeToJSON(waf.Config) (string, error)         { return "", nil }
