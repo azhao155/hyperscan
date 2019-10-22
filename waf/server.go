@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+
 	"github.com/rs/zerolog"
 )
 
@@ -103,19 +104,15 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}()
 	}
 
-	decision = Block
+	decision = Pass
 	configID := req.ConfigID()
 
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
 	engines, idExists := s.engines[configID]
 
 	if !idExists {
-		if configID == "" {
-			decision = Pass
-			return
-		}
-
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
+		decision = Block
 		return
 	}
 
