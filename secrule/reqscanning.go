@@ -1,6 +1,7 @@
 package secrule
 
 import (
+	"azwaf/encoding"
 	"azwaf/waf"
 	"bytes"
 	"fmt"
@@ -426,6 +427,18 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 			}
 		}
 
+		storeEntireContentAsMatch := func(cr conditionRef) {
+			// Store entire content as match for fast retrieval in the eval phase
+			key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
+			if _, alreadyFound := results.matches[key]; !alreadyFound {
+				results.matches[key] = Match{
+					StartPos: 0,
+					EndPos:   len(content),
+					Data:     []byte(content),
+				}
+			}
+		}
+
 		// Handle conditions that the regex engine could not handle
 		for _, cr := range sg.conditions {
 			switch cr.ruleItem.Predicate.Op {
@@ -435,18 +448,15 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 				if err != nil {
 					return
 				}
-
 				if match {
-					// Store the match for fast retrieval in the eval phase
-					key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
-					if _, alreadyFound := results.matches[key]; !alreadyFound {
-						results.matches[key] = Match{
-							StartPos: 0,
-							EndPos:   len(content),
-							Data:     []byte(content),
-						}
-					}
+					storeEntireContentAsMatch(cr)
 				}
+
+			case ValidateURLEncoding:
+				if !encoding.IsValidURLEncoding(content) {
+					storeEntireContentAsMatch(cr)
+				}
+
 			}
 		}
 	}
@@ -501,9 +511,11 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	// The "filename" is the part before the question mark.
 	// Not using url.ParseRequestURI, because REQUEST_FILENAME should be raw, and not URL-decoded.
 	reqFilename := URI
+	var queryString string
 	n := strings.IndexByte(URI, '?')
 	if n != -1 {
 		reqFilename = URI[:n]
+		queryString = URI[n+1:]
 	}
 
 	err = r.scanField("REQUEST_FILENAME", "", reqFilename, results)
@@ -511,20 +523,13 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		return
 	}
 
-	var uriParsed *url.URL
-	uriParsed, err = url.ParseRequestURI(URI)
-	if err != nil {
-		// TODO Is it too harsh to return on uri parsing error?
-		return
-	}
-
-	err = r.scanField("QUERY_STRING", "", uriParsed.RawQuery, results)
+	err = r.scanField("QUERY_STRING", "", queryString, results)
 	if err != nil {
 		return
 	}
 
 	var qvals url.Values
-	qvals, err = parseQuery(uriParsed.RawQuery)
+	qvals, err = parseQuery(queryString)
 	if err != nil {
 		return
 	}
@@ -584,35 +589,17 @@ func parseQuery(query string) (values url.Values, err error) {
 
 		eqPos := strings.IndexByte(arg, '=')
 		if eqPos != -1 {
-			key, err = url.QueryUnescape(arg[:eqPos])
-			if err != nil {
-				// TODO consider whether we should tolerate errors here and instead the SecRule's to do their work. Perhaps do something similar to jsUnescape() to best-effort handle URL-decoding and ignore errors.
-				return
-			}
+			key = encoding.WeakURLUnescape(arg[:eqPos])
 
 			if eqPos+1 < len(arg) {
-				val, err = url.QueryUnescape(arg[eqPos+1:])
-				if err != nil {
-					return
-				}
+				val = encoding.WeakURLUnescape(arg[eqPos+1:])
 			}
 		} else {
-			key, err = url.QueryUnescape(arg)
-			if err != nil {
-				return
-			}
+			key = encoding.WeakURLUnescape(arg)
 		}
 
 		values.Add(key, val)
 	}
 
 	return
-}
-
-func (t *Target) toModSecFormat() string {
-	s := t.Name
-	if t.Selector != "" {
-		s += ":" + t.Selector
-	}
-	return s
 }

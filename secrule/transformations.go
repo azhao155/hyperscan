@@ -1,10 +1,10 @@
 package secrule
 
 import (
+	"azwaf/encoding"
 	"bytes"
 	"fmt"
 	"html"
-	"net/url"
 	"regexp"
 	"strconv"
 	"strings"
@@ -60,12 +60,7 @@ func applyTransformations(s string, tt []Transformation) string {
 		case ReplaceComments:
 		case Sha1:
 		case URLDecode, URLDecodeUni:
-			tmp, err := url.PathUnescape(s)
-			if err != nil {
-				// TODO handle transformation error
-				continue
-			}
-			s = tmp
+			s = encoding.WeakURLUnescape(s)
 		case Utf8toUnicode:
 			s = utf8ToUnicode(s)
 		}

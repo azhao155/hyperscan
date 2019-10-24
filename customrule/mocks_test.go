@@ -208,6 +208,17 @@ func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
 						{"^a b$", "a b", 0, 3, []byte("a b")},
 						{"^a\x00bc$", "a\x00bc", 0, 4, []byte("a\x00bc")},
 						{"^a&#98;c$", "a&#98;c", 0, 4, []byte("a&#98;c")},
+						{`^hello world$`, `hello world`, 0, 11, []byte(`hello world`)},
+						{`^hello%ggworld$`, `hello%ggworld`, 0, 13, []byte(`hello%ggworld`)},
+						{`^hello $`, `hello `, 0, 6, []byte(`hello `)},
+						{`^hello%2$`, `hello%2`, 0, 7, []byte(`hello%2`)},
+						{`^hello%$`, `hello%`, 0, 6, []byte(`hello%`)},
+						{`^ $`, ` `, 0, 1, []byte(` `)},
+						{`^%2$`, `%2`, 0, 2, []byte(`%2`)},
+						{`^%$`, `%`, 0, 1, []byte(`%`)},
+						{`^$`, ``, 0, 0, []byte(``)},
+						{"^\x00$", "\x00", 0, 1, []byte("\x00")},
+						{`^xjx$`, `xjx`, 0, 3, []byte(`xjx`)},
 					}
 
 					r := []waf.MultiRegexEngineMatch{}

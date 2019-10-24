@@ -1058,30 +1058,40 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 	}
 }
 
-func TestReqScannerInvalidUrlEncoding(t *testing.T) {
+func TestReqScannerTolerateInvalidUrlEncoding(t *testing.T) {
 	// Arrange
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
-	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "a%xxb"},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=a%xxb"}
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	_, err2 := rse.ScanHeaders(req)
+	sr, err2 := rse.ScanHeaders(req)
 
 	// Assert
 	if err1 != nil {
 		t.Fatalf("Got unexpected error: %s", err1)
 	}
-	if err2 == nil {
-		t.Fatalf("Expected an error, but got nil")
-	}
-	if err2.Error() != "invalid URL escape \"%xx\"" {
+	if err2 != nil {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
-
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: "ARGS"})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
 }
 
 func TestDetectXssOperator(t *testing.T) {
@@ -1152,6 +1162,51 @@ func TestParseQuery(t *testing.T) {
 				t.Fatalf("Got unexpected value for key %v: %v. Expected: %v.", k, qq[k][i], expected[k][i])
 			}
 		}
+	}
+}
+
+func TestValidateURLEncodingOperator(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: ValidateURLEncoding, Val: ""},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req1 := &mockWafHTTPRequest{uri: "/?a=x%21x"}
+	req2 := &mockWafHTTPRequest{uri: "/?a=x%ggx"}
+
+	// Act
+	rs, errReqScan := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr1, err1 := rse.ScanHeaders(req1)
+	sr2, err2 := rse.ScanHeaders(req2)
+
+	// Assert
+	if errReqScan != nil {
+		t.Fatalf("Got unexpected error: %s", errReqScan)
+	}
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr1.GetResultsFor(100, 0, Target{Name: "ARGS"})
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+	_, ok = sr2.GetResultsFor(100, 0, Target{Name: "ARGS"})
+	if !ok {
+		t.Fatalf("Match not found")
 	}
 }
 

@@ -200,7 +200,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 		anyChecked = true
 
 		switch ruleItem.Predicate.Op {
-		case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within, DetectXSS:
+		case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within, DetectXSS, ValidateURLEncoding:
 			_, ok := scanResults.GetResultsFor(rule.ID, curRuleItemIdx, target)
 			if ok {
 				anyMatched = true

@@ -1,6 +1,7 @@
 package customrule
 
 import (
+	"azwaf/encoding"
 	"azwaf/ipaddresses"
 	"azwaf/waf"
 	"html"
@@ -223,13 +224,13 @@ func (e *customRuleEvaluationImpl) ScanHeaders() (err error) {
 		return
 	}
 
-	var uriParsed *url.URL
-	uriParsed, err = url.ParseRequestURI(e.req.URI())
-	if err != nil {
-		return
+	var queryString string
+	n := strings.IndexByte(e.req.URI(), '?')
+	if n != -1 {
+		queryString = e.req.URI()[n+1:]
 	}
 
-	err = e.scanTarget(matchVariable{variableName: "QueryString"}, uriParsed.RawQuery, e.results)
+	err = e.scanTarget(matchVariable{variableName: "QueryString"}, queryString, e.results)
 	if err != nil {
 		return
 	}
@@ -479,12 +480,7 @@ func applyTransformations(s string, transformations []string) string {
 		case "Trim":
 			s = strings.TrimSpace(s)
 		case "UrlDecode":
-			tmp, err := url.PathUnescape(s)
-			if err != nil {
-				// TODO handle transformation error
-				continue
-			}
-			s = tmp
+			s = encoding.WeakURLUnescape(s)
 		case "UrlEncode":
 			s = url.PathEscape(s)
 		case "RemoveNulls":

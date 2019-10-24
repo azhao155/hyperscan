@@ -656,8 +656,8 @@ type mockWafHTTPRequest struct {
 	headers    []waf.HeaderPair
 }
 
-func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return r.headers }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return r.bodyReader }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader     { return r.bodyReader }
 
 type mockHeaderPair struct {
 	k string
