@@ -275,7 +275,8 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 	reqLine.WriteString(req.Method())
 	reqLine.WriteString(" ")
 	reqLine.WriteString(req.URI())
-	reqLine.WriteString(" HTTP/1.1") // TODO pass actual HTTP version through.
+	reqLine.WriteString(" ")
+	reqLine.WriteString(req.Protocol())
 	err = r.scanField("REQUEST_LINE", "", reqLine.String(), results)
 	if err != nil {
 		return
@@ -292,6 +293,11 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 	}
 
 	err = r.scanURI(req.URI(), results)
+	if err != nil {
+		return
+	}
+
+	err = r.scanField("REQUEST_PROTOCOL", "", req.Protocol(), results)
 	if err != nil {
 		return
 	}

@@ -114,6 +114,7 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 			body := getBody(input.Data)
 			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: body}
 
+			hasHost := false
 			hasContentType := false
 			hasContentLength := false
 			for k, v := range s.Stage.Input.Headers {
@@ -126,6 +127,10 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 				if strings.EqualFold("content-length", k) {
 					hasContentLength = true
 				}
+
+				if strings.EqualFold("host", k) {
+					hasHost = true
+				}
 			}
 
 			// Default content type
@@ -136,6 +141,17 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 			// Default content length
 			if len(body) > 0 && !hasContentLength {
 				req.headers = append(req.headers, &mockHeaderPair{k: "Content-Length", v: strconv.Itoa(len(body))})
+			}
+
+			if input.Version != "" {
+				req.protocol = input.Version
+			} else {
+				req.protocol = "HTTP/1.1"
+			}
+
+			// Default host if HTTP/1.1 (HTTP/1.0 does not require host)
+			if req.protocol == "HTTP/1.1" && !hasHost {
+				req.headers = append(req.headers, &mockHeaderPair{k: "Host", v: "localhost"})
 			}
 
 			tc.Requests = append(tc.Requests, req)

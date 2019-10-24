@@ -66,6 +66,7 @@ func (c *mockConfigConverter) DeserializeFromJSON(str string) (waf.Config, error
 type mockWafHTTPRequest struct {
 	uri        string
 	method     string
+	protocol   string
 	remoteAddr string
 	headers    []waf.HeaderPair
 	configID   string
@@ -74,6 +75,7 @@ type mockWafHTTPRequest struct {
 
 func (r *mockWafHTTPRequest) Method() string            { return r.method }
 func (r *mockWafHTTPRequest) URI() string               { return r.uri }
+func (r *mockWafHTTPRequest) Protocol() string          { return r.protocol }
 func (r *mockWafHTTPRequest) RemoteAddr() string        { return r.remoteAddr }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair { return r.headers }
 func (r *mockWafHTTPRequest) ConfigID() string          { return r.configID }

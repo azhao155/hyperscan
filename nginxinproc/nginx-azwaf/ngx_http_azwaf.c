@@ -89,6 +89,22 @@ static char* ngx_http_azwaf_merge_loc_conf(ngx_conf_t *cf, void *parent, void *c
     return NGX_CONF_OK;
 }
 
+static ngx_uint_t request_id_index;
+
+static ngx_str_t get_request_id(ngx_http_request_t *r) {
+    ngx_str_t request_id_str;
+    request_id_str.data = NULL;
+    request_id_str.len = 0;
+
+    ngx_http_variable_value_t* request_id = ngx_http_get_indexed_variable(r, request_id_index);
+    if (request_id != NULL && !request_id->not_found) {
+        request_id_str.data = request_id->data;
+        request_id_str.len = request_id->len;
+    }
+
+    return request_id_str;
+}
+
 static ngx_int_t ngx_http_azwaf_init(ngx_conf_t *cf)
 {
     ngx_http_core_main_conf_t *cmcf;
@@ -101,6 +117,9 @@ static ngx_int_t ngx_http_azwaf_init(ngx_conf_t *cf)
         return NGX_ERROR;
     }
     *h = ngx_http_azwaf_handler;
+
+    ngx_str_t request_id_varname = ngx_string("request_id");
+    request_id_index = (ngx_uint_t)ngx_http_get_variable_index(cf, &request_id_varname);
 
     return NGX_OK;
 }
@@ -120,7 +139,7 @@ static void ngx_http_azwaf_body_handler(ngx_http_request_t *r)
     ngx_http_core_run_phases(r);
 }
 
-typedef int (*AzwafEvalRequestFn)(ngx_str_t, ngx_http_request_t*, ngxReadFileFn cb);
+typedef int (*AzwafEvalRequestFn)(ngx_str_t, ngx_str_t, ngx_http_request_t*, ngxReadFileFn cb);
 static AzwafEvalRequestFn AzwafEvalRequest = NULL;
 static void *azwaf_module = NULL;
 
@@ -189,7 +208,7 @@ static ngx_int_t ngx_http_azwaf_handler(ngx_http_request_t *r)
     }
 
     // TODO consider moving this to worker threads to avoid blocking the Nginx main loop
-    if(!AzwafEvalRequest(cf->secrule_conf, r, ngx_read_file)) {
+    if(!AzwafEvalRequest(get_request_id(r), cf->secrule_conf, r, ngx_read_file)) {
         return 403;
     }
 

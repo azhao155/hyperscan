@@ -19,6 +19,7 @@ type HTTPRequest interface {
 	ConfigID() string
 	Method() string
 	URI() string
+	Protocol() string
 	RemoteAddr() string
 	Headers() []HeaderPair
 	BodyReader() io.Reader

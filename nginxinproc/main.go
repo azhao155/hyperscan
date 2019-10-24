@@ -7,11 +7,8 @@ package main
  * Compile the C part into your Nginx by adding this to your Nginx configure-line:
  *   --add-module=/home/youruser/azwaf/nginxinproc/nginx-azwaf
  *
- * Before compiling the Azwaf Go code, you must create a symlink to the appropriate Nginx source tree path you are building for:
- *   ln -s /home/user1/dev/roxy/nginx /tmp/azwafnginx
- *
  * Compile Azwaf as a C shared library:
- *   go build -tags=nginxinproc -buildmode=c-shared -o azwafnginxinproc.so azwaf/nginxinproc
+ *   ./buildazwafnginxinprocso.sh /path/to/nginxsourcetree
  *
  * The C code uses dlsym to load at runtime in the Nginx worker, rather than statically or dynamically linking.
  * The reason for this is a workaround for an issue with Nginx working together with CGo.
@@ -31,10 +28,8 @@ import (
 	"azwaf/logging"
 	"azwaf/secrule"
 	"azwaf/waf"
-	"fmt"
 	"github.com/rs/zerolog"
 	"io"
-	"math/rand"
 	"os"
 	"reflect"
 	"time"
@@ -43,10 +38,10 @@ import (
 
 // AzwafEvalRequest is the interface to the rest of Azwaf called from the in-proc Nginx plugin.
 //export AzwafEvalRequest
-func AzwafEvalRequest(secruleconfngx C.ngx_str_t, input *C.ngx_http_request_t, ngxReadFileCb C.ngxReadFileFn) bool {
+func AzwafEvalRequest(requestID C.ngx_str_t, secruleconfngx C.ngx_str_t, input *C.ngx_http_request_t, ngxReadFileCb C.ngxReadFileFn) bool {
 	instance := getInstance(ngxStrToGoStr(secruleconfngx))
 
-	req := newNginxReqWrapper(input, ngxReadFileCb)
+	req := newNginxReqWrapper(requestID, input, ngxReadFileCb)
 
 	decision, err := instance.EvalRequest(req)
 	if err != nil {
@@ -115,16 +110,17 @@ func ngxStrToGoStr(s C.ngx_str_t) string {
 }
 
 // newNginxReqWrapper creates an Azwaf Azwaf waf.HTTPRequest that wraps an Nginx request struct.
-func newNginxReqWrapper(input *C.ngx_http_request_t, ngxReadFileCb C.ngxReadFileFn) waf.HTTPRequest {
+func newNginxReqWrapper(requestID C.ngx_str_t, input *C.ngx_http_request_t, ngxReadFileCb C.ngxReadFileFn) waf.HTTPRequest {
 	req := &nginxReqWrapper{
 		underlyingNgxReq: input,
 		method:           ngxStrToGoStr(input.method_name),
 		uri:              ngxStrToGoStr(input.unparsed_uri),
+		protocol:         ngxStrToGoStr(input.http_protocol),
 		bodyReader: bodyReader{
 			underlyingNgxReq: input,
 			ngxReadFileCb:    ngxReadFileCb,
 		},
-		transactionID: fmt.Sprintf("%X", rand.Int())[:7], // TODO pass a txid down with the request from Nginx
+		transactionID: ngxStrToGoStr(requestID),
 	}
 
 	// Make ngxStrToGoStr-versions of each header
@@ -156,12 +152,14 @@ type nginxReqWrapper struct {
 	// Because string headers are used in ngxStrToGoStr, the underlying memory for the strings actually still point to the original memory allocated by Nginx.
 	uri           string
 	method        string
+	protocol      string
 	headers       []waf.HeaderPair
 	transactionID string
 }
 
 func (r *nginxReqWrapper) Method() string            { return r.method }
 func (r *nginxReqWrapper) URI() string               { return r.uri }
+func (r *nginxReqWrapper) Protocol() string          { return r.protocol }
 func (r *nginxReqWrapper) Headers() []waf.HeaderPair { return r.headers }
 func (r *nginxReqWrapper) ConfigID() string          { return "" }
 func (r *nginxReqWrapper) BodyReader() io.Reader {

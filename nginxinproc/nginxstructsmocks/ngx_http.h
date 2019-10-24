@@ -73,6 +73,7 @@ struct ngx_http_request_s {
     ngx_http_request_body_t *request_body;
     ngx_str_t unparsed_uri;
     ngx_str_t method_name;
+    ngx_str_t http_protocol;
 };
 
 // src/core/ngx_hash.h

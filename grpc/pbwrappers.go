@@ -10,14 +10,15 @@ import (
 )
 
 type wafHTTPRequestPbWrapper struct {
-	pb            *pb.HeadersAndFirstChunk
-	bodyReader    *wafHTTPRequestPbWrapperBodyReader
-	transactionID string
+	pb         *pb.HeadersAndFirstChunk
+	bodyReader *wafHTTPRequestPbWrapperBodyReader
 }
 
-func (r *wafHTTPRequestPbWrapper) Method() string     { return r.pb.Method }
-func (r *wafHTTPRequestPbWrapper) URI() string        { return r.pb.Uri }
-func (r *wafHTTPRequestPbWrapper) RemoteAddr() string { return r.pb.RemoteAddr }
+func (r *wafHTTPRequestPbWrapper) TransactionID() string { return r.pb.TransactionID }
+func (r *wafHTTPRequestPbWrapper) Method() string        { return r.pb.Method }
+func (r *wafHTTPRequestPbWrapper) URI() string           { return r.pb.Uri }
+func (r *wafHTTPRequestPbWrapper) Protocol() string      { return r.pb.Protocol }
+func (r *wafHTTPRequestPbWrapper) RemoteAddr() string    { return r.pb.RemoteAddr }
 func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 	hh := make([]waf.HeaderPair, 0, len(r.pb.Headers))
 	for _, ph := range r.pb.Headers {
@@ -26,7 +27,6 @@ func (r *wafHTTPRequestPbWrapper) Headers() []waf.HeaderPair {
 	return hh
 }
 func (r *wafHTTPRequestPbWrapper) BodyReader() io.Reader { return r.bodyReader }
-func (r *wafHTTPRequestPbWrapper) TransactionID() string { return r.transactionID }
 
 // TODO once protobuf has config id, need to be implemented
 func (r *wafHTTPRequestPbWrapper) ConfigID() string { return r.pb.ConfigID }
