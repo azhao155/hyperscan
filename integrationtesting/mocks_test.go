@@ -7,6 +7,12 @@ import (
 	"io"
 )
 
+func newMockResultsLogger() *mockResultsLogger {
+	return &mockResultsLogger{
+		ruleMatched: make(map[int]bool),
+	}
+}
+
 type mockResultsLogger struct {
 	ruleMatched map[int]bool
 }

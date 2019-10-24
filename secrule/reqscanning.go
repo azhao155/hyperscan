@@ -32,8 +32,8 @@ type Match struct {
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
-	matches        map[matchKey]Match
-	targetsPresent map[Target]bool
+	matches      map[matchKey]Match
+	targetsCount map[Target]int
 }
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
@@ -265,8 +265,8 @@ func (s ReqScannerScratchSpace) Close() {
 
 func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
 	results = &ScanResults{
-		matches:        make(map[matchKey]Match),
-		targetsPresent: make(map[Target]bool),
+		matches:      make(map[matchKey]Match),
+		targetsCount: make(map[Target]int),
 	}
 
 	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
@@ -391,7 +391,7 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 	var scanGroups []*scanGroup
 	targets := r.reqScanner.getTargets(targetName, fieldName)
 	for _, target := range targets {
-		results.targetsPresent[target] = true
+		results.targetsCount[target] = results.targetsCount[target] + 1
 		scanGroups = append(scanGroups, r.reqScanner.scanGroupsForTarget[target]...)
 	}
 

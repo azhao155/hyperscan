@@ -69,7 +69,7 @@ func TestCrsRules(t *testing.T) {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
-	resLog := &mockResultsLogger{}
+	resLog := newMockResultsLogger()
 	ef := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
 	rbp := bodyparsing.NewRequestBodyParser(testLengthLimits)
 

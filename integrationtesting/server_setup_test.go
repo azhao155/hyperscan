@@ -29,7 +29,7 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
-	reslog := &mockResultsLogger{}
+	reslog := newMockResultsLogger()
 	ef := secrule.NewEngineFactory(logger, rl, rsf, re, reslog)
 	e, err := ef.NewEngine(&mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
 	if err != nil {

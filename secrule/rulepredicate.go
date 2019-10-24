@@ -2,42 +2,47 @@ package secrule
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 )
 
-func (rp *RulePredicate) eval(perRequestEnv envMap) (result bool, output string, err error) {
+func (rp *RulePredicate) eval(scanResults *ScanResults, perRequestEnv envMap) (result bool, output string, err error) {
 	for _, target := range rp.Targets {
-		val, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
+		expectedVal, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
 		if err != nil {
 			return false, "", err
 		}
 
-		//TODO: Support more variables
-		variable := ""
-		if target.IsCount && target.Name == "TX" {
-			// Variable counting
-			variable = "0"
-			if target.Selector != "" {
-				key := target.Name + "." + target.Selector
-				if perRequestEnv.hasKey(key) {
-					variable = "1"
+		actualVal := ""
+		const transactionVariableCollectionTargetName string = "TX"
+		if target.Name == transactionVariableCollectionTargetName {
+			if target.IsCount {
+				// Variable counting
+				actualVal = "0"
+				if target.Selector != "" {
+					key := target.Name + "." + target.Selector
+					if perRequestEnv.hasKey(key) {
+						actualVal = "1"
+					}
 				}
+			} else {
+				key := target.Name + "." + target.Selector
+
+				varObj, ok := perRequestEnv.get(key)
+				if !ok {
+					return false, "", fmt.Errorf("Target %s not found in env map", key)
+				}
+
+				actualVal = varObj.ToString()
 			}
-		}
-
-		if isCollection(target) && !target.IsCount {
-			key := target.Name + "." + target.Selector
-
-			varObj, ok := perRequestEnv.get(key)
-			if !ok {
-				return false, "", fmt.Errorf("Target %s not found in env map", key)
-			}
-
-			variable = varObj.ToString()
+		} else if target.IsCount {
+			actualVal = strconv.Itoa(scanResults.targetsCount[target])
+		} else {
+			// TODO Support ways of getting actualVal
 		}
 
 		opFunc := toOperatorFunc(rp.Op)
-		result, output, err = opFunc(variable, val)
+		result, output, err = opFunc(actualVal, expectedVal)
 
 		if err != nil {
 			return result, "", err
@@ -65,9 +70,4 @@ func expandMacros(s string, perRequestEnv envMap, matches [][]string) (string, e
 		s = strings.Replace(s, matches[i][0], newVal.ToString(), 1)
 	}
 	return s, nil
-}
-
-func isCollection(target Target) bool {
-	//TODO: Add more ways of deciding whether collection
-	return target.Name == "TX"
 }

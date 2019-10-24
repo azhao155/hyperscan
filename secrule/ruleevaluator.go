@@ -192,7 +192,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 				continue
 			}
 		} else {
-			if !scanResults.targetsPresent[target] {
+			if scanResults.targetsCount[target] == 0 {
 				continue
 			}
 		}
@@ -208,14 +208,14 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 			}
 
 			if len(ruleItem.Predicate.valMacroMatches) > 0 {
-				matchFound, _, _ := ruleItem.Predicate.eval(env)
+				matchFound, _, _ := ruleItem.Predicate.eval(scanResults, env)
 				if matchFound {
 					anyMatched = true
 					break
 				}
 			}
 		case Eq, Ge, Gt, Le, Lt:
-			matchFound, _, _ := ruleItem.Predicate.eval(env)
+			matchFound, _, _ := ruleItem.Predicate.eval(scanResults, env)
 			anyMatched = anyMatched || matchFound
 			if matchFound {
 				break

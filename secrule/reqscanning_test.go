@@ -30,11 +30,11 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	if !sr.targetsPresent[Target{Name: "REQUEST_URI_RAW"}] {
+	if sr.targetsCount[Target{Name: "REQUEST_URI_RAW"}] == 0 {
 		t.Fatalf("Target REQUEST_URI_RAW not present")
 	}
 
-	if sr.targetsPresent[Target{Name: "XML", Selector: "/*"}] {
+	if sr.targetsCount[Target{Name: "XML", Selector: "/*"}] != 0 {
 		t.Fatalf("Unexpected target XML:/* present")
 	}
 
@@ -1207,6 +1207,83 @@ func TestValidateURLEncodingOperator(t *testing.T) {
 	_, ok = sr2.GetResultsFor(100, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
+	}
+}
+
+func TestReqScannerCount(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", IsCount: true}}, Op: Eq, Val: "4"},
+				},
+			},
+		},
+	}
+
+	req := &mockWafHTTPRequest{uri: "/hello.php?hello=a&hello=b&world=c"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+	err3 := rse.ScanBodyField(waf.URLEncodedContent, "bodyarg1", "d", sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	if err3 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	n := sr.targetsCount[Target{Name: "ARGS", IsCount: true}]
+	if n != 4 {
+		t.Fatalf("Unexpected targets count: %v", n)
+	}
+}
+
+func TestReqScannerCountWithSelector(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "hello", IsCount: true}}, Op: Eq, Val: "2"},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php?hello=a&hello=b"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	n := sr.targetsCount[Target{Name: "ARGS", Selector: "hello", IsCount: true}]
+	if n != 2 {
+		t.Fatalf("Unexpected targets count: %v", n)
 	}
 }
 

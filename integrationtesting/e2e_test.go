@@ -14,7 +14,8 @@ func TestNewStandaloneSecruleServerEvalRequestCrs30(t *testing.T) {
 
 	// Arrange
 	wafServer := newTestStandaloneSecruleServer(t)
-	req := &mockWafHTTPRequest{uri: "http://localhost:8080/", method: "GET"}
+	headers := []waf.HeaderPair{&mockHeaderPair{k: "Host", v: "example.com"}}
+	req := &mockWafHTTPRequest{uri: "http://localhost:8080/", method: "GET", headers: headers}
 
 	// Act
 	decision, err := wafServer.EvalRequest(req)
