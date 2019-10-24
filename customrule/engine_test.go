@@ -105,6 +105,7 @@ func TestTransformations(t *testing.T) {
 		{"%61%62%63", []string{}, "%61%62%63", waf.Block},
 		{"%61%62%63", []string{"UrlDecode"}, "%61%62%63", waf.Pass},
 		{`hello%20world`, []string{"UrlDecode"}, `hello world`, waf.Block},
+		{`hello+world`, []string{"UrlDecode"}, `hello world`, waf.Block},
 		{`hello%ggworld`, []string{"UrlDecode"}, `hello%ggworld`, waf.Block},
 		{`hello%20`, []string{"UrlDecode"}, `hello `, waf.Block},
 		{`hello%2`, []string{"UrlDecode"}, `hello%2`, waf.Block},

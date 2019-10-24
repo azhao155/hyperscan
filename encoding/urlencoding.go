@@ -46,7 +46,7 @@ func IsValidURLEncoding(content string) bool {
 
 // WeakURLUnescape attempts to URL-unescape, but if there are any values that could not be URL-unescaped, they will be left as is. Needed for ModSecurity alignment.
 func WeakURLUnescape(s string) string {
-	if !strings.ContainsRune(s, '%') {
+	if !strings.ContainsAny(s, "%+") {
 		return s
 	}
 
@@ -69,6 +69,8 @@ func WeakURLUnescape(s string) string {
 		case notInEscape:
 			if c == '%' {
 				state = char1InEscape
+			} else if c == '+' {
+				buf.WriteByte(' ')
 			} else {
 				buf.WriteByte(c)
 			}

@@ -14,6 +14,7 @@ func TestWeakURLUnescape(t *testing.T) {
 	}
 	tests := []testcase{
 		{`hello%20world`, `hello world`},
+		{`hello+world`, `hello world`},
 		{`hello%ggworld`, `hello%ggworld`},
 		{`hello%20`, `hello `},
 		{`hello%2`, `hello%2`},
@@ -53,6 +54,7 @@ func TestIsValidURLEncoding(t *testing.T) {
 	tests := []testcase{
 		{`hello%20world`, true},
 		{`hello%ggworld`, false},
+		{`hello+world`, true},
 		{`hello%20`, true},
 		{`hello%2`, false},
 		{`hello%`, false},

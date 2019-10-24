@@ -20,6 +20,7 @@ func TestTransformations(t *testing.T) {
 		{`AAAAAAABCCC`, []Transformation{Lowercase}, `aaaaaaabccc`},
 
 		{`hello%20world`, []Transformation{URLDecodeUni}, `hello world`},
+		{`hello+world`, []Transformation{URLDecodeUni}, `hello world`},
 		{`hello%ggworld`, []Transformation{URLDecodeUni}, `hello%ggworld`},
 		{`hello%20`, []Transformation{URLDecodeUni}, `hello `},
 		{`hello%2`, []Transformation{URLDecodeUni}, `hello%2`},
