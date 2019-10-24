@@ -144,7 +144,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	err = s.requestBodyParser.Parse(logger, req, func(contentType ContentType, fieldName string, data string) (err error) {
+	bodyFieldCb := func(contentType ContentType, fieldName string, data string) (err error) {
 		if customRuleEvaluation != nil {
 			err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
 			if err != nil {
@@ -155,8 +155,16 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		if secRuleEvaluation != nil {
 			err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
 		}
+
 		return
-	})
+	}
+
+	usesFullRawRequestBodyCb := func(contentType ContentType) bool {
+		// Only the SecRule engine may need the raw request body, and only when content type is application/x-www-form-urlencoded.
+		return engines.sre != nil && engines.sre.UsesFullRawRequestBody() && contentType == URLEncodedContent
+	}
+
+	err = s.requestBodyParser.Parse(logger, req, bodyFieldCb, usesFullRawRequestBodyCb)
 	if err != nil {
 		lengthLimits := s.requestBodyParser.LengthLimits()
 		if err == ErrFieldBytesLimitExceeded {
@@ -168,6 +176,9 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		} else if err == ErrTotalBytesLimitExceeded {
 			logger.Info().Int("limit", lengthLimits.MaxLengthTotal).Msg("Request body length exceeded the limit")
 			s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
+		} else if err == ErrTotalFullRawRequestBodyExceeded {
+			logger.Info().Int("limit", lengthLimits.MaxLengthTotalFullRawRequestBody).Msg("Request body length exceeded the limit while entire body was being scanned as a single field")
+			s.resultsLogger.TotalFullRawRequestBodyLimitExceeded(req, lengthLimits.MaxLengthTotalFullRawRequestBody)
 		} else {
 			logger.Info().Err(err).Msg("Request body scanning error")
 			s.resultsLogger.BodyParseError(req, err)

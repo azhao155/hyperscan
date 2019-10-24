@@ -5,6 +5,7 @@ type ResultsLogger interface {
 	FieldBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
 	PausableBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
 	TotalBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
+	TotalFullRawRequestBodyLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
 	BodyParseError(request ResultsLoggerHTTPRequest, err error)
 	SetLogMetaData(data ConfigLogMetaData)
 }

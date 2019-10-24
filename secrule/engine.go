@@ -7,11 +7,12 @@ import (
 )
 
 type engineImpl struct {
-	statements       []Statement
-	reqScanner       ReqScanner
-	scratchSpaceNext chan *ReqScannerScratchSpace
-	ruleEvaluator    RuleEvaluator
-	resultsLogger    ResultsLogger
+	statements             []Statement
+	reqScanner             ReqScanner
+	scratchSpaceNext       chan *ReqScannerScratchSpace
+	ruleEvaluator          RuleEvaluator
+	resultsLogger          ResultsLogger
+	usesFullRawRequestBody bool
 }
 
 // NewEngine creates a SecRule engine from statements
@@ -29,12 +30,15 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, 
 	}
 	scratchSpaceNext <- s
 
+	usesFullRawRequestBody := usesRequestBodyTarget(statements)
+
 	engine = &engineImpl{
-		statements:       statements,
-		reqScanner:       reqScanner,
-		ruleEvaluator:    re,
-		resultsLogger:    rl,
-		scratchSpaceNext: scratchSpaceNext,
+		statements:             statements,
+		reqScanner:             reqScanner,
+		ruleEvaluator:          re,
+		resultsLogger:          rl,
+		scratchSpaceNext:       scratchSpaceNext,
+		usesFullRawRequestBody: usesFullRawRequestBody,
 	}
 
 	return
@@ -95,6 +99,10 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 	}
 }
 
+func (s *engineImpl) UsesFullRawRequestBody() bool {
+	return s.usesFullRawRequestBody
+}
+
 func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
 	s.scanResults, err = s.reqScannerEvaluation.ScanHeaders(s.request)
 	return
@@ -134,4 +142,21 @@ func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 // Release resources.
 func (s *secRuleEvaluationImpl) Close() {
 	s.scratchSpaceNext <- s.scratchSpace
+}
+
+func usesRequestBodyTarget(statements []Statement) bool {
+	for _, stmt := range statements {
+		switch stmt := stmt.(type) {
+		case *Rule:
+			for _, ruleItem := range stmt.Items {
+				for _, target := range ruleItem.Predicate.Targets {
+					if target.Name == "REQUEST_BODY" {
+						return true
+					}
+				}
+			}
+		}
+	}
+
+	return false
 }

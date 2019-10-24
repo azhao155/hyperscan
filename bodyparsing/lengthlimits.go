@@ -7,17 +7,18 @@ import (
 
 // maxLengthReaderDecorator is an io.Reader decorator, which enforces a max number of bytes to be read.
 type maxLengthReaderDecorator struct {
-	PauseCounting     bool
-	Limits            waf.LengthLimits
-	ReadCountField    int
-	ReadCountPausable int
-	ReadCountTotal    int
-	LastErr           error
-	reader            io.Reader
+	PauseCounting          bool
+	Limits                 waf.LengthLimits
+	ReadCountField         int
+	ReadCountPausable      int
+	ReadCountTotal         int
+	LastErr                error
+	reader                 io.Reader
+	usesFullRawRequestBody bool
 }
 
-func newMaxLengthReaderDecorator(reader io.Reader, limits waf.LengthLimits) *maxLengthReaderDecorator {
-	return &maxLengthReaderDecorator{reader: reader, Limits: limits}
+func newMaxLengthReaderDecorator(reader io.Reader, limits waf.LengthLimits, usesFullRawRequestBody bool) *maxLengthReaderDecorator {
+	return &maxLengthReaderDecorator{reader: reader, Limits: limits, usesFullRawRequestBody: usesFullRawRequestBody}
 }
 
 // Read behaves like io.Reader.Read, but returns errors on the call after the call where the max number of bytes was exceeded.
@@ -31,6 +32,11 @@ func (m *maxLengthReaderDecorator) Read(p []byte) (n int, err error) {
 
 	if m.ReadCountTotal >= m.Limits.MaxLengthTotal {
 		err = waf.ErrTotalBytesLimitExceeded
+		return
+	}
+
+	if m.usesFullRawRequestBody && m.ReadCountTotal >= m.Limits.MaxLengthTotalFullRawRequestBody {
+		err = waf.ErrTotalFullRawRequestBodyExceeded
 		return
 	}
 

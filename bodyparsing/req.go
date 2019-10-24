@@ -7,6 +7,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"mime"
 	"mime/multipart"
 	"strconv"
@@ -14,6 +15,13 @@ import (
 
 	"github.com/rs/zerolog"
 )
+
+var mediaTypeMapping = map[string]waf.ContentType{
+	"multipart/form-data":               waf.MultipartFormDataContent,
+	"application/x-www-form-urlencoded": waf.URLEncodedContent,
+	"text/xml":                          waf.XMLContent,
+	"application/json":                  waf.JSONContent,
+}
 
 // NewRequestBodyParser creates a RequestBodyParser.
 func NewRequestBodyParser(lengthLimits waf.LengthLimits) waf.RequestBodyParser {
@@ -30,7 +38,12 @@ func (r *reqBodyParserImpl) LengthLimits() waf.LengthLimits {
 	return r.lengthLimits
 }
 
-func (r *reqBodyParserImpl) Parse(logger zerolog.Logger, req waf.RequestBodyParserHTTPRequest, cb waf.ParsedBodyFieldCb) (err error) {
+func (r *reqBodyParserImpl) Parse(
+	logger zerolog.Logger,
+	req waf.RequestBodyParserHTTPRequest,
+	fieldCb waf.ParsedBodyFieldCb,
+	usesFullRawRequestBodyCb waf.UsesFullRawRequestBodyCb,
+) (err error) {
 	// Find the content-length and content-type
 	contentLength, contentType, err := r.getLengthAndTypeFromHeaders(req)
 	if err != nil {
@@ -43,32 +56,59 @@ func (r *reqBodyParserImpl) Parse(logger zerolog.Logger, req waf.RequestBodyPars
 		return
 	}
 
+	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
+	mediatypeStr, mediaTypeParams, _ := mime.ParseMediaType(contentType)
+	mediaType := mediaTypeMapping[mediatypeStr]
+
 	bodyReader := req.BodyReader()
-	bodyReaderWithMax := newMaxLengthReaderDecorator(bodyReader, r.lengthLimits)
+
+	// Concurrently buffer the full request body if requested to do so.
+	fullRequestBodyBuf := &bytes.Buffer{}
+	var usesFullRawRequestBody bool
+	if usesFullRawRequestBodyCb != nil {
+		usesFullRawRequestBody = usesFullRawRequestBodyCb(mediaType)
+	}
+	if usesFullRawRequestBody {
+		// If the headers already up front said that the request is going to be too large, there's no point in starting to scan the body.
+		if contentLength > r.lengthLimits.MaxLengthTotalFullRawRequestBody {
+			err = waf.ErrTotalFullRawRequestBodyExceeded
+			return
+		}
+
+		if contentLength > 0 {
+			fullRequestBodyBuf.Grow(contentLength)
+		}
+
+		bodyReader = io.TeeReader(bodyReader, fullRequestBodyBuf)
+	}
+
+	bodyReaderWithMax := newMaxLengthReaderDecorator(bodyReader, r.lengthLimits, usesFullRawRequestBody)
 	// TODO besides these byte count Limits, consider abort if there were too many individual fields
 
-	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
-	mediatype, mediaTypeParams, _ := mime.ParseMediaType(contentType)
+	switch mediaType {
 
-	switch mediatype {
+	case waf.MultipartFormDataContent:
+		err = r.scanMultipartBody(bodyReaderWithMax, mediaTypeParams, fieldCb)
 
-	case "multipart/form-data":
-		err = r.scanMultipartBody(bodyReaderWithMax, mediaTypeParams, cb)
+	case waf.URLEncodedContent:
+		err = r.scanUrlencodedBody(bodyReaderWithMax, fieldCb)
 
-	case "application/x-www-form-urlencoded":
-		err = r.scanUrlencodedBody(bodyReaderWithMax, cb)
+	case waf.XMLContent:
+		err = r.scanXMLBody(bodyReaderWithMax, fieldCb)
 
-	case "text/xml":
-		err = r.scanXMLBody(bodyReaderWithMax, cb)
-
-	case "application/json":
+	case waf.JSONContent:
 		// TODO also use for text/json? ModSec currently doesn't...
 		// TODO also use for application/javascript JSONP? ModSec currently doesn't...
-		err = r.scanJSONBody(bodyReaderWithMax, cb)
+		err = r.scanJSONBody(bodyReaderWithMax, fieldCb)
 
 	default:
-		// Unsupported type of body. Not scanning for now.
+		// Unsupported type of body.
 		// TODO consider doing something sensible even for unknown request body types. ModSec doesn't though.
+
+		// Consume entire reader to fill up fullRequestBodyBuf, in case usesFullRawRequestBody was true.
+		if usesFullRawRequestBody {
+			_, err = io.Copy(ioutil.Discard, bodyReaderWithMax)
+		}
 	}
 
 	if err != nil {
@@ -76,8 +116,12 @@ func (r *reqBodyParserImpl) Parse(logger zerolog.Logger, req waf.RequestBodyPars
 			return
 		}
 
-		err = fmt.Errorf("%v body scanning error: %v", mediatype, err)
+		err = fmt.Errorf("%v body scanning error: %v", mediatypeStr, err)
 		return
+	}
+
+	if usesFullRawRequestBody {
+		fieldCb(waf.FullRawRequestBody, "", string(fullRequestBodyBuf.Bytes()))
 	}
 
 	return

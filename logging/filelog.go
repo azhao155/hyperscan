@@ -156,6 +156,11 @@ func (l *FilelogResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLogger
 	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes)", limit))
 }
 
+// TotalFullRawRequestBodyLimitExceeded is to be called when the request body length exceeded the limit while entire body was being scanned as a single field.
+func (l *FilelogResultsLogger) TotalFullRawRequestBodyLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes) while the WAF was scanning the entire request body as a single field. The OWASP Core Rule Set and possibly other SecRule-based rule sets require this scan when the request body content-type is set to application/x-www-form-urlencoded.", limit))
+}
+
 func (l *FilelogResultsLogger) bytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, msg string) {
 	rID := ""
 	iID := ""

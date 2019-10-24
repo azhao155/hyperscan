@@ -369,6 +369,12 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 			return
 		}
 
+	case waf.FullRawRequestBody:
+		err = r.scanField("REQUEST_BODY", "", data, results)
+		if err != nil {
+			return
+		}
+
 	default:
 		// TODO consider doing something sensible even for unknown request body types. ModSec doesn't though.
 

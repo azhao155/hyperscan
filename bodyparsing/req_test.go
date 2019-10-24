@@ -9,21 +9,15 @@ import (
 	"testing"
 )
 
-var testLimits = waf.LengthLimits{
-	MaxLengthField:    1024 * 20,         // 20 KiB
-	MaxLengthPausable: 1024 * 128,        // 128 KiB
-	MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
-}
-
-func arrangeAndRunBodyParser(t *testing.T, contentType string, body io.Reader, cb waf.ParsedBodyFieldCb) (err error) {
+func arrangeAndRunBodyParser(t *testing.T, contentType string, body io.Reader, fieldCb waf.ParsedBodyFieldCb) (err error) {
 	headers := []waf.HeaderPair{
 		&mockHeaderPair{k: "Content-Type", v: contentType},
 	}
 	req := &mockWafHTTPRequest{uri: "/", headers: headers, bodyReader: body}
 
-	rbp := NewRequestBodyParser(testLimits)
+	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
-	err = rbp.Parse(logger, req, cb)
+	err = rbp.Parse(logger, req, fieldCb, nil)
 	return
 }
 
@@ -637,15 +631,66 @@ func TestReqScannerContentLengthHeaderSaysTooLong(t *testing.T) {
 	}
 	body := bytes.NewBufferString(`a=helloworld1`) // Note that the body in reality isn't actually very long
 	req := &mockWafHTTPRequest{uri: "/", headers: headers, bodyReader: body}
-	rbp := NewRequestBodyParser(testLimits)
+	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
 
 	// Act
-	err := rbp.Parse(logger, req, noOpParsedBodyFieldCb)
+	err := rbp.Parse(logger, req, noOpParsedBodyFieldCb, nil)
 
 	// Assert
 	if err != waf.ErrTotalBytesLimitExceeded {
 		t.Fatalf("Expected a errTotalBytesLimitExceeded but got %T: %v", err, err)
+	}
+}
+
+func TestReqScannerBodyRaw(t *testing.T) {
+	// Arrange
+	var calls []parsedBodyFieldCbCall
+	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
+		return
+	}
+	body := bytes.NewBufferString(`b=aaaaaaabccc&a=helloworld1`)
+	headers := []waf.HeaderPair{
+		&mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"},
+	}
+	req := &mockWafHTTPRequest{uri: "/", headers: headers, bodyReader: body}
+	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
+	logger := testutils.NewTestLogger(t)
+	usesFullRawRequestBodyCb := func(contentType waf.ContentType) bool { return true }
+
+	// Act
+	err := rbp.Parse(logger, req, parsedBodyFieldCb, usesFullRawRequestBodyCb)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Note that the builtin urldecoder returns things in a hasmap, thereby making the order non-deterministic. We therefore sort by keys.
+	// If we implement our own io.Reader-based urldecoder in the future, we may no longer be sorting, but rather using the order the values appeared.
+	expectedCalls := []parsedBodyFieldCbCall{
+		{waf.URLEncodedContent, "b", "aaaaaaabccc"},
+		{waf.URLEncodedContent, "a", "helloworld1"},
+		{waf.FullRawRequestBody, "", "b=aaaaaaabccc&a=helloworld1"},
+	}
+
+	if len(calls) != len(expectedCalls) {
+		t.Fatalf("Got unexpected len(calls): %v. Calls were: %v", len(calls), calls)
+	}
+
+	for i, call := range calls {
+		if call.contentType != expectedCalls[i].contentType {
+			t.Fatalf("Unexpected content type for call %v: %v", i, call.contentType)
+		}
+
+		if call.fieldName != expectedCalls[i].fieldName {
+			t.Fatalf("Unexpected fieldName for call %v: %v", i, call.fieldName)
+		}
+
+		if call.data != expectedCalls[i].data {
+			t.Fatalf("Unexpected data for call %v: %v", i, call.data)
+		}
 	}
 }
 

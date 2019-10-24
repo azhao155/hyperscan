@@ -164,18 +164,29 @@ func TestSanitizeIPList(t *testing.T) {
 }
 
 func TestSecRuleEngineEvalRequestTooLongField(t *testing.T) {
-	testBytesLimit(t, ErrFieldBytesLimitExceeded, 1, 0, 0)
+	testBytesLimit(t, ErrFieldBytesLimitExceeded, 1, 0, 0, 0)
 }
 
 func TestSecRuleEngineEvalRequestTooLongBodyExcludingFiles(t *testing.T) {
-	testBytesLimit(t, ErrPausableBytesLimitExceeded, 0, 1, 0)
+	testBytesLimit(t, ErrPausableBytesLimitExceeded, 0, 1, 0, 0)
 }
 
 func TestSecRuleEngineEvalRequestTooLongTotal(t *testing.T) {
-	testBytesLimit(t, ErrTotalBytesLimitExceeded, 0, 0, 1)
+	testBytesLimit(t, ErrTotalBytesLimitExceeded, 0, 0, 1, 0)
 }
 
-func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExceededCalled int, expectedPausableBytesLimitExceededCalled int, expectedTotalBytesLimitExceededCalled int) {
+func TestSecRuleEngineEvalRequestTooLongTotalFullRawRequestBody(t *testing.T) {
+	testBytesLimit(t, ErrTotalFullRawRequestBodyExceeded, 0, 0, 0, 1)
+}
+
+func testBytesLimit(
+	t *testing.T,
+	errToSimulate error,
+	expectedFieldBytesLimitExceededCalled int,
+	expectedPausableBytesLimitExceededCalled int,
+	expectedTotalBytesLimitExceededCalled int,
+	expectedTotalFullRawRequestBodyLimitExceededCalled int,
+) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
@@ -189,7 +200,7 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{
 		parseCb: func(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) (err error) {
-			err = expectedErr
+			err = errToSimulate
 			return
 		},
 	}
@@ -207,7 +218,7 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 	r, err := s.EvalRequest(req)
 
 	// Assert
-	if err != expectedErr {
+	if err != errToSimulate {
 		t.Fatalf("Unexpected error from EvalRequest: %s", err)
 	}
 
@@ -227,6 +238,10 @@ func testBytesLimit(t *testing.T, expectedErr error, expectedFieldBytesLimitExce
 		t.Fatalf("Unexpected number of calls to mockResultsLogger.TotalBytesLimitExceeded: %v", mrl.totalBytesLimitExceededCalled)
 	}
 
+	if mrl.totalFullRawRequestBodyLimitExceededCalled != expectedTotalFullRawRequestBodyLimitExceededCalled {
+		t.Fatalf("Unexpected number of calls to mockResultsLogger.TotalFullRawRequestBodyLimitExceeded: %v", mrl.totalFullRawRequestBodyLimitExceededCalled)
+	}
+
 	if mrl.bodyParseErrorCalled != 0 {
 		t.Fatalf("Unexpected number of calls to mockResultsLogger.BodyParseError: %v", mrl.bodyParseErrorCalled)
 	}
@@ -236,18 +251,23 @@ type mockRequestBodyParser struct {
 	parseCb func(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) error
 }
 
-func (r *mockRequestBodyParser) Parse(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) (err error) {
+func (r *mockRequestBodyParser) Parse(
+	logger zerolog.Logger,
+	req RequestBodyParserHTTPRequest,
+	fieldCb ParsedBodyFieldCb,
+	usesFullRawRequestBodyCb UsesFullRawRequestBodyCb,
+) (err error) {
 	if r.parseCb != nil {
-		err = r.parseCb(logger, req, cb)
+		err = r.parseCb(logger, req, fieldCb)
 	} else {
-		cb(MultipartFormDataContent, "somearg", "somevalue")
+		fieldCb(MultipartFormDataContent, "somearg", "somevalue")
 	}
 
 	return
 }
 
 func (r *mockRequestBodyParser) LengthLimits() LengthLimits {
-	return LengthLimits{1000, 2000, 3000}
+	return LengthLimits{1000, 2000, 3000, 1000}
 }
 
 type mockSecRuleEvaluation struct {
@@ -282,6 +302,10 @@ type mockSecRuleEngine struct {
 func (m *mockSecRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) SecRuleEvaluation {
 	m.newEvaluationCalled++
 	return m.msrev
+}
+
+func (m *mockSecRuleEngine) UsesFullRawRequestBody() bool {
+	return false
 }
 
 type mockSecRuleEngineFactory struct {
@@ -328,10 +352,11 @@ func (h *mockLogMetaData) Scope() string     { return "Global" }
 func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
 
 type mockResultsLogger struct {
-	fieldBytesLimitExceededCalled    int
-	pausableBytesLimitExceededCalled int
-	totalBytesLimitExceededCalled    int
-	bodyParseErrorCalled             int
+	fieldBytesLimitExceededCalled              int
+	pausableBytesLimitExceededCalled           int
+	totalBytesLimitExceededCalled              int
+	totalFullRawRequestBodyLimitExceededCalled int
+	bodyParseErrorCalled                       int
 }
 
 func (r *mockResultsLogger) FieldBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
@@ -342,6 +367,9 @@ func (r *mockResultsLogger) PausableBytesLimitExceeded(request ResultsLoggerHTTP
 }
 func (r *mockResultsLogger) TotalBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
 	r.totalBytesLimitExceededCalled++
+}
+func (r *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
+	r.totalFullRawRequestBodyLimitExceededCalled++
 }
 func (r *mockResultsLogger) BodyParseError(request ResultsLoggerHTTPRequest, err error) {
 	r.bodyParseErrorCalled++

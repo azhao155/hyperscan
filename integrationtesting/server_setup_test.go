@@ -13,12 +13,6 @@ import (
 	"testing"
 )
 
-var defaultLengthLimits = waf.LengthLimits{
-	MaxLengthField:    1024 * 20,         // 20 KiB
-	MaxLengthPausable: 1024 * 128,        // 128 KiB
-	MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
-}
-
 func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	logger := testutils.NewTestLogger(t)
 	p := secrule.NewRuleParser()
@@ -35,7 +29,7 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	rbp := bodyparsing.NewRequestBodyParser(defaultLengthLimits)
+	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 	wafServer, err := waf.NewStandaloneSecruleServer(logger, e, rbp, reslog)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -66,7 +60,7 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	re := secrule.NewRuleEvaluator()
 	sref := secrule.NewEngineFactory(logger, rl, rsf, re, log)
 
-	rbp := bodyparsing.NewRequestBodyParser(defaultLengthLimits)
+	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 
 	// Setup customrule engine
 	gfs := &mockGeoDBFileSystem{}

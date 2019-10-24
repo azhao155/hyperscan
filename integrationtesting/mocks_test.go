@@ -29,8 +29,10 @@ func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTT
 func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
 }
 func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {}
-func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error)          {}
-func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData)                           {}
+func (l *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+}
+func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {}
+func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData)                  {}
 
 type mockFileSystem struct{}
 

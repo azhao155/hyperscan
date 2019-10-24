@@ -35,17 +35,11 @@ import (
 	"github.com/rs/zerolog"
 	"io"
 	"math/rand"
-	"reflect"
-	"unsafe"
 	"os"
+	"reflect"
 	"time"
+	"unsafe"
 )
-
-var lengthLimits = waf.LengthLimits{
-	MaxLengthField:    1024 * 20,         // 20 KiB
-	MaxLengthPausable: 1024 * 128,        // 128 KiB
-	MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
-}
 
 // AzwafEvalRequest is the interface to the rest of Azwaf called from the in-proc Nginx plugin.
 //export AzwafEvalRequest
@@ -85,7 +79,7 @@ func getInstance(secruleconf string) waf.Server {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
 
-	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
+	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 	p := secrule.NewRuleParser()
 	rlfs := secrule.NewRuleLoaderFileSystem()
 	hsfs := hyperscan.NewCacheFileSystem()

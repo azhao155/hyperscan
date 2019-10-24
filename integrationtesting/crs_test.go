@@ -47,12 +47,6 @@ func skipRegressionTest(t *testing.T) {
 	}
 }
 
-var testLengthLimits = waf.LengthLimits{
-	MaxLengthField:    1024 * 20,         // 20 KiB
-	MaxLengthPausable: 1024 * 128,        // 128 KiB
-	MaxLengthTotal:    1024 * 1024 * 700, // 700 MiB
-}
-
 func TestCrsRules(t *testing.T) {
 	skipRegressionTest(t)
 
@@ -71,7 +65,7 @@ func TestCrsRules(t *testing.T) {
 	re := secrule.NewRuleEvaluator()
 	resLog := newMockResultsLogger()
 	ef := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
-	rbp := bodyparsing.NewRequestBodyParser(testLengthLimits)
+	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 
 	var total, pass, fail, skip int
 
@@ -82,6 +76,10 @@ func TestCrsRules(t *testing.T) {
 		e, err := ef.NewEngine(c)
 		if err != nil {
 			t.Fatalf("Got unexpected error: %s", err)
+		}
+
+		usesFullRawRequestBodyCb := func(contentType waf.ContentType) bool {
+			return e.UsesFullRawRequestBody() && contentType == waf.URLEncodedContent
 		}
 
 		_, thissrcfilename, _, _ := runtime.Caller(0)
@@ -112,9 +110,10 @@ func TestCrsRules(t *testing.T) {
 				ev := e.NewEvaluation(logger, req)
 				ev.ScanHeaders()
 
-				err = rbp.Parse(logger, req, func(contentType waf.ContentType, fieldName string, data string) error {
+				fieldCb := func(contentType waf.ContentType, fieldName string, data string) error {
 					return ev.ScanBodyField(contentType, fieldName, data)
-				})
+				}
+				err = rbp.Parse(logger, req, fieldCb, usesFullRawRequestBodyCb)
 				if err != nil {
 					t.Logf("Error while scanning request body %v", err)
 					// TODO some tests expect 400 in this case

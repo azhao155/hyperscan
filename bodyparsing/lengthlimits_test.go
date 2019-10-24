@@ -11,7 +11,7 @@ func TestMaxLengthReader(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 10000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000, 17000}, false)
 
 	// Act
 	n := 0
@@ -41,7 +41,7 @@ func TestMaxLengthReaderFieldLimit(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 10000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000, 17000}, false)
 
 	// Act
 	n := 0
@@ -71,7 +71,7 @@ func TestMaxLengthReaderWithPause(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 10000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000, 17000}, false)
 
 	// Act and assert
 	for i := 0; i < 5; i++ {
@@ -100,7 +100,7 @@ func TestMaxLengthReaderTotalLimit(t *testing.T) {
 	// Arrange
 	readerBuf := bytes.NewBufferString(strings.Repeat("aaaaaaaaaa", 20000))
 	tmp := make([]byte, 1000)
-	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000})
+	m := newMaxLengthReaderDecorator(readerBuf, waf.LengthLimits{15000, 20000, 100000, 17000}, false)
 
 	// Act and assert
 	n := 0
