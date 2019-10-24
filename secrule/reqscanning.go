@@ -522,6 +522,7 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 
 	// The "filename" is the part before the question mark.
 	// Not using url.ParseRequestURI, because REQUEST_FILENAME should be raw, and not URL-decoded.
+	// TODO consider if we should also worry about #
 	reqFilename := URI
 	var queryString string
 	n := strings.IndexByte(URI, '?')
@@ -531,6 +532,17 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	}
 
 	err = r.scanField("REQUEST_FILENAME", "", reqFilename, results)
+	if err != nil {
+		return
+	}
+
+	reqBasename := reqFilename
+	n = strings.LastIndexAny(reqBasename, `/\`)
+	if n != -1 {
+		reqBasename = reqFilename[n+1:]
+	}
+
+	err = r.scanField("REQUEST_BASENAME", "", reqBasename, results)
 	if err != nil {
 		return
 	}

@@ -536,6 +536,105 @@ func TestReqScannerFilename2(t *testing.T) {
 	}
 }
 
+func TestReqScannerBasename(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_BASENAME"}}, Op: Rx, Val: "a%20bc.php"}, // REQUEST_BASE should not URL-decode
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	reqs := []*mockWafHTTPRequest{
+		{uri: "/p1/p2/a%20bc.php?arg1=something"},
+		{uri: "/p1/a%20bc.php?arg1=something"},
+		{uri: "/a%20bc.php?arg1=something"},
+		{uri: "a%20bc.php?arg1=something"},
+		{uri: "a%20bc.php"},
+	}
+
+	for _, req := range reqs {
+		// Act
+		rs, err1 := rsf.NewReqScanner(rules)
+		s, _ := rs.NewScratchSpace()
+		rse := rs.NewReqScannerEvaluation(s)
+		sr, err2 := rse.ScanHeaders(req)
+
+		// Assert
+		if err1 != nil {
+			t.Fatalf("Got unexpected error: %s", err1)
+		}
+		if err2 != nil {
+			t.Fatalf("Got unexpected error: %s", err2)
+		}
+
+		m, ok := sr.GetResultsFor(100, 0, Target{Name: "REQUEST_BASENAME"})
+		if !ok {
+			t.Fatalf("Match not found")
+		}
+
+		if string(m.Data) != "a%20bc.php" {
+			t.Fatalf("Unexpected match data: %s", string(m.Data))
+		}
+	}
+}
+
+func TestReqScannerBasenameEmpty(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_BASENAME"}}, Op: Streq, Val: ""},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	reqs := []*mockWafHTTPRequest{
+		{uri: "/p1/p2/?arg1=something"},
+		{uri: "/p1/?arg1=something"},
+		{uri: "/?arg1=something"},
+		{uri: "?arg1=something"},
+		{uri: ""},
+	}
+
+	for _, req := range reqs {
+		// Act
+		rs, err1 := rsf.NewReqScanner(rules)
+		s, _ := rs.NewScratchSpace()
+		rse := rs.NewReqScannerEvaluation(s)
+		sr, err2 := rse.ScanHeaders(req)
+
+		// Assert
+		if err1 != nil {
+			t.Fatalf("Got unexpected error: %s", err1)
+		}
+		if err2 != nil {
+			t.Fatalf("Got unexpected error: %s", err2)
+		}
+
+		m, ok := sr.GetResultsFor(100, 0, Target{Name: "REQUEST_BASENAME"})
+		if !ok {
+			t.Fatalf("Match not found")
+		}
+
+		if string(m.Data) != "" {
+			t.Fatalf("Unexpected match data: %s", string(m.Data))
+		}
+	}
+}
+
+
 func TestReqScannerRequestLine(t *testing.T) {
 	// Arrange
 	mf := newMockMultiRegexEngineFactory()
