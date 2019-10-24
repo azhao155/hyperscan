@@ -49,6 +49,26 @@ var stringMatchBypassRule = &mockCustomRule{
 	action: "Allow",
 }
 
+var multiVarMatchRule = &mockCustomRule{
+	name:     "multiVarMatchRule",
+	priority: 1,
+	ruleType: "MatchRule",
+	matchConditions: []waf.MatchCondition{
+		&mockMatchCondition{
+			matchVariables: []waf.MatchVariable{
+				&mockMatchVariable{
+					variableName: "RequestUri",
+					selector:     "",
+				},
+			},
+			operator:        "Contains",
+			negateCondition: false,
+			matchValues:     []string{"1", "2"},
+		},
+	},
+	action: "Allow",
+}
+
 var numericBypassRule = &mockCustomRule{
 	name:     "numericBypassRule",
 	priority: 2,
@@ -101,6 +121,7 @@ var wafConfigWithCustomRules = &mockWAFConfig{
 					geoBlacklistRule,
 					numericBypassRule,
 					stringMatchBypassRule,
+					multiVarMatchRule,
 				},
 			},
 		},
@@ -212,6 +233,44 @@ func TestCustomRuleStringBypass(t *testing.T) {
 	assert.Nil(blockErr)
 	assert.Equal(waf.Block, allowDecision)
 	assert.Nil(allowErr)
+}
+
+
+func TestTwoVal(t *testing.T) {
+	assert := assert.New(t)
+
+	// Arrange
+	wafServer := newTestAzwafServer(t)
+
+	err := wafServer.PutConfig(wafConfigWithCustomRules)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Act
+	req1 := &mockWafHTTPRequest{
+		uri:        "/?a=1",
+	}
+	decision1, blockErr1 := wafServer.EvalRequest(req1)
+
+	req2 := &mockWafHTTPRequest{
+		uri:        "/?a=2",
+	}
+	decision2, blockErr2 := wafServer.EvalRequest(req2)
+
+	req3 := &mockWafHTTPRequest{
+		uri:        "/?a=3",
+	}
+	decision3, blockErr3 := wafServer.EvalRequest(req3)
+
+
+	// Assert
+	assert.Equal(waf.Allow, decision1)
+	assert.Equal(waf.Allow, decision2)
+	assert.Equal(waf.Pass, decision3)
+	assert.Nil(blockErr1)
+	assert.Nil(blockErr2)
+	assert.Nil(blockErr3)
 }
 
 func TestCustomRuleNumericBypass(t *testing.T) {

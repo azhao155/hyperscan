@@ -86,23 +86,35 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 	for cgIdx, cg := range engine.conditionGroups {
 		for stIdx, st := range cg.sameTransformations {
 			groupRegexPatterns := []waf.MultiRegexEnginePattern{}
-			for mcpIdx, path := range st.matchConditionPaths {
+
+			// BackRefs is not the same as st.matchConditionPaths, because there can be multiple values that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
+			backRefs := []matchConditionPath{}
+			backRefCurID := 0
+
+			for _, path := range st.matchConditionPaths {
 				mc := engine.rules[path.ruleIdx].MatchConditions()[path.mcIdx]
 				for _, val := range mc.MatchValues() {
 					escapedVal := regexp.QuoteMeta(val)
 
 					//TODO: need to be aware of the HyperScan regex limit, consider splitting into multiple rules
+					var expr string
 					switch mc.Operator() {
 					case "Regex":
-						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: mcpIdx, Expr: val})
+						expr = val
 					case "BeginsWith":
-						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: mcpIdx, Expr: "^" + escapedVal})
+						expr = "^" + escapedVal
 					case "EndsWith":
-						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: mcpIdx, Expr: escapedVal + "$"})
+						expr = escapedVal + "$"
 					case "Contains":
-						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: mcpIdx, Expr: escapedVal})
+						expr = escapedVal
 					case "Equals":
-						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: mcpIdx, Expr: "^" + escapedVal + "$"})
+						expr = "^" + escapedVal + "$"
+					}
+
+					if expr != "" {
+						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: backRefCurID, Expr: expr})
+						backRefs = append(backRefs, path)
+						backRefCurID++
 					}
 				}
 			}
@@ -118,6 +130,7 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 				return
 			}
 			engine.conditionGroups[cgIdx].sameTransformations[stIdx].multiRegexEngine = m
+			engine.conditionGroups[cgIdx].sameTransformations[stIdx].backRefs = backRefs
 		}
 	}
 
@@ -155,6 +168,7 @@ type conditionsWithSameMatchVar struct {
 type conditionsWithSameMatchVarAndTransformations struct {
 	transformations     []string
 	matchConditionPaths []matchConditionPath
+	backRefs            []matchConditionPath
 	multiRegexEngine    waf.MultiRegexEngine
 }
 
@@ -358,7 +372,7 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 			}
 
 			for _, m := range mrematches {
-				mcp := st.matchConditionPaths[m.ID]
+				mcp := st.backRefs[m.ID]
 				if _, ok := results.matches[mcp]; ok {
 					// A match for this condition was already found
 					continue
