@@ -30,13 +30,14 @@ type TestCase struct {
 
 // YAML parsing requires exporting of struct fields
 type input struct {
-	DestAddr string            `yaml:"dest_addr"`
-	Method   string            `yaml:"method"`
-	Port     string            `yaml:"port"`
-	URI      string            `yaml:"uri"`
-	Version  string            `yaml:"version"`
-	Headers  map[string]string `yaml:"headers"`
-	Data     interface{}       `yaml:"data"`
+	DestAddr  string            `yaml:"dest_addr"`
+	Method    string            `yaml:"method"`
+	Port      string            `yaml:"port"`
+	URI       string            `yaml:"uri"`
+	Version   string            `yaml:"version"`
+	Headers   map[string]string `yaml:"headers"`
+	Data      interface{}       `yaml:"data"`
+	StopMagic bool              `yaml:"stop_magic"`
 }
 
 type stage struct {
@@ -133,25 +134,27 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 				}
 			}
 
-			// Default content type
-			if len(body) > 0 && !hasContentType {
-				req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"})
-			}
+			req.protocol = input.Version
 
-			// Default content length
-			if len(body) > 0 && !hasContentLength {
-				req.headers = append(req.headers, &mockHeaderPair{k: "Content-Length", v: strconv.Itoa(len(body))})
-			}
+			if !input.StopMagic {
+				// Default content type
+				if len(body) > 0 && !hasContentType {
+					req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"})
+				}
 
-			if input.Version != "" {
-				req.protocol = input.Version
-			} else {
-				req.protocol = "HTTP/1.1"
-			}
+				// Default content length
+				if len(body) > 0 && !hasContentLength {
+					req.headers = append(req.headers, &mockHeaderPair{k: "Content-Length", v: strconv.Itoa(len(body))})
+				}
 
-			// Default host if HTTP/1.1 (HTTP/1.0 does not require host)
-			if req.protocol == "HTTP/1.1" && !hasHost {
-				req.headers = append(req.headers, &mockHeaderPair{k: "Host", v: "localhost"})
+				if req.protocol == "" {
+					req.protocol = "HTTP/1.1"
+				}
+
+				// Default host if HTTP/1.1 (HTTP/1.0 does not require host)
+				if req.protocol == "HTTP/1.1" && !hasHost {
+					req.headers = append(req.headers, &mockHeaderPair{k: "Host", v: "localhost"})
+				}
 			}
 
 			tc.Requests = append(tc.Requests, req)
