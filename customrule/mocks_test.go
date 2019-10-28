@@ -149,7 +149,7 @@ type mockResultsLogger struct {
 	ruleMatched map[string]bool
 }
 
-func (l *mockResultsLogger) CustomRuleTriggered(request ResultsLoggerHTTPRequest, rule waf.CustomRule) {
+func (l *mockResultsLogger) CustomRuleTriggered(request ResultsLoggerHTTPRequest, rule waf.CustomRule, matchedConditions []ResultsLoggerMatchedConditions) {
 	l.ruleMatched[rule.Name()] = true
 	return
 }

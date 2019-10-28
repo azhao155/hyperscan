@@ -58,6 +58,10 @@ grpcurl -plaintext 127.0.0.1:37291 describe
 grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/PutConfig <<EOF
 {
   "configVersion": 1,
+  "metaData": {
+    "resourceID": "/some/resource",
+    "instanceID": "appgw_123"
+  },
   "policyConfigs": [
     {
       "configID": "myconfig1",

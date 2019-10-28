@@ -322,8 +322,17 @@ func (e *customRuleEvaluationImpl) EvalRules() waf.Decision {
 			continue
 		}
 
-		// TODO better logging, where each condition with its corresponding captured match data is written
-		e.engine.resultsLogger.CustomRuleTriggered(e.req, rule)
+		// Prepare struct for logging that describes the data that triggered the conditions
+		rlmc := make([]ResultsLoggerMatchedConditions, len(rule.MatchConditions()))
+		for mcIdx := range rule.MatchConditions() {
+			mcp := matchConditionPath{ruleIdx, mcIdx}
+			rlmc[mcIdx].ConditionIndex = mcIdx
+			rlmc[mcIdx].VariableName = e.results.matches[mcp].VariableName
+			rlmc[mcIdx].FieldName = e.results.matches[mcp].FieldName
+			rlmc[mcIdx].MatchedValue = string(e.results.matches[mcp].Data)
+		}
+
+		e.engine.resultsLogger.CustomRuleTriggered(e.req, rule, rlmc)
 
 		switch rule.Action() {
 		case "Allow":
@@ -344,9 +353,11 @@ func (e *customRuleEvaluationImpl) Close() {
 }
 
 type match struct {
-	StartPos int
-	EndPos   int
-	Data     []byte
+	VariableName string
+	FieldName    string
+	StartPos     int
+	EndPos       int
+	Data         []byte
 }
 
 type scanResults struct {
@@ -371,14 +382,20 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 				return
 			}
 
-			for _, m := range mrematches {
-				mcp := st.backRefs[m.ID]
+			for _, mrematch := range mrematches {
+				mcp := st.backRefs[mrematch.ID]
 				if _, ok := results.matches[mcp]; ok {
 					// A match for this condition was already found
 					continue
 				}
 
-				results.matches[mcp] = match{StartPos: m.StartPos, EndPos: m.EndPos, Data: m.Data}
+				results.matches[mcp] = match{
+					VariableName: m.variableName,
+					FieldName:    m.selector,
+					StartPos:     mrematch.StartPos,
+					EndPos:       mrematch.EndPos,
+					Data:         mrematch.Data,
+				}
 			}
 		}
 

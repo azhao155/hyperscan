@@ -1,6 +1,7 @@
 package logging
 
 type customerFirewallLogEntry struct {
+	TimeStamp     string                           `json:"timeStamp"`
 	ResourceID    string                           `json:"resourceId"`
 	OperationName string                           `json:"operationName"`
 	Category      string                           `json:"category"`
@@ -8,6 +9,7 @@ type customerFirewallLogEntry struct {
 }
 
 type customerFirewallLimitExceedLogEntry struct {
+	TimeStamp     string                                      `json:"timeStamp"`
 	ResourceID    string                                      `json:"resourceId"`
 	OperationName string                                      `json:"operationName"`
 	Category      string                                      `json:"category"`
@@ -15,6 +17,7 @@ type customerFirewallLimitExceedLogEntry struct {
 }
 
 type customerFirewallBodyParseLogEntry struct {
+	TimeStamp     string                                    `json:"timeStamp"`
 	ResourceID    string                                    `json:"resourceId"`
 	OperationName string                                    `json:"operationName"`
 	Category      string                                    `json:"category"`
@@ -85,6 +88,7 @@ type customerFirewallLogBodyParseDetailsEntry struct {
 }
 
 type customerFirewallIPReputationLogEntry struct {
+	TimeStamp     string                                       `json:"timeStamp"`
 	ResourceID    string                                       `json:"resourceId"`
 	OperationName string                                       `json:"operationName"`
 	Category      string                                       `json:"category"`
@@ -108,6 +112,7 @@ type customerFirewallIPReputationLogEntryProperty struct {
 }
 
 type customerFirewallCustomRuleLogEntry struct {
+	TimeStamp     string                                       `json:"timeStamp"`
 	ResourceID    string                                       `json:"resourceId"`
 	OperationName string                                       `json:"operationName"`
 	Category      string                                       `json:"category"`
@@ -115,20 +120,17 @@ type customerFirewallCustomRuleLogEntry struct {
 }
 
 type customerFirewallCustomRuleLogEntryProperties struct {
-	InstanceID      string                          `json:"instanceId"`
-	ClientIP        string                          `json:"clientIp"`
-	ClientPort      string                          `json:"clientPort"`
-	RequestURI      string                          `json:"requestUri"`
-	RuleSetType     string                          `json:"ruleSetType"`
-	RuleSetVersion  string                          `json:"ruleSetVersion"`
-	RuleID          string                          `json:"ruleId"`
-	RuleGroup       string                          `json:"ruleGroup"`
-	Message         string                          `json:"message"`
-	Action          string                          `json:"action"`
-	Details         customerFirewallLogDetailsEntry `json:"details"`
-	Hostname        string                          `json:"hostname"`
-	TransactionID   string                          `json:"transactionId"`
-	PolicyID        string                          `json:"policyId"`
-	PolicyScope     string                          `json:"policyScope"`
-	PolicyScopeName string                          `json:"policyScopeName"`
+	InstanceID      string `json:"instanceId"`
+	ClientIP        string `json:"clientIp"`
+	RequestURI      string `json:"requestUri"`
+	RuleSetType     string `json:"ruleSetType"`
+	RuleID          string `json:"ruleId"`
+	Message         string `json:"message"`
+	Action          string `json:"action"`
+	Hostname        string `json:"hostname"`
+	TransactionID   string `json:"transactionId"`
+	PolicyID        string `json:"policyId"`
+	PolicyScope     string `json:"policyScope"`
+	PolicyScopeName string `json:"policyScopeName"`
+	Engine          string `json:"engine"`
 }

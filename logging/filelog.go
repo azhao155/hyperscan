@@ -5,9 +5,12 @@ import (
 	"azwaf/ipreputation"
 	"azwaf/secrule"
 	"azwaf/waf"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strconv"
+	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 )
@@ -17,6 +20,8 @@ const Path = "/appgwroot/log/azwaf/"
 
 // FileName is the azwaf log file name
 const FileName = "waf_json.log"
+
+const azureLogDateFormat = "2006-01-02T15:04:05-07:00"
 
 // FilelogResultsLogger writes customer facing logs to a file.
 type FilelogResultsLogger struct {
@@ -80,29 +85,30 @@ func (l *FilelogResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTT
 		policyScopeName = request.LogMetaData().ScopeName()
 	}
 
-	c := customerFirewallLogEntryProperty{
-		InstanceID: iID,
-		RequestURI: request.URI(),
-		RuleID:     strconv.Itoa(ruleID),
-		Message:    msg,
-		Action:     action,
-		Details: customerFirewallLogDetailsEntry{
-			Message: logData,
-		},
-		TransactionID:   request.TransactionID(),
-		PolicyID:        request.ConfigID(),
-		PolicyScope:     policyScope,
-		PolicyScopeName: policyScopeName,
-	}
+	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
 
 	lg := &customerFirewallLogEntry{
+		TimeStamp:     triggerTime.Format(azureLogDateFormat),
 		ResourceID:    rID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
-		Properties:    c,
+		Properties: customerFirewallLogEntryProperty{
+			InstanceID: iID,
+			RequestURI: request.URI(),
+			RuleID:     strconv.Itoa(ruleID),
+			Message:    msg,
+			Action:     action, // TODO "Blocked/Detected" instead of "deny", and based on isDetectionMode
+			Details: customerFirewallLogDetailsEntry{
+				Message: logData,
+			},
+			TransactionID:   request.TransactionID(),
+			PolicyID:        request.ConfigID(),
+			PolicyScope:     policyScope,
+			PolicyScopeName: policyScopeName,
+		},
 	}
 
-	l.sendLog(lg)
+	l.writeLogLine(lg)
 }
 
 // IPReputationTriggered is to be called when a the IP reputation engine resulted in a request being blocked.
@@ -120,25 +126,26 @@ func (l *FilelogResultsLogger) IPReputationTriggered(request ipreputation.Result
 		policyScopeName = request.LogMetaData().ScopeName()
 	}
 
-	c := customerFirewallIPReputationLogEntryProperty{
-		InstanceID:      iID,
-		RequestURI:      request.URI(),
-		Message:         "IPReputationTriggered",
-		Action:          "Blocked",
-		TransactionID:   request.TransactionID(),
-		PolicyID:        request.ConfigID(),
-		PolicyScope:     policyScope,
-		PolicyScopeName: policyScopeName,
-	}
+	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
 
 	lg := &customerFirewallIPReputationLogEntry{
+		TimeStamp:     triggerTime.Format(azureLogDateFormat),
 		ResourceID:    rID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
-		Properties:    c,
+		Properties: customerFirewallIPReputationLogEntryProperty{
+			InstanceID:      iID,
+			RequestURI:      request.URI(),
+			Message:         "IPReputationTriggered",
+			Action:          "Blocked", // TODO based on isDetectionMode
+			TransactionID:   request.TransactionID(),
+			PolicyID:        request.ConfigID(),
+			PolicyScope:     policyScope,
+			PolicyScopeName: policyScopeName,
+		},
 	}
 
-	l.sendLog(lg)
+	l.writeLogLine(lg)
 }
 
 // FieldBytesLimitExceeded is to be called when the request body contained a field longer than the limit.
@@ -175,25 +182,26 @@ func (l *FilelogResultsLogger) bytesLimitExceeded(request waf.ResultsLoggerHTTPR
 		policyScopeName = request.LogMetaData().ScopeName()
 	}
 
-	c := customerFirewallLimitExceedLogEntryProperty{
-		InstanceID:      iID,
-		RequestURI:      request.URI(),
-		Message:         msg,
-		Action:          "Blocked",
-		TransactionID:   request.TransactionID(),
-		PolicyID:        request.ConfigID(),
-		PolicyScope:     policyScope,
-		PolicyScopeName: policyScopeName,
-	}
+	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
 
 	lg := &customerFirewallLimitExceedLogEntry{
+		TimeStamp:     triggerTime.Format(azureLogDateFormat),
 		ResourceID:    rID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
-		Properties:    c,
+		Properties: customerFirewallLimitExceedLogEntryProperty{
+			InstanceID:      iID,
+			RequestURI:      request.URI(),
+			Message:         msg,
+			Action:          "Blocked", // TODO based on isDetectionMode
+			TransactionID:   request.TransactionID(),
+			PolicyID:        request.ConfigID(),
+			PolicyScope:     policyScope,
+			PolicyScopeName: policyScopeName,
+		},
 	}
 
-	l.sendLog(lg)
+	l.writeLogLine(lg)
 }
 
 // BodyParseError is to be called when the request body parser hit an error causing the request to be blocked.
@@ -211,37 +219,42 @@ func (l *FilelogResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPReque
 		policyScopeName = request.LogMetaData().ScopeName()
 	}
 
-	c := customerFirewallBodyParseLogEntryProperty{
-		InstanceID:      iID,
-		RequestURI:      request.URI(),
-		Message:         fmt.Sprintf("Request body scanning error"),
-		Action:          "Blocked",
-		TransactionID:   request.TransactionID(),
-		PolicyID:        request.ConfigID(),
-		PolicyScope:     policyScope,
-		PolicyScopeName: policyScopeName,
-		Details: customerFirewallLogBodyParseDetailsEntry{
-			Message: err.Error(),
-		},
-	}
+	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
 
 	lg := &customerFirewallBodyParseLogEntry{
+		TimeStamp:     triggerTime.Format(azureLogDateFormat),
 		ResourceID:    rID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
-		Properties:    c,
+		Properties: customerFirewallBodyParseLogEntryProperty{
+			InstanceID:      iID,
+			RequestURI:      request.URI(),
+			Message:         fmt.Sprintf("Request body scanning error"),
+			Action:          "Blocked", // TODO based on isDetectionMode
+			TransactionID:   request.TransactionID(),
+			PolicyID:        request.ConfigID(),
+			PolicyScope:     policyScope,
+			PolicyScopeName: policyScopeName,
+			Details: customerFirewallLogBodyParseDetailsEntry{
+				Message: err.Error(),
+			},
+		},
 	}
 
-	l.sendLog(lg)
+	l.writeLogLine(lg)
 }
 
 // CustomRuleTriggered is to be called when a custom rule was triggered.
-func (l *FilelogResultsLogger) CustomRuleTriggered(request customrule.ResultsLoggerHTTPRequest, rule waf.CustomRule) {
-	rID := ""
-	iID := ""
+func (l *FilelogResultsLogger) CustomRuleTriggered(
+	request customrule.ResultsLoggerHTTPRequest,
+	rule waf.CustomRule,
+	matchedConditions []customrule.ResultsLoggerMatchedConditions,
+) {
+	var resourceID string
+	var instanceID string
 	if l.metaData != nil {
-		rID = l.metaData.ResourceID()
-		iID = l.metaData.InstanceID()
+		resourceID = l.metaData.ResourceID()
+		instanceID = l.metaData.InstanceID()
 	}
 
 	var policyScope, policyScopeName string
@@ -250,30 +263,62 @@ func (l *FilelogResultsLogger) CustomRuleTriggered(request customrule.ResultsLog
 		policyScopeName = request.LogMetaData().ScopeName()
 	}
 
-	c := customerFirewallCustomRuleLogEntryProperties{
-		InstanceID:      iID,
-		RequestURI:      request.URI(),
-		RuleSetType:     "Custom",
-		RuleSetVersion:  "Custom rule v0.1",
-		RuleID:          rule.Name(),
-		Action:          rule.Action(),
-		TransactionID:   request.TransactionID(),
-		PolicyID:        request.ConfigID(),
-		PolicyScope:     policyScope,
-		PolicyScopeName: policyScopeName,
+	var hostHeader string
+	for _, h := range request.Headers() {
+		if strings.EqualFold(h.Key(), "host") {
+			hostHeader = h.Value()
+		}
 	}
+
+	var message bytes.Buffer
+	for _, rlmc := range matchedConditions {
+		// Space after between each sentence.
+		if message.Len() > 0 {
+			message.WriteString(" ")
+		}
+
+		message.WriteString("Found condition ")
+		message.WriteString(strconv.Itoa(rlmc.ConditionIndex))
+		message.WriteString(" in ")
+		message.WriteString(rlmc.VariableName)
+		if rlmc.FieldName != "" {
+			message.WriteString(", field name ")
+			message.WriteString(rlmc.FieldName)
+		}
+		message.WriteString(", with value ")
+		message.WriteString(rlmc.MatchedValue)
+		message.WriteString(".")
+	}
+
+	action := customRuleActionString(rule.Action(), false) // TODO based on real isDetectionMode
+	triggerTime := time.Now().UTC()                        // TODO when ResultsLogger is per request, get this from l
 
 	lg := &customerFirewallCustomRuleLogEntry{
-		ResourceID:    rID,
+		TimeStamp:     triggerTime.Format(azureLogDateFormat),
+		ResourceID:    resourceID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
-		Properties:    c,
+		Properties: customerFirewallCustomRuleLogEntryProperties{
+			InstanceID:      instanceID,
+			ClientIP:        request.RemoteAddr(),
+			RequestURI:      request.URI(),
+			RuleSetType:     "Custom",
+			RuleID:          rule.Name(),
+			Message:         message.String(),
+			Action:          action,
+			Hostname:        hostHeader,
+			TransactionID:   request.TransactionID(),
+			PolicyID:        request.ConfigID(),
+			PolicyScope:     policyScope,
+			PolicyScopeName: policyScopeName,
+			Engine:          "Azwaf",
+		},
 	}
 
-	l.sendLog(lg)
+	l.writeLogLine(lg)
 }
 
-func (l *FilelogResultsLogger) sendLog(data interface{}) {
+func (l *FilelogResultsLogger) writeLogLine(data interface{}) {
 	bb, err := json.Marshal(data)
 	if err != nil {
 		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
@@ -285,5 +330,20 @@ func (l *FilelogResultsLogger) sendLog(data interface{}) {
 
 // SetLogMetaData is to be called during initialization to set data needed by the logger later.
 func (l *FilelogResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) {
+	// Remove this function and let this data just be part of the normal PutConfig. More logical place, and easier for persistence between Azwaf restarts.
 	l.metaData = metaData
+}
+
+func customRuleActionString(customRuleAction string, isDetectionMode bool) string {
+	switch customRuleAction {
+	case "Block":
+		if isDetectionMode {
+			return "Detected"
+		}
+		return "Blocked"
+	case "Allow":
+		return "Allowed"
+	default:
+		return customRuleAction
+	}
 }
