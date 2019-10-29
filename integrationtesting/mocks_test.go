@@ -1,7 +1,6 @@
 package integrationtesting
 
 import (
-	"azwaf/secrule"
 	"azwaf/waf"
 	"bytes"
 	"io"
@@ -17,22 +16,31 @@ type mockResultsLogger struct {
 	ruleMatched map[int]bool
 }
 
-func (l *mockResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
-	r, ok := stmt.(*secrule.Rule)
-	if ok {
-		l.ruleMatched[r.ID] = true
-	}
+func (l *mockResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID waf.RuleSetID) {
+	l.ruleMatched[ruleID] = true
 	return
 }
 
-func (l *mockResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {}
-func (l *mockResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+func (l *mockResultsLogger) FieldBytesLimitExceeded(limit int) {}
+func (l *mockResultsLogger) PausableBytesLimitExceeded(limit int) {
 }
-func (l *mockResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {}
-func (l *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
+func (l *mockResultsLogger) TotalBytesLimitExceeded(limit int) {}
+func (l *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(limit int) {
 }
-func (l *mockResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {}
-func (l *mockResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData)                  {}
+func (l *mockResultsLogger) BodyParseError(err error) {}
+
+func (l *mockResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []waf.ResultsLoggerCustomRulesMatchedConditions) {
+}
+
+func (l *mockResultsLogger) IPReputationTriggered() {}
+
+type mockResultsLoggerFactory struct {
+	mockResultsLogger *mockResultsLogger
+}
+
+func (f *mockResultsLoggerFactory) NewResultsLogger(request waf.HTTPRequest, configLogMetaData waf.ConfigLogMetaData, isDetectionMode bool) waf.ResultsLogger {
+	return f.mockResultsLogger
+}
 
 type mockFileSystem struct{}
 

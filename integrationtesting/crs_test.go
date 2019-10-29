@@ -64,7 +64,7 @@ func TestCrsRules(t *testing.T) {
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
 	resLog := newMockResultsLogger()
-	ef := secrule.NewEngineFactory(logger, rl, rsf, re, resLog)
+	ef := secrule.NewEngineFactory(logger, rl, rsf, re)
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 
 	var total, pass, fail, skip int
@@ -107,7 +107,7 @@ func TestCrsRules(t *testing.T) {
 			resLog.ruleMatched = make(map[int]bool)
 			for _, req := range tc.Requests {
 				// Act
-				ev := e.NewEvaluation(logger, req)
+				ev := e.NewEvaluation(logger, resLog, req)
 				ev.ScanHeaders()
 
 				fieldCb := func(contentType waf.ContentType, fieldName string, data string) error {

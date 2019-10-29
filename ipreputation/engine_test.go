@@ -7,135 +7,143 @@ import (
 )
 
 func TestEmptyList(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{})
 	request := &mockHTTPRequest{remoteAddr: "1.2.3.4"}
 
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false positive")
 	}
 }
 
 func TestSingleIP(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"4.3.2.1"})
 
 	request := &mockHTTPRequest{remoteAddr: "4.3.2.1"}
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 
 	request = &mockHTTPRequest{remoteAddr: "2.2.2.2"}
-	isMatch = engine.EvalRequest(request) == waf.Block
+	isMatch = engine.EvalRequest(request, mrl) == waf.Block
 	if isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false positive")
 	}
 }
 
 func TestMultipleIPs(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"0.0.0.0", "255.255.255.255"})
 
 	request := &mockHTTPRequest{remoteAddr: "0.0.0.0"}
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 
 	request = &mockHTTPRequest{remoteAddr: "255.255.255.255"}
-	isMatch = engine.EvalRequest(request) == waf.Block
+	isMatch = engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 }
 
 func TestCIDR(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{remoteAddr: "127.12.7.0"}
 
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 
 	request = &mockHTTPRequest{remoteAddr: "128.12.7.0"}
-	isMatch = engine.EvalRequest(request) == waf.Block
+	isMatch = engine.EvalRequest(request, mrl) == waf.Block
 	if isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false positive")
 	}
 }
 
 func TestXForwardedForHeaders(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
 		headers:    []waf.HeaderPair{&mockHeaderPair{key: xForwardedForHeaderName, value: "127.0.0.0:3000"}},
 	}
 
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 
 	request = &mockHTTPRequest{remoteAddr: "128.12.7.0"}
-	isMatch = engine.EvalRequest(request) == waf.Block
+	isMatch = engine.EvalRequest(request, mrl) == waf.Block
 	if isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false positive")
 	}
 }
 
 func TestXForwardedForHeadersWithoutPort(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
 		headers:    []waf.HeaderPair{&mockHeaderPair{key: xForwardedForHeaderName, value: "127.0.0.0"}},
 	}
 
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 }
 
 func TestXForwardedForHeadersWithWhiteSpace(t *testing.T) {
-	engine := NewIPReputationEngine(&mockFileSystem{}, &mockResultsLogger{})
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"127.0.0.0/8"})
 	request := &mockHTTPRequest{
 		remoteAddr: "0.0.0.0",
 		headers:    []waf.HeaderPair{&mockHeaderPair{key: xForwardedForHeaderName, value: " 1.2.3.4:80 , 127.0.0.0:3000 "}},
 	}
 
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("IPReputationEngine.EvalRequest false negative")
 	}
 }
 
 func TestLogging(t *testing.T) {
-	logger := &mockResultsLogger{}
-	engine := NewIPReputationEngine(&mockFileSystem{}, logger)
+	mrl := &mockResultsLogger{}
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"4.3.2.1"})
 
 	request := &mockHTTPRequest{remoteAddr: "4.3.2.1"}
-	engine.EvalRequest(request)
+	engine.EvalRequest(request, mrl)
 
-	if logger.ipReputationTriggeredCalled != 1 {
+	if mrl.ipReputationTriggeredCalled != 1 {
 		t.Fatalf("IPReputationEngine failed to log blocked request")
 	}
 }
 
 func TestNoLogging(t *testing.T) {
+	mrl := &mockResultsLogger{}
 	logger := &mockResultsLogger{}
-	engine := NewIPReputationEngine(&mockFileSystem{}, logger)
+	engine := NewIPReputationEngine(&mockFileSystem{})
 	engine.PutIPReputationList([]string{"4.3.2.1"})
 
 	request := &mockHTTPRequest{remoteAddr: "0.0.0.0"}
-	engine.EvalRequest(request)
+	engine.EvalRequest(request, mrl)
 
 	if logger.ipReputationTriggeredCalled != 0 {
 		t.Fatalf("IPReputationEngine logged non-blocked request")
@@ -143,20 +151,21 @@ func TestNoLogging(t *testing.T) {
 }
 
 func TestNewIPReputationEngine(t *testing.T) {
+	mrl := &mockResultsLogger{}
 	mockFs := &mockFileSystem{content: "0.0.0.0/32\n255.255.255.255"}
-	engine := NewIPReputationEngine(mockFs, &mockResultsLogger{})
+	engine := NewIPReputationEngine(mockFs)
 	if mockFs.readFileCalled != 1 {
 		t.Fatalf("NewIPReputationEngine didn't successfully read from disk")
 	}
 
 	request := &mockHTTPRequest{remoteAddr: "0.0.0.0"}
-	isMatch := engine.EvalRequest(request) == waf.Block
+	isMatch := engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("NewIPReputationEngine didn't successfully parse IPs from disk")
 	}
 
 	request = &mockHTTPRequest{remoteAddr: "255.255.255.255"}
-	isMatch = engine.EvalRequest(request) == waf.Block
+	isMatch = engine.EvalRequest(request, mrl) == waf.Block
 	if !isMatch {
 		t.Fatalf("NewIPReputationEngine didn't successfully parse IPs from disk")
 	}
@@ -164,7 +173,7 @@ func TestNewIPReputationEngine(t *testing.T) {
 
 func TestPutIPReputationList(t *testing.T) {
 	mockFs := &mockFileSystem{}
-	engine := NewIPReputationEngine(mockFs, &mockResultsLogger{})
+	engine := NewIPReputationEngine(mockFs)
 
 	engine.PutIPReputationList([]string{"0.0.0.0", "255.255.255.255/32"})
 	if mockFs.writeFileCalled != 1 {
@@ -223,6 +232,6 @@ type mockResultsLogger struct {
 	ipReputationTriggeredCalled int
 }
 
-func (rl *mockResultsLogger) IPReputationTriggered(request ResultsLoggerHTTPRequest) {
+func (rl *mockResultsLogger) IPReputationTriggered() {
 	rl.ipReputationTriggeredCalled++
 }

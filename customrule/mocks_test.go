@@ -10,7 +10,7 @@ func newEngineWithCustomRules(rules ...waf.CustomRule) (engine waf.CustomRuleEng
 	geoDB := &mockGeoDB{}
 	mref := newMockMultiRegexEngineFactory()
 	resLog = newMockResultsLogger()
-	cref := NewEngineFactory(mref, resLog, geoDB)
+	cref := NewEngineFactory(mref, geoDB)
 	config := &mockCustomRuleConfig{customRules: rules}
 	engine, err = cref.NewEngine(config)
 	return
@@ -149,8 +149,8 @@ type mockResultsLogger struct {
 	ruleMatched map[string]bool
 }
 
-func (l *mockResultsLogger) CustomRuleTriggered(request ResultsLoggerHTTPRequest, rule waf.CustomRule, matchedConditions []ResultsLoggerMatchedConditions) {
-	l.ruleMatched[rule.Name()] = true
+func (l *mockResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []waf.ResultsLoggerCustomRulesMatchedConditions) {
+	l.ruleMatched[customRuleID] = true
 	return
 }
 

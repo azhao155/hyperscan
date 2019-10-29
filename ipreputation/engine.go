@@ -15,15 +15,14 @@ const badBotsfileName = waf.Path + "badbots.txt"
 const xForwardedForHeaderName = "X-Forwarded-For"
 
 type engineImpl struct {
-	ipMatcher     *binaryTrie
-	writeMutex    sync.Mutex
-	fs            FileSystem
-	resultsLogger ResultsLogger
+	ipMatcher  *binaryTrie
+	writeMutex sync.Mutex
+	fs         FileSystem
 }
 
 // NewIPReputationEngine creates a engine for determining an ip's reputation
-func NewIPReputationEngine(fs FileSystem, resultsLogger ResultsLogger) waf.IPReputationEngine {
-	e := &engineImpl{fs: fs, resultsLogger: resultsLogger}
+func NewIPReputationEngine(fs FileSystem) waf.IPReputationEngine {
+	e := &engineImpl{fs: fs}
 	ips := e.readFromDisk(badBotsfileName)
 	e.ipMatcher = newBinaryTrie(ips)
 	return e
@@ -36,7 +35,7 @@ func (e *engineImpl) PutIPReputationList(ips []string) {
 	e.ipMatcher = newBinaryTrie(ips)
 }
 
-func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) waf.Decision {
+func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest, resultsLogger waf.IPReputationResultsLogger) waf.Decision {
 	var ips []string
 	for _, header := range req.Headers() {
 		if strings.EqualFold(header.Key(), xForwardedForHeaderName) {
@@ -48,12 +47,12 @@ func (e *engineImpl) EvalRequest(req waf.IPReputationEngineHTTPRequest) waf.Deci
 	for _, ip := range ips {
 		isMatch, err := e.ipMatcher.match(ip)
 		if err != nil {
-			e.resultsLogger.IPReputationTriggered(req)
+			resultsLogger.IPReputationTriggered()
 			return waf.Block
 		}
 		// TO DO: replace return waf.Block with config-specified action
 		if isMatch {
-			e.resultsLogger.IPReputationTriggered(req)
+			resultsLogger.IPReputationTriggered()
 			return waf.Block
 		}
 	}

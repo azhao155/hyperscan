@@ -43,13 +43,13 @@ func TestRequestHeadersContainsBlockPositive(t *testing.T) {
 			&mockHeaderPair{k: "X-Last-Name", v: "Travolta"},
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 
@@ -71,13 +71,13 @@ func TestRequestHeadersContainsBlockNegative(t *testing.T) {
 			&mockHeaderPair{k: "X-Last-Name", v: "Dylan"},
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -122,13 +122,13 @@ func TestContentLengthLessThan(t *testing.T) {
 			&mockHeaderPair{k: "Content-Type", v: "text/plain"},
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(contentLengthLessThanBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(contentLengthLessThanBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()

@@ -52,7 +52,7 @@ func TestStringOperators(t *testing.T) {
 			},
 		}
 
-		engine, _, err := newEngineWithCustomRules(rules...)
+		engine, resLog, err := newEngineWithCustomRules(rules...)
 		if err != nil {
 			fmt.Fprintf(&b, "Test case %v: Got unexpected error: %s\n", i, err)
 			continue
@@ -61,7 +61,7 @@ func TestStringOperators(t *testing.T) {
 		req1 := &mockWafHTTPRequest{uri: test.inputURI, method: "GET"}
 
 		// Act
-		eval := engine.NewEvaluation(logger, req1)
+		eval := engine.NewEvaluation(logger, resLog, req1)
 		defer eval.Close()
 		err = eval.ScanHeaders()
 		decision := eval.EvalRules()
@@ -153,7 +153,7 @@ func TestTransformations(t *testing.T) {
 			},
 		}
 
-		engine, _, err := newEngineWithCustomRules(rules...)
+		engine, resLog, err := newEngineWithCustomRules(rules...)
 		if err != nil {
 			fmt.Fprintf(&b, "Test case %v: Got unexpected error: %s\n", i, err)
 			continue
@@ -162,7 +162,7 @@ func TestTransformations(t *testing.T) {
 		req1 := &mockWafHTTPRequest{uri: "/", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: test.input}}}
 
 		// Act
-		eval := engine.NewEvaluation(logger, req1)
+		eval := engine.NewEvaluation(logger, resLog, req1)
 		defer eval.Close()
 		err = eval.ScanHeaders()
 		decision := eval.EvalRules()
@@ -222,7 +222,7 @@ func TestMultipleRulesSameMatchVar(t *testing.T) {
 			action: "Block",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -231,17 +231,17 @@ func TestMultipleRulesSameMatchVar(t *testing.T) {
 	req3 := &mockWafHTTPRequest{uri: "/?a=ghi", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
 
-	eval3 := engine.NewEvaluation(logger, req3)
+	eval3 := engine.NewEvaluation(logger, resLog, req3)
 	defer eval3.Close()
 	err3 := eval3.ScanHeaders()
 	decision3 := eval3.EvalRules()
@@ -279,7 +279,7 @@ func TestMultipleMatchValues(t *testing.T) {
 			action: "Block",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -288,17 +288,17 @@ func TestMultipleMatchValues(t *testing.T) {
 	req3 := &mockWafHTTPRequest{uri: "/?a=ghi", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
 
-	eval3 := engine.NewEvaluation(logger, req3)
+	eval3 := engine.NewEvaluation(logger, resLog, req3)
 	defer eval3.Close()
 	err3 := eval3.ScanHeaders()
 	decision3 := eval3.EvalRules()
@@ -334,7 +334,7 @@ func TestMultipleMatchVars(t *testing.T) {
 			action: "Block",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -343,17 +343,17 @@ func TestMultipleMatchVars(t *testing.T) {
 	req3 := &mockWafHTTPRequest{uri: "/?a=xyz", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: "xyz"}}}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
 
-	eval3 := engine.NewEvaluation(logger, req3)
+	eval3 := engine.NewEvaluation(logger, resLog, req3)
 	defer eval3.Close()
 	err3 := eval3.ScanHeaders()
 	decision3 := eval3.EvalRules()
@@ -391,7 +391,7 @@ func TestMultipleMatchVarsAndVals(t *testing.T) {
 			action: "Block",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -415,7 +415,7 @@ func TestMultipleMatchVarsAndVals(t *testing.T) {
 		req := &mockWafHTTPRequest{uri: test.inputURI, method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: test.inputHeaderVal}}}
 
 		// Act
-		eval := engine.NewEvaluation(logger, req)
+		eval := engine.NewEvaluation(logger, resLog, req)
 		defer eval.Close()
 		err = eval.ScanHeaders()
 		decision := eval.EvalRules()
@@ -458,7 +458,7 @@ func TestRuleAllow(t *testing.T) {
 			action: "Allow",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -466,12 +466,12 @@ func TestRuleAllow(t *testing.T) {
 	req2 := &mockWafHTTPRequest{uri: "/?a=def", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
@@ -511,7 +511,7 @@ func TestLogging(t *testing.T) {
 	req1 := &mockWafHTTPRequest{uri: "/?a=abc", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
@@ -543,7 +543,7 @@ func TestIPMatch(t *testing.T) {
 			action: "Block",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -551,12 +551,12 @@ func TestIPMatch(t *testing.T) {
 	req2 := &mockWafHTTPRequest{uri: "/", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: "1.2.0.0"}}}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
@@ -589,7 +589,7 @@ func TestGeoMatch(t *testing.T) {
 			action: "Block",
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(rules...)
+	engine, resLog, err := newEngineWithCustomRules(rules...)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -597,12 +597,12 @@ func TestGeoMatch(t *testing.T) {
 	req2 := &mockWafHTTPRequest{uri: "/", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: "3.3.3.3:443,4.4.4.4:443"}}}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()

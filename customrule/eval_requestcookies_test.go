@@ -41,13 +41,13 @@ func TestRequestCookiesContainsBlockPositive(t *testing.T) {
 			&mockHeaderPair{k: "Cookie", v: "the_oracles_special_recipe=neo+is+the+one; the_matrix_cookie_house=agent+smith"},
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(requestCookiesContainsBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(requestCookiesContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -69,13 +69,13 @@ func TestRequestCookiesContainsBlockNegative(t *testing.T) {
 			&mockHeaderPair{k: "Cookie", v: "the_oracles_special_recipe=the+one; the_matrix_cookie_house=neo+is+the+anomaly"},
 		},
 	}
-	engine, _, err := newEngineWithCustomRules(queryStringContainsBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(queryStringContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()

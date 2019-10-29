@@ -27,7 +27,6 @@ type customerFirewallBodyParseLogEntry struct {
 type customerFirewallLogEntryProperty struct {
 	InstanceID      string                          `json:"instanceId"`
 	ClientIP        string                          `json:"clientIp"`
-	ClientPort      string                          `json:"clientPort"`
 	RequestURI      string                          `json:"requestUri"`
 	RuleSetType     string                          `json:"ruleSetType"`
 	RuleSetVersion  string                          `json:"ruleSetVersion"`
@@ -41,12 +40,12 @@ type customerFirewallLogEntryProperty struct {
 	PolicyID        string                          `json:"policyId"`
 	PolicyScope     string                          `json:"policyScope"`
 	PolicyScopeName string                          `json:"policyScopeName"`
+	Engine          string                          `json:"engine"`
 }
 
 type customerFirewallLimitExceedLogEntryProperty struct {
 	InstanceID      string `json:"instanceId"`
 	ClientIP        string `json:"clientIp"`
-	ClientPort      string `json:"clientPort"`
 	RequestURI      string `json:"requestUri"`
 	RuleSetType     string `json:"ruleSetType"`
 	RuleSetVersion  string `json:"ruleSetVersion"`
@@ -57,12 +56,12 @@ type customerFirewallLimitExceedLogEntryProperty struct {
 	PolicyID        string `json:"policyId"`
 	PolicyScope     string `json:"policyScope"`
 	PolicyScopeName string `json:"policyScopeName"`
+	Engine          string `json:"engine"`
 }
 
 type customerFirewallBodyParseLogEntryProperty struct {
 	InstanceID      string                                   `json:"instanceId"`
 	ClientIP        string                                   `json:"clientIp"`
-	ClientPort      string                                   `json:"clientPort"`
 	RequestURI      string                                   `json:"requestUri"`
 	RuleSetType     string                                   `json:"ruleSetType"`
 	RuleSetVersion  string                                   `json:"ruleSetVersion"`
@@ -74,6 +73,7 @@ type customerFirewallBodyParseLogEntryProperty struct {
 	PolicyID        string                                   `json:"policyId"`
 	PolicyScope     string                                   `json:"policyScope"`
 	PolicyScopeName string                                   `json:"policyScopeName"`
+	Engine          string                                   `json:"engine"`
 }
 
 type customerFirewallLogDetailsEntry struct {
@@ -98,10 +98,8 @@ type customerFirewallIPReputationLogEntry struct {
 type customerFirewallIPReputationLogEntryProperty struct {
 	InstanceID      string `json:"instanceId"`
 	ClientIP        string `json:"clientIp"`
-	ClientPort      string `json:"clientPort"`
 	RequestURI      string `json:"requestUri"`
 	RuleSetType     string `json:"ruleSetType"`
-	RuleSetVersion  string `json:"ruleSetVersion"`
 	Message         string `json:"message"`
 	Action          string `json:"action"`
 	Hostname        string `json:"hostname"`
@@ -109,6 +107,7 @@ type customerFirewallIPReputationLogEntryProperty struct {
 	PolicyID        string `json:"policyId"`
 	PolicyScope     string `json:"policyScope"`
 	PolicyScopeName string `json:"policyScopeName"`
+	Engine          string `json:"engine"`
 }
 
 type customerFirewallCustomRuleLogEntry struct {

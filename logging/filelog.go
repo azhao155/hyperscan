@@ -1,9 +1,6 @@
 package logging
 
 import (
-	"azwaf/customrule"
-	"azwaf/ipreputation"
-	"azwaf/secrule"
 	"azwaf/waf"
 	"bytes"
 	"encoding/json"
@@ -23,19 +20,16 @@ const FileName = "waf_json.log"
 
 const azureLogDateFormat = "2006-01-02T15:04:05-07:00"
 
-// FilelogResultsLogger writes customer facing logs to a file.
-type FilelogResultsLogger struct {
+type logFileWriter struct {
 	fileSystem   LogFileSystem
 	file         LogFile
 	logger       zerolog.Logger
 	writelogline chan []byte
 	writeDone    chan bool
-	metaData     waf.ConfigLogMetaData
 }
 
-// NewFileResultsLogger creates a results logger that write log messages to file.
-func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (*FilelogResultsLogger, error) {
-	r := &FilelogResultsLogger{fileSystem: fileSystem, logger: logger}
+func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger) (*logFileWriter, error) {
+	r := &logFileWriter{fileSystem: fileSystem, logger: logger}
 
 	err := fileSystem.MkDir(Path)
 	if err != nil {
@@ -62,214 +56,223 @@ func NewFileResultsLogger(fileSystem LogFileSystem, logger zerolog.Logger) (*Fil
 	return r, nil
 }
 
-// SecRuleTriggered is to be called when a SecRule was triggered.
-func (l *FilelogResultsLogger) SecRuleTriggered(request secrule.ResultsLoggerHTTPRequest, stmt secrule.Statement, action string, msg string, logData string) {
-	var ruleID int
-	switch stmt := stmt.(type) {
-	case *secrule.Rule:
-		ruleID = stmt.ID
-	case *secrule.ActionStmt:
-		ruleID = stmt.ID
+func (l *logFileWriter) writeLogLine(data interface{}) {
+	bb, err := json.Marshal(data)
+	if err != nil {
+		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
 	}
 
-	rID := ""
-	iID := ""
-	if l.metaData != nil {
-		rID = l.metaData.ResourceID()
-		iID = l.metaData.InstanceID()
+	l.writelogline <- bb
+	<-l.writeDone
+}
+
+type fileLogResultsLoggerFactory struct {
+	writer *logFileWriter
+}
+
+// NewFileLogResultsLoggerFactory creates a factory which can create result loggers that writes to files.
+func NewFileLogResultsLoggerFactory(fileSystem LogFileSystem, logger zerolog.Logger) (resultsLoggerFactory waf.ResultsLoggerFactory, err error) {
+	var writer *logFileWriter
+	writer, err = newLogFileWriter(fileSystem, logger)
+	if err != nil {
+		return
 	}
 
-	var policyScope, policyScopeName string
+	resultsLoggerFactory = &fileLogResultsLoggerFactory{
+		writer: writer,
+	}
+
+	return
+}
+
+// NewFileResultsLogger creates a results logger that write log messages to file.
+func (f *fileLogResultsLoggerFactory) NewResultsLogger(request waf.HTTPRequest, configLogMetaData waf.ConfigLogMetaData, isDetectionMode bool) waf.ResultsLogger {
+	l := &filelogResultsLogger{
+		writer:          f.writer,
+		triggerTime:     time.Now().UTC(),
+		isDetectionMode: isDetectionMode,
+		request:         request,
+	}
+
+	if configLogMetaData != nil {
+		l.resourceID = configLogMetaData.ResourceID()
+		l.instanceID = configLogMetaData.InstanceID()
+	}
+
 	if request.LogMetaData() != nil {
-		policyScope = request.LogMetaData().Scope()
-		policyScopeName = request.LogMetaData().ScopeName()
+		l.policyScope = request.LogMetaData().Scope()
+		l.policyScopeName = request.LogMetaData().ScopeName()
 	}
 
-	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
-
-	lg := &customerFirewallLogEntry{
-		TimeStamp:     triggerTime.Format(azureLogDateFormat),
-		ResourceID:    rID,
-		OperationName: "ApplicationGatewayFirewall",
-		Category:      "ApplicationGatewayFirewallLog",
-		Properties: customerFirewallLogEntryProperty{
-			InstanceID: iID,
-			RequestURI: request.URI(),
-			RuleID:     strconv.Itoa(ruleID),
-			Message:    msg,
-			Action:     action, // TODO "Blocked/Detected" instead of "deny", and based on isDetectionMode
-			Details: customerFirewallLogDetailsEntry{
-				Message: logData,
-			},
-			TransactionID:   request.TransactionID(),
-			PolicyID:        request.ConfigID(),
-			PolicyScope:     policyScope,
-			PolicyScopeName: policyScopeName,
-		},
-	}
-
-	l.writeLogLine(lg)
-}
-
-// IPReputationTriggered is to be called when a the IP reputation engine resulted in a request being blocked.
-func (l *FilelogResultsLogger) IPReputationTriggered(request ipreputation.ResultsLoggerHTTPRequest) {
-	rID := ""
-	iID := ""
-	if l.metaData != nil {
-		rID = l.metaData.ResourceID()
-		iID = l.metaData.InstanceID()
-	}
-
-	var policyScope, policyScopeName string
-	if request.LogMetaData() != nil {
-		policyScope = request.LogMetaData().Scope()
-		policyScopeName = request.LogMetaData().ScopeName()
-	}
-
-	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
-
-	lg := &customerFirewallIPReputationLogEntry{
-		TimeStamp:     triggerTime.Format(azureLogDateFormat),
-		ResourceID:    rID,
-		OperationName: "ApplicationGatewayFirewall",
-		Category:      "ApplicationGatewayFirewallLog",
-		Properties: customerFirewallIPReputationLogEntryProperty{
-			InstanceID:      iID,
-			RequestURI:      request.URI(),
-			Message:         "IPReputationTriggered",
-			Action:          "Blocked", // TODO based on isDetectionMode
-			TransactionID:   request.TransactionID(),
-			PolicyID:        request.ConfigID(),
-			PolicyScope:     policyScope,
-			PolicyScopeName: policyScopeName,
-		},
-	}
-
-	l.writeLogLine(lg)
-}
-
-// FieldBytesLimitExceeded is to be called when the request body contained a field longer than the limit.
-func (l *FilelogResultsLogger) FieldBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
-	l.bytesLimitExceeded(request, fmt.Sprintf("Request body contained a field longer than the limit (%d bytes)", limit))
-}
-
-// PausableBytesLimitExceeded is to be called when the request body length (excluding file upload fields) exceeded the limit.
-func (l *FilelogResultsLogger) PausableBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
-	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length (excluding file upload fields) exceeded the limit (%d bytes)", limit))
-}
-
-// TotalBytesLimitExceeded is to be called when the request body length exceeded the limit.
-func (l *FilelogResultsLogger) TotalBytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
-	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes)", limit))
-}
-
-// TotalFullRawRequestBodyLimitExceeded is to be called when the request body length exceeded the limit while entire body was being scanned as a single field.
-func (l *FilelogResultsLogger) TotalFullRawRequestBodyLimitExceeded(request waf.ResultsLoggerHTTPRequest, limit int) {
-	l.bytesLimitExceeded(request, fmt.Sprintf("Request body length exceeded the limit (%d bytes) while the WAF was scanning the entire request body as a single field. The OWASP Core Rule Set and possibly other SecRule-based rule sets require this scan when the request body content-type is set to application/x-www-form-urlencoded.", limit))
-}
-
-func (l *FilelogResultsLogger) bytesLimitExceeded(request waf.ResultsLoggerHTTPRequest, msg string) {
-	rID := ""
-	iID := ""
-	if l.metaData != nil {
-		rID = l.metaData.ResourceID()
-		iID = l.metaData.InstanceID()
-	}
-
-	var policyScope, policyScopeName string
-	if request.LogMetaData() != nil {
-		policyScope = request.LogMetaData().Scope()
-		policyScopeName = request.LogMetaData().ScopeName()
-	}
-
-	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
-
-	lg := &customerFirewallLimitExceedLogEntry{
-		TimeStamp:     triggerTime.Format(azureLogDateFormat),
-		ResourceID:    rID,
-		OperationName: "ApplicationGatewayFirewall",
-		Category:      "ApplicationGatewayFirewallLog",
-		Properties: customerFirewallLimitExceedLogEntryProperty{
-			InstanceID:      iID,
-			RequestURI:      request.URI(),
-			Message:         msg,
-			Action:          "Blocked", // TODO based on isDetectionMode
-			TransactionID:   request.TransactionID(),
-			PolicyID:        request.ConfigID(),
-			PolicyScope:     policyScope,
-			PolicyScopeName: policyScopeName,
-		},
-	}
-
-	l.writeLogLine(lg)
-}
-
-// BodyParseError is to be called when the request body parser hit an error causing the request to be blocked.
-func (l *FilelogResultsLogger) BodyParseError(request waf.ResultsLoggerHTTPRequest, err error) {
-	rID := ""
-	iID := ""
-	if l.metaData != nil {
-		rID = l.metaData.ResourceID()
-		iID = l.metaData.InstanceID()
-	}
-
-	var policyScope, policyScopeName string
-	if request.LogMetaData() != nil {
-		policyScope = request.LogMetaData().Scope()
-		policyScopeName = request.LogMetaData().ScopeName()
-	}
-
-	triggerTime := time.Now().UTC() // TODO when ResultsLogger is per request, get this from l
-
-	lg := &customerFirewallBodyParseLogEntry{
-		TimeStamp:     triggerTime.Format(azureLogDateFormat),
-		ResourceID:    rID,
-		OperationName: "ApplicationGatewayFirewall",
-		Category:      "ApplicationGatewayFirewallLog",
-		Properties: customerFirewallBodyParseLogEntryProperty{
-			InstanceID:      iID,
-			RequestURI:      request.URI(),
-			Message:         fmt.Sprintf("Request body scanning error"),
-			Action:          "Blocked", // TODO based on isDetectionMode
-			TransactionID:   request.TransactionID(),
-			PolicyID:        request.ConfigID(),
-			PolicyScope:     policyScope,
-			PolicyScopeName: policyScopeName,
-			Details: customerFirewallLogBodyParseDetailsEntry{
-				Message: err.Error(),
-			},
-		},
-	}
-
-	l.writeLogLine(lg)
-}
-
-// CustomRuleTriggered is to be called when a custom rule was triggered.
-func (l *FilelogResultsLogger) CustomRuleTriggered(
-	request customrule.ResultsLoggerHTTPRequest,
-	rule waf.CustomRule,
-	matchedConditions []customrule.ResultsLoggerMatchedConditions,
-) {
-	var resourceID string
-	var instanceID string
-	if l.metaData != nil {
-		resourceID = l.metaData.ResourceID()
-		instanceID = l.metaData.InstanceID()
-	}
-
-	var policyScope, policyScopeName string
-	if request.LogMetaData() != nil {
-		policyScope = request.LogMetaData().Scope()
-		policyScopeName = request.LogMetaData().ScopeName()
-	}
-
-	var hostHeader string
 	for _, h := range request.Headers() {
 		if strings.EqualFold(h.Key(), "host") {
-			hostHeader = h.Value()
+			l.hostHeader = h.Value()
+			break
 		}
 	}
 
+	return l
+}
+
+type filelogResultsLogger struct {
+	writer          *logFileWriter
+	request         waf.HTTPRequest
+	triggerTime     time.Time
+	isDetectionMode bool
+	resourceID      string
+	instanceID      string
+	policyScope     string
+	policyScopeName string
+	hostHeader      string
+}
+
+type secRuleSetInfo struct {
+	ruleSetType    string
+	ruleSetVersion string
+}
+
+var secRuleSetInfos = map[waf.RuleSetID]secRuleSetInfo{
+	"OWASP CRS 3.0": {"OWASP", "CRS 3.0"},
+}
+
+// SecRuleTriggered is to be called when a SecRule was triggered.
+func (l *filelogResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID waf.RuleSetID) {
+	rsi := secRuleSetInfos[ruleSetID]
+
+	if action == "Blocked" && l.isDetectionMode {
+		action = "Detected"
+	}
+
+	lg := &customerFirewallLogEntry{
+		TimeStamp:     l.triggerTime.Format(azureLogDateFormat),
+		ResourceID:    l.resourceID,
+		OperationName: "ApplicationGatewayFirewall",
+		Category:      "ApplicationGatewayFirewallLog",
+		Properties: customerFirewallLogEntryProperty{
+			InstanceID:     l.instanceID,
+			ClientIP:       l.request.RemoteAddr(),
+			RequestURI:     l.request.URI(),
+			RuleID:         strconv.Itoa(ruleID),
+			RuleGroup:      "", // TODO write rule group
+			RuleSetType:    rsi.ruleSetType,
+			RuleSetVersion: rsi.ruleSetVersion,
+			Message:        msg,
+			Action:         action,
+			Details: customerFirewallLogDetailsEntry{
+				Message: logData,
+			},
+			Hostname:        l.hostHeader,
+			TransactionID:   l.request.TransactionID(),
+			PolicyID:        l.request.ConfigID(),
+			PolicyScope:     l.policyScope,
+			PolicyScopeName: l.policyScopeName,
+			Engine:          "Azwaf",
+		},
+	}
+
+	l.writer.writeLogLine(lg)
+}
+
+// IPReputationTriggered is to be called when a the IP reputation engine resulted in a request being blocked.
+func (l *filelogResultsLogger) IPReputationTriggered() {
+	lg := &customerFirewallIPReputationLogEntry{
+		TimeStamp:     l.triggerTime.Format(azureLogDateFormat),
+		ResourceID:    l.resourceID,
+		OperationName: "ApplicationGatewayFirewall",
+		Category:      "ApplicationGatewayFirewallLog",
+		Properties: customerFirewallIPReputationLogEntryProperty{
+			InstanceID:      l.instanceID,
+			ClientIP:        l.request.RemoteAddr(),
+			RequestURI:      l.request.URI(),
+			RuleSetType:     "MicrosoftBotProtection",
+			Message:         "IPReputationTriggered",
+			Action:          l.blockedOrDetectedActionString(),
+			Hostname:        l.hostHeader,
+			TransactionID:   l.request.TransactionID(),
+			PolicyID:        l.request.ConfigID(),
+			PolicyScope:     l.policyScope,
+			PolicyScopeName: l.policyScopeName,
+			Engine:          "Azwaf",
+		},
+	}
+
+	l.writer.writeLogLine(lg)
+}
+
+// FieldBytesLimitExceeded is to be called when the request body contained a field longer than the limit.
+func (l *filelogResultsLogger) FieldBytesLimitExceeded(limit int) {
+	l.bytesLimitExceeded(fmt.Sprintf("Request body contained a field longer than the limit (%d bytes)", limit))
+}
+
+// PausableBytesLimitExceeded is to be called when the request body length (excluding file upload fields) exceeded the limit.
+func (l *filelogResultsLogger) PausableBytesLimitExceeded(limit int) {
+	l.bytesLimitExceeded(fmt.Sprintf("Request body length (excluding file upload fields) exceeded the limit (%d bytes)", limit))
+}
+
+// TotalBytesLimitExceeded is to be called when the request body length exceeded the limit.
+func (l *filelogResultsLogger) TotalBytesLimitExceeded(limit int) {
+	l.bytesLimitExceeded(fmt.Sprintf("Request body length exceeded the limit (%d bytes)", limit))
+}
+
+// TotalFullRawRequestBodyLimitExceeded is to be called when the request body length exceeded the limit while entire body was being scanned as a single field.
+func (l *filelogResultsLogger) TotalFullRawRequestBodyLimitExceeded(limit int) {
+	l.bytesLimitExceeded(fmt.Sprintf("Request body length exceeded the limit (%d bytes) while the WAF was scanning the entire request body as a single field. The OWASP Core Rule Set and possibly other SecRule-based rule sets require this scan when the request body content-type is set to application/x-www-form-urlencoded.", limit))
+}
+
+func (l *filelogResultsLogger) bytesLimitExceeded(msg string) {
+	lg := &customerFirewallLimitExceedLogEntry{
+		TimeStamp:     l.triggerTime.Format(azureLogDateFormat),
+		ResourceID:    l.resourceID,
+		OperationName: "ApplicationGatewayFirewall",
+		Category:      "ApplicationGatewayFirewallLog",
+		Properties: customerFirewallLimitExceedLogEntryProperty{
+			InstanceID:      l.instanceID,
+			ClientIP:        l.request.RemoteAddr(),
+			RequestURI:      l.request.URI(),
+			Message:         msg,
+			Action:          l.blockedOrDetectedActionString(),
+			Hostname:        l.hostHeader,
+			TransactionID:   l.request.TransactionID(),
+			PolicyID:        l.request.ConfigID(),
+			PolicyScope:     l.policyScope,
+			PolicyScopeName: l.policyScopeName,
+			Engine:          "Azwaf",
+		},
+	}
+
+	l.writer.writeLogLine(lg)
+}
+
+// BodyParseError is to be called when the request body parser hit an error causing the request to be blocked.
+func (l *filelogResultsLogger) BodyParseError(err error) {
+	lg := &customerFirewallBodyParseLogEntry{
+		TimeStamp:     l.triggerTime.Format(azureLogDateFormat),
+		ResourceID:    l.resourceID,
+		OperationName: "ApplicationGatewayFirewall",
+		Category:      "ApplicationGatewayFirewallLog",
+		Properties: customerFirewallBodyParseLogEntryProperty{
+			InstanceID:      l.instanceID,
+			ClientIP:        l.request.RemoteAddr(),
+			RequestURI:      l.request.URI(),
+			Message:         fmt.Sprintf("Request body scanning error"),
+			Action:          l.blockedOrDetectedActionString(),
+			Hostname:        l.hostHeader,
+			TransactionID:   l.request.TransactionID(),
+			PolicyID:        l.request.ConfigID(),
+			PolicyScope:     l.policyScope,
+			PolicyScopeName: l.policyScopeName,
+			Details: customerFirewallLogBodyParseDetailsEntry{
+				Message: err.Error(),
+			},
+			Engine: "Azwaf",
+		},
+	}
+
+	l.writer.writeLogLine(lg)
+}
+
+// CustomRuleTriggered is to be called when a custom rule was triggered.
+func (l *filelogResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []waf.ResultsLoggerCustomRulesMatchedConditions) {
 	var message bytes.Buffer
 	for _, rlmc := range matchedConditions {
 		// Space after between each sentence.
@@ -290,54 +293,35 @@ func (l *FilelogResultsLogger) CustomRuleTriggered(
 		message.WriteString(".")
 	}
 
-	action := customRuleActionString(rule.Action(), false) // TODO based on real isDetectionMode
-	triggerTime := time.Now().UTC()                        // TODO when ResultsLogger is per request, get this from l
-
 	lg := &customerFirewallCustomRuleLogEntry{
-		TimeStamp:     triggerTime.Format(azureLogDateFormat),
-		ResourceID:    resourceID,
+		TimeStamp:     l.triggerTime.Format(azureLogDateFormat),
+		ResourceID:    l.resourceID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
 		Properties: customerFirewallCustomRuleLogEntryProperties{
-			InstanceID:      instanceID,
-			ClientIP:        request.RemoteAddr(),
-			RequestURI:      request.URI(),
+			InstanceID:      l.instanceID,
+			ClientIP:        l.request.RemoteAddr(),
+			RequestURI:      l.request.URI(),
 			RuleSetType:     "Custom",
-			RuleID:          rule.Name(),
+			RuleID:          customRuleID,
 			Message:         message.String(),
-			Action:          action,
-			Hostname:        hostHeader,
-			TransactionID:   request.TransactionID(),
-			PolicyID:        request.ConfigID(),
-			PolicyScope:     policyScope,
-			PolicyScopeName: policyScopeName,
+			Action:          l.customRuleActionString(action),
+			Hostname:        l.hostHeader,
+			TransactionID:   l.request.TransactionID(),
+			PolicyID:        l.request.ConfigID(),
+			PolicyScope:     l.policyScope,
+			PolicyScopeName: l.policyScopeName,
 			Engine:          "Azwaf",
 		},
 	}
 
-	l.writeLogLine(lg)
+	l.writer.writeLogLine(lg)
 }
 
-func (l *FilelogResultsLogger) writeLogLine(data interface{}) {
-	bb, err := json.Marshal(data)
-	if err != nil {
-		l.logger.Error().Err(err).Msg("Error while marshaling JSON results log")
-	}
-
-	l.writelogline <- bb
-	<-l.writeDone
-}
-
-// SetLogMetaData is to be called during initialization to set data needed by the logger later.
-func (l *FilelogResultsLogger) SetLogMetaData(metaData waf.ConfigLogMetaData) {
-	// Remove this function and let this data just be part of the normal PutConfig. More logical place, and easier for persistence between Azwaf restarts.
-	l.metaData = metaData
-}
-
-func customRuleActionString(customRuleAction string, isDetectionMode bool) string {
+func (l *filelogResultsLogger) customRuleActionString(customRuleAction string) string {
 	switch customRuleAction {
 	case "Block":
-		if isDetectionMode {
+		if l.isDetectionMode {
 			return "Detected"
 		}
 		return "Blocked"
@@ -346,4 +330,11 @@ func customRuleActionString(customRuleAction string, isDetectionMode bool) strin
 	default:
 		return customRuleAction
 	}
+}
+
+func (l *filelogResultsLogger) blockedOrDetectedActionString() string {
+	if l.isDetectionMode {
+		return "Detected"
+	}
+	return "Blocked"
 }

@@ -2,7 +2,7 @@ package waf
 
 // IPReputationEngine compares incoming requests' IPs to a list of known malicious IPs.
 type IPReputationEngine interface {
-	EvalRequest(req IPReputationEngineHTTPRequest) Decision
+	EvalRequest(req IPReputationEngineHTTPRequest, resultsLogger IPReputationResultsLogger) Decision
 	PutIPReputationList([]string)
 }
 
@@ -10,5 +10,9 @@ type IPReputationEngine interface {
 type IPReputationEngineHTTPRequest interface {
 	RemoteAddr() string
 	Headers() []HeaderPair
-	ResultsLoggerHTTPRequest
+}
+
+// IPReputationResultsLogger is where the IP reputation engine writes the high level customer facing results.
+type IPReputationResultsLogger interface {
+	IPReputationTriggered()
 }

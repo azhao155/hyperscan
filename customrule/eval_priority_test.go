@@ -53,7 +53,7 @@ func TestCustomRulesWithPriorities(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 
 	// Arrange
-	engine, _, err := newEngineWithCustomRules(headerAllowHighPriorityRule, methodBlockLowPriorityRule)
+	engine, resLog, err := newEngineWithCustomRules(headerAllowHighPriorityRule, methodBlockLowPriorityRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -72,12 +72,12 @@ func TestCustomRulesWithPriorities(t *testing.T) {
 	}
 
 	// Act
-	blockEval := engine.NewEvaluation(logger, blockReq)
+	blockEval := engine.NewEvaluation(logger, resLog, blockReq)
 	defer blockEval.Close()
 	blockErr := blockEval.ScanHeaders()
 	blockDecision := blockEval.EvalRules()
 
-	allowEval := engine.NewEvaluation(logger, allowReq)
+	allowEval := engine.NewEvaluation(logger, resLog, allowReq)
 	defer allowEval.Close()
 	allowErr := allowEval.ScanHeaders()
 	allowDecision := allowEval.EvalRules()
@@ -95,7 +95,7 @@ func TestCustomRulesWithPrioritiesInvertedOrder(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 
 	// Arrange
-	engine, _, err := newEngineWithCustomRules(methodBlockLowPriorityRule, headerAllowHighPriorityRule)
+	engine, resLog, err := newEngineWithCustomRules(methodBlockLowPriorityRule, headerAllowHighPriorityRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -114,12 +114,12 @@ func TestCustomRulesWithPrioritiesInvertedOrder(t *testing.T) {
 	}
 
 	// Act
-	blockEval := engine.NewEvaluation(logger, blockReq)
+	blockEval := engine.NewEvaluation(logger, resLog, blockReq)
 	defer blockEval.Close()
 	blockErr := blockEval.ScanHeaders()
 	blockDecision := blockEval.EvalRules()
 
-	allowEval := engine.NewEvaluation(logger, allowReq)
+	allowEval := engine.NewEvaluation(logger, resLog, allowReq)
 	defer allowEval.Close()
 	allowErr := allowEval.ScanHeaders()
 	allowDecision := allowEval.EvalRules()

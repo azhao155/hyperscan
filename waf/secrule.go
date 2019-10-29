@@ -9,7 +9,7 @@ type SecRuleEngineFactory interface {
 
 // SecRuleEngine is a WAF engine compatible with a subset of the ModSecurity SecRule language.
 type SecRuleEngine interface {
-	NewEvaluation(logger zerolog.Logger, req HTTPRequest) SecRuleEvaluation
+	NewEvaluation(logger zerolog.Logger, resultsLogger SecRuleResultsLogger, req HTTPRequest) SecRuleEvaluation
 	UsesFullRawRequestBody() bool
 }
 
@@ -23,3 +23,8 @@ type SecRuleEvaluation interface {
 
 // RuleSetID identifies which rule set to initialize the engine with.
 type RuleSetID string
+
+// SecRuleResultsLogger is where the SecRule engine writes the high level customer facing results.
+type SecRuleResultsLogger interface {
+	SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID RuleSetID)
+}

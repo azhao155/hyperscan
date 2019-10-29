@@ -1,12 +1,10 @@
 package logging
 
 import (
-	"azwaf/customrule"
-	"azwaf/secrule"
 	"azwaf/waf"
 	"bytes"
 	"encoding/json"
-	"io/ioutil"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -18,42 +16,14 @@ import (
 
 func TestSecRuleTriggered(t *testing.T) {
 	// Arrange
-	request := &mockWafHTTPRequest{
-		configID: "waf1",
-		uri:      "/a",
-	}
-
-	stat := &secrule.Rule{
-		ID: 11,
-	}
-
-	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
-	fileSystem := newMockFileSystem()
-	logger, err := NewFileResultsLogger(fileSystem, zeroLogger)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
+	logger, fileSystem := arrangeTestResultsLogger(t, false)
 
 	// Act
-	logger.SetLogMetaData(&mockConfigLogMetaData{})
-	logger.SecRuleTriggered(request, stat, "deny", "abc", "bce")
-	log := fileSystem.Get(Path + FileName)
+	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
-	if !(strings.Count(log, "\n") == 1 && log[:len(log)-2] != "\n") {
-		t.Fatalf("Log line did not end with a line break")
-	}
-
-	// TODO remove this when ResultsLogger is per request and triggeredTime is just a field of ResultsLogger
-	azureLogDateFormatRegex := regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00`)
-	log = azureLogDateFormatRegex.ReplaceAllString(log, "0000-00-00T00:00:00+00:00")
-
-	log, err = reformatJSON(log)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
-
-	expected := `
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
 		{
 			"timeStamp": "0000-00-00T00:00:00+00:00",
 			"resourceId": "appgw",
@@ -61,73 +31,41 @@ func TestSecRuleTriggered(t *testing.T) {
 			"category": "ApplicationGatewayFirewallLog",
 			"properties": {
 				"instanceId": "vm1",
-				"clientIp": "",
-				"clientPort": "",
-				"requestUri": "/a",
-				"ruleSetType": "",
-				"ruleSetVersion": "",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "OWASP",
+				"ruleSetVersion": "CRS 3.0",
 				"ruleId": "11",
 				"ruleGroup": "",
 				"message": "abc",
-				"action": "deny",
+				"action": "Matched",
 				"details": {
 					"message": "bce",
 					"data": "",
 					"file": "",
 					"line": ""
 				},
-				"hostname": "",
+				"hostname": "example.com",
 				"transactionId": "abc",
-				"policyId": "waf1",
+				"policyId": "waf policy 1",
 				"policyScope": "Global",
-				"policyScopeName": "Default Policy"
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
 			}
 		}
-	`
-	expected, err = reformatJSON(expected)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
-
-	if log != expected {
-		t.Fatalf("Unexpected log entry. Actual:\n%v\nExpected:\n%v\n", log, expected)
-	}
+	`)
 }
 
-func TestIPReputationTriggered(t *testing.T) {
+func TestSecRuleTriggeredBlocked(t *testing.T) {
 	// Arrange
-	request := &mockWafHTTPRequest{
-		configID: "waf1",
-		uri:      "/a",
-	}
-
-	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
-	fileSystem := newMockFileSystem()
-	logger, err := NewFileResultsLogger(fileSystem, zeroLogger)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
+	logger, fileSystem := arrangeTestResultsLogger(t, false)
 
 	// Act
-	logger.SetLogMetaData(&mockConfigLogMetaData{})
-	logger.IPReputationTriggered(request)
-	log := fileSystem.Get(Path + FileName)
+	logger.SecRuleTriggered(11, "Blocked", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
-	if !(strings.Count(log, "\n") == 1 && log[:len(log)-2] != "\n") {
-		t.Fatalf("Log line did not end with a line break")
-	}
-
-	// TODO remove this when ResultsLogger is per request and triggeredTime is just a field of ResultsLogger
-	azureLogDateFormatRegex := regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00`)
-	log = azureLogDateFormatRegex.ReplaceAllString(log, "0000-00-00T00:00:00+00:00")
-
-	log, err = reformatJSON(log)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
-
-	expected := `
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
 		{
 			"timeStamp": "0000-00-00T00:00:00+00:00",
 			"resourceId": "appgw",
@@ -135,45 +73,185 @@ func TestIPReputationTriggered(t *testing.T) {
 			"category": "ApplicationGatewayFirewallLog",
 			"properties": {
 				"instanceId": "vm1",
-				"clientIp": "",
-				"clientPort": "",
-				"requestUri": "/a",
-				"ruleSetType": "",
-				"ruleSetVersion": "",
-				"message": "IPReputationTriggered",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "OWASP",
+				"ruleSetVersion": "CRS 3.0",
+				"ruleId": "11",
+				"ruleGroup": "",
+				"message": "abc",
 				"action": "Blocked",
-				"hostname": "",
+				"details": {
+					"message": "bce",
+					"data": "",
+					"file": "",
+					"line": ""
+				},
+				"hostname": "example.com",
 				"transactionId": "abc",
-				"policyId": "waf1",
+				"policyId": "waf policy 1",
 				"policyScope": "Global",
-				"policyScopeName": "Default Policy"
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
 			}
 		}
-	`
-	expected, err = reformatJSON(expected)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
-
-	if log != expected {
-		t.Fatalf("Unexpected log entry. Actual:\n%v\nExpected:\n%v\n", log, expected)
-	}
+	`)
 }
 
-func TestCustomRuleTriggered(t *testing.T) {
+func TestSecRuleDetectionModeTriggered(t *testing.T) {
 	// Arrange
-	request := &mockWafHTTPRequest{configID: "waf1", uri: "/a"}
-	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
-	fileSystem := newMockFileSystem()
-	logger, err := NewFileResultsLogger(fileSystem, zeroLogger)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
+	logger, fileSystem := arrangeTestResultsLogger(t, true)
+
+	// Act
+	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+		{
+			"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+				"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "OWASP",
+				"ruleSetVersion": "CRS 3.0",
+				"ruleId": "11",
+				"ruleGroup": "",
+				"message": "abc",
+				"action": "Matched",
+				"details": {
+					"message": "bce",
+					"data": "",
+					"file": "",
+					"line": ""
+				},
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+			}
+		}
+	`)
+}
+
+func TestSecRuleDetectionModeBlocked(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, true)
+
+	// Act
+	logger.SecRuleTriggered(11, "Blocked", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+		{
+			"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+				"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "OWASP",
+				"ruleSetVersion": "CRS 3.0",
+				"ruleId": "11",
+				"ruleGroup": "",
+				"message": "abc",
+				"action": "Detected",
+				"details": {
+					"message": "bce",
+					"data": "",
+					"file": "",
+					"line": ""
+				},
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+			}
+		}
+	`)
+}
+
+func TestIPReputationTriggered(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, false)
+
+	// Act
+	logger.IPReputationTriggered()
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+	{
+		"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+			"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "MicrosoftBotProtection",
+				"message": "IPReputationTriggered",
+				"action": "Blocked",
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+		}
 	}
-	customRule := &mockCustomRule{}
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
+	`)
+}
+
+func TestIPReputationDetectionMode(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, true)
+
+	// Act
+	logger.IPReputationTriggered()
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+	{
+		"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+			"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "MicrosoftBotProtection",
+				"message": "IPReputationTriggered",
+				"action": "Detected",
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+		}
 	}
-	rlmc := []customrule.ResultsLoggerMatchedConditions{
+	`)
+}
+
+func TestCustomRuleTriggeredBlocked(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
 		{
 			ConditionIndex: 0,
 			VariableName:   "PostArgs",
@@ -189,25 +267,11 @@ func TestCustomRuleTriggered(t *testing.T) {
 	}
 
 	// Act
-	logger.SetLogMetaData(&mockConfigLogMetaData{})
-	logger.CustomRuleTriggered(request, customRule, rlmc)
-	log := fileSystem.Get(Path + FileName)
+	logger.CustomRuleTriggered("myCustomRule1", "Block", rlmc)
 
 	// Assert
-	if !(strings.Count(log, "\n") == 1 && log[:len(log)-2] != "\n") {
-		t.Fatalf("Log line did not end with a line break")
-	}
-
-	// TODO remove this when ResultsLogger is per request and triggeredTime is just a field of ResultsLogger
-	azureLogDateFormatRegex := regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00`)
-	log = azureLogDateFormatRegex.ReplaceAllString(log, "0000-00-00T00:00:00+00:00")
-
-	log, err = reformatJSON(log)
-	if err != nil {
-		t.Fatalf("Unexpected error %T: %v", err, err)
-	}
-
-	expected := `
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
 		{
 			"timeStamp": "0000-00-00T00:00:00+00:00",
 			"resourceId": "appgw",
@@ -216,31 +280,196 @@ func TestCustomRuleTriggered(t *testing.T) {
 			"properties": {
 				"instanceId": "vm1",
 				"clientIp": "1.2.3.4",
-				"requestUri": "/a",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
 				"ruleSetType": "Custom",
 				"ruleId": "myCustomRule1",
 				"message": "Found condition 0 in PostArgs, field name somefield, with value hello'\"\u0000world. Found condition 1 in RequestUri, with value abc.",
 				"action": "Blocked",
 				"hostname": "example.com",
 				"transactionId": "abc",
-				"policyId": "waf1",
+				"policyId": "waf policy 1",
 				"policyScope": "Global",
 				"policyScopeName": "Default Policy",
 				"engine": "Azwaf"
 			}
 		}
-	`
+	`)
+}
+
+func TestCustomRuleTriggeredAllowed(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
+		{
+			ConditionIndex: 0,
+			VariableName:   "RequestUri",
+			FieldName:      "",
+			MatchedValue:   "abc",
+		},
+	}
+
+	// Act
+	logger.CustomRuleTriggered("myCustomRule1", "Allow", rlmc)
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+		{
+			"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+				"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "Custom",
+				"ruleId": "myCustomRule1",
+				"message": "Found condition 0 in RequestUri, with value abc.",
+				"action": "Allowed",
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+			}
+		}
+	`)
+}
+
+func TestCustomRuleDetectionModeBlocked(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
+		{
+			ConditionIndex: 0,
+			VariableName:   "RequestUri",
+			FieldName:      "",
+			MatchedValue:   "abc",
+		},
+	}
+
+	// Act
+	logger.CustomRuleTriggered("myCustomRule1", "Block", rlmc)
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+		{
+			"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+				"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "Custom",
+				"ruleId": "myCustomRule1",
+				"message": "Found condition 0 in RequestUri, with value abc.",
+				"action": "Detected",
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+			}
+		}
+	`)
+}
+
+func TestCustomRuleDetectionModeAllowed(t *testing.T) {
+	// Arrange
+	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
+		{
+			ConditionIndex: 0,
+			VariableName:   "RequestUri",
+			FieldName:      "",
+			MatchedValue:   "abc",
+		},
+	}
+
+	// Act
+	logger.CustomRuleTriggered("myCustomRule1", "Allow", rlmc)
+
+	// Assert
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+		{
+			"timeStamp": "0000-00-00T00:00:00+00:00",
+			"resourceId": "appgw",
+			"operationName": "ApplicationGatewayFirewall",
+			"category": "ApplicationGatewayFirewallLog",
+			"properties": {
+				"instanceId": "vm1",
+				"clientIp": "1.2.3.4",
+				"requestUri": "/hello.php?arg1=aaaaaaabccc",
+				"ruleSetType": "Custom",
+				"ruleId": "myCustomRule1",
+				"message": "Found condition 0 in RequestUri, with value abc.",
+				"action": "Allowed",
+				"hostname": "example.com",
+				"transactionId": "abc",
+				"policyId": "waf policy 1",
+				"policyScope": "Global",
+				"policyScopeName": "Default Policy",
+				"engine": "Azwaf"
+			}
+		}
+	`)
+}
+
+func arrangeTestResultsLogger(t *testing.T, isDetectionMode bool) (waf.ResultsLogger, *mockFileSystem) {
+	request := &mockWafHTTPRequest{}
+	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
+	fileSystem := newMockFileSystem()
+	f, err := NewFileLogResultsLoggerFactory(fileSystem, zeroLogger)
+	if err != nil {
+		t.Fatalf("Unexpected error %T: %v", err, err)
+	}
+	mclmd := &mockConfigLogMetaData{}
+	logger := f.NewResultsLogger(request, mclmd, isDetectionMode)
+	if err != nil {
+		t.Fatalf("Unexpected error %T: %v", err, err)
+	}
+	return logger, fileSystem
+}
+
+func assertJSONLogLine(t *testing.T, actual string, expected string) {
+	if !(strings.Count(actual, "\n") == 1 && actual[:len(actual)-2] != "\n") {
+		t.Fatalf("Log line did not end with a line break")
+	}
+
+	actual = neutralizeDate(actual)
+
+	var err error
+	actual, err = reformatJSON(actual)
+	if err != nil {
+		t.Fatalf("Unexpected error %T: %v", err, err)
+	}
+
 	expected, err = reformatJSON(expected)
 	if err != nil {
 		t.Fatalf("Unexpected error %T: %v", err, err)
 	}
 
-	ioutil.WriteFile("actual.txt", []byte(log), 0777)
-	ioutil.WriteFile("expected.txt", []byte(expected), 0777)
-
-	if log != expected {
-		t.Fatalf("Unexpected log entry. Actual:\n%v\nExpected:\n%v\n", log, expected)
+	if actual != expected {
+		t.Fatalf("Unexpected log entry. Actual:\n%v\nExpected:\n%v\n", actual, expected)
 	}
+}
+
+func reformatJSON(s string) (string, error) {
+	var buf bytes.Buffer
+	err := json.Indent(&buf, []byte(s), "", "  ")
+	return strings.TrimSpace(buf.String()), err
+}
+
+func neutralizeDate(s string) string {
+	azureLogDateFormatRegex := regexp.MustCompile(`\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00`)
+	return azureLogDateFormatRegex.ReplaceAllString(s, "0000-00-00T00:00:00+00:00")
 }
 
 type mockFile struct {
@@ -276,19 +505,17 @@ func (fs *mockFileSystem) Get(name string) (content string) {
 	return fs.fmap[name].(*mockFile).Content
 }
 
-type mockWafHTTPRequest struct {
-	uri      string
-	method   string
-	configID string
-	body     string
-}
+type mockWafHTTPRequest struct{}
 
-func (r *mockWafHTTPRequest) ConfigID() string   { return r.configID }
-func (r *mockWafHTTPRequest) URI() string        { return r.uri }
+func (r *mockWafHTTPRequest) Method() string     { return "GET" }
+func (r *mockWafHTTPRequest) URI() string        { return "/hello.php?arg1=aaaaaaabccc" }
+func (r *mockWafHTTPRequest) Protocol() string   { return "HTTP/1.1" }
 func (r *mockWafHTTPRequest) RemoteAddr() string { return "1.2.3.4" }
 func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair {
 	return []waf.HeaderPair{&mockHeaderPair{k: "Host", v: "example.com"}}
 }
+func (r *mockWafHTTPRequest) ConfigID() string                    { return "waf policy 1" }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return &bytes.Buffer{} }
 func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
 
@@ -312,16 +539,6 @@ type mockConfigLogMetaData struct {
 func (h *mockConfigLogMetaData) ResourceID() string { return "appgw" }
 func (h *mockConfigLogMetaData) InstanceID() string { return "vm1" }
 
-type mockCustomRule struct{}
-
-func (*mockCustomRule) Name() string     { return "myCustomRule1" }
-func (*mockCustomRule) Priority() int    { return 100 }
-func (*mockCustomRule) RuleType() string { return "MatchRule" }
-func (*mockCustomRule) MatchConditions() []waf.MatchCondition {
-	return []waf.MatchCondition{&mockMatchCondition{}}
-}
-func (*mockCustomRule) Action() string { return "Block" }
-
 type mockMatchCondition struct{}
 
 func (*mockMatchCondition) MatchVariables() []waf.MatchVariable { return nil }
@@ -329,9 +546,3 @@ func (*mockMatchCondition) Operator() string                    { return "Contai
 func (*mockMatchCondition) NegateCondition() bool               { return false }
 func (*mockMatchCondition) MatchValues() []string               { return []string{"val1", "val2"} }
 func (*mockMatchCondition) Transforms() []string                { return []string{"Lowercase", "Trim"} }
-
-func reformatJSON(s string) (string, error) {
-	var buf bytes.Buffer
-	err := json.Indent(&buf, []byte(s), "", "  ")
-	return strings.TrimSpace(buf.String()), err
-}

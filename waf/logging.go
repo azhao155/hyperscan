@@ -2,18 +2,20 @@ package waf
 
 // ResultsLogger is where the WAF writes high level customer facing results.
 type ResultsLogger interface {
-	FieldBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
-	PausableBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
-	TotalBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
-	TotalFullRawRequestBodyLimitExceeded(request ResultsLoggerHTTPRequest, limit int)
-	BodyParseError(request ResultsLoggerHTTPRequest, err error)
-	SetLogMetaData(data ConfigLogMetaData)
+	// Results that the top level WAF code may log
+	FieldBytesLimitExceeded(limit int)
+	PausableBytesLimitExceeded(limit int)
+	TotalBytesLimitExceeded(limit int)
+	TotalFullRawRequestBodyLimitExceeded(limit int)
+	BodyParseError(err error)
+
+	// Results that the underlying engines may log
+	SecRuleResultsLogger
+	IPReputationResultsLogger
+	CustomRuleResultsLogger
 }
 
-// ResultsLoggerHTTPRequest represents an HTTP request to be logged by ResultsLogger.
-type ResultsLoggerHTTPRequest interface {
-	ConfigID() string
-	URI() string
-	LogMetaData() RequestLogMetaData
-	TransactionID() string
+// ResultsLoggerFactory is a factory which can create result loggers.
+type ResultsLoggerFactory interface {
+	NewResultsLogger(request HTTPRequest, configLogMetaData ConfigLogMetaData, isDetectionMode bool) ResultsLogger
 }

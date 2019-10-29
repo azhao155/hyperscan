@@ -15,7 +15,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	rl := newMockRuleLoader()
 	re := &mockRuleEvaluator{}
 	reslog := &mockResultsLogger{}
-	ef := NewEngineFactory(logger, rl, rsf, re, reslog)
+	ef := NewEngineFactory(logger, rl, rsf, re)
 	e, err := ef.NewEngine(&mockSecRuleConfig{})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -23,7 +23,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	ev := e.NewEvaluation(logger, req)
+	ev := e.NewEvaluation(logger, reslog, req)
 	err = ev.ScanHeaders()
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -42,14 +42,9 @@ func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
 
 type mockResultsLogger struct {
-	cb func(request ResultsLoggerHTTPRequest, stmt Statement, action string, msg string, logData string)
 }
 
-func (l *mockResultsLogger) SecRuleTriggered(request ResultsLoggerHTTPRequest, stmt Statement, action string, msg string, logData string) {
-	if l.cb != nil {
-		l.cb(request, stmt, action, msg, logData)
-	}
-
+func (l *mockResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID waf.RuleSetID) {
 	return
 }
 

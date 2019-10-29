@@ -38,13 +38,13 @@ func TestGeoMatchRemoteAddrBlockRulePositive(t *testing.T) {
 		remoteAddr: "2.2.2.2",
 	}
 
-	engine, _, err := newEngineWithCustomRules(geoMatchRemoteAddrBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(geoMatchRemoteAddrBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -67,13 +67,13 @@ func TestGeoMatchRemoteAddrBlockRuleNegative(t *testing.T) {
 		},
 	}
 
-	engine, _, err := newEngineWithCustomRules(geoMatchRemoteAddrBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(geoMatchRemoteAddrBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -116,13 +116,13 @@ func TestGeoMatchXForwardedForBlockRulePositive(t *testing.T) {
 		},
 	}
 
-	engine, _, err := newEngineWithCustomRules(geoMatchXForwardedForBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(geoMatchXForwardedForBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -146,13 +146,13 @@ func TestGeoMatchXForwardedForBlockRuleNegative(t *testing.T) {
 		},
 	}
 
-	engine, _, err := newEngineWithCustomRules(geoMatchXForwardedForBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(geoMatchXForwardedForBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()

@@ -66,6 +66,10 @@ grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/PutConfig <<EOF
     {
       "configID": "myconfig1",
       "isDetectionMode": false,
+      "secRuleConfig": {
+        "enabled": true,
+        "ruleSetId": "OWASP CRS 3.0"
+      },
       "customRuleConfig": {
         "customRules": [
           {
@@ -106,8 +110,8 @@ grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/EvalRequest <<EOF
     "remoteAddr": "1.2.3.4",
     "configID": "myconfig1",
     "metaData": {
-      "scope": "",
-      "scopeName": ""
+      "scope": "scope1",
+      "scopeName": "scopename1"
     },
     "method": "POST",
     "uri": "/?a=helloworld",
@@ -139,4 +143,5 @@ grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/EvalRequest <<EOF
   }
 }
 EOF
+
 ```

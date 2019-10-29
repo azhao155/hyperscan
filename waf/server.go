@@ -11,10 +11,11 @@ import (
 )
 
 type engineInstances struct {
-	sre             SecRuleEngine
-	cre             CustomRuleEngine
-	ireEnabled      bool
-	isDetectionMode bool
+	sre               SecRuleEngine
+	cre               CustomRuleEngine
+	ireEnabled        bool
+	isDetectionMode   bool
+	configLogMetaData ConfigLogMetaData
 }
 
 // Server is the top level interface to AzWaf.
@@ -33,19 +34,19 @@ type serverImpl struct {
 	secRuleEngineFactory    SecRuleEngineFactory
 	ipReputationEngine      IPReputationEngine
 	requestBodyParser       RequestBodyParser
-	resultsLogger           ResultsLogger
+	resultsLoggerFactory    ResultsLoggerFactory
 	customRuleEngineFactory CustomRuleEngineFactory
 	geodb                   GeoDB
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRuleEngineFactory, rbp RequestBodyParser, rl ResultsLogger, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, rlf ResultsLoggerFactory, sref SecRuleEngineFactory, rbp RequestBodyParser, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
 	s := &serverImpl{
 		logger:                  logger,
 		configMgr:               cm,
+		resultsLoggerFactory:    rlf,
 		secRuleEngineFactory:    sref,
 		requestBodyParser:       rbp,
-		resultsLogger:           rl,
 		customRuleEngineFactory: cref,
 		ipReputationEngine:      ire,
 		geodb:                   geoDB,
@@ -74,12 +75,12 @@ func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, sref SecRu
 }
 
 // NewStandaloneSecruleServer creates a new Azwaf server that only has a SecRule engine.
-func NewStandaloneSecruleServer(logger zerolog.Logger, sre SecRuleEngine, rbp RequestBodyParser, rl ResultsLogger) (server Server, err error) {
+func NewStandaloneSecruleServer(logger zerolog.Logger, rlf ResultsLoggerFactory, sre SecRuleEngine, rbp RequestBodyParser) (server Server, err error) {
 	s := &serverImpl{
-		logger:            logger,
-		requestBodyParser: rbp,
-		resultsLogger:     rl,
-		engines:           make(map[string]engineInstances),
+		logger:               logger,
+		resultsLoggerFactory: rlf,
+		requestBodyParser:    rbp,
+		engines:              make(map[string]engineInstances),
 	}
 	s.engines[""] = engineInstances{
 		sre: sre,
@@ -122,9 +123,12 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}()
 
+	// Create results-logger with the data specific to this request
+	resultsLogger := s.resultsLoggerFactory.NewResultsLogger(req, engines.configLogMetaData, engines.isDetectionMode)
+
 	var customRuleEvaluation CustomRuleEvaluation
 	if engines.cre != nil {
-		customRuleEvaluation = engines.cre.NewEvaluation(logger, req)
+		customRuleEvaluation = engines.cre.NewEvaluation(logger, resultsLogger, req)
 		defer customRuleEvaluation.Close()
 
 		err = customRuleEvaluation.ScanHeaders()
@@ -135,7 +139,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	var secRuleEvaluation SecRuleEvaluation
 	if engines.sre != nil {
-		secRuleEvaluation = engines.sre.NewEvaluation(logger, req)
+		secRuleEvaluation = engines.sre.NewEvaluation(logger, resultsLogger, req)
 		defer secRuleEvaluation.Close()
 
 		err = secRuleEvaluation.ScanHeaders()
@@ -169,19 +173,19 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		lengthLimits := s.requestBodyParser.LengthLimits()
 		if err == ErrFieldBytesLimitExceeded {
 			logger.Info().Int("limit", lengthLimits.MaxLengthField).Msg("Request body contained a field longer than the limit")
-			s.resultsLogger.FieldBytesLimitExceeded(req, lengthLimits.MaxLengthField)
+			resultsLogger.FieldBytesLimitExceeded(lengthLimits.MaxLengthField)
 		} else if err == ErrPausableBytesLimitExceeded {
 			logger.Info().Int("limit", lengthLimits.MaxLengthPausable).Msg("Request body length (excluding file upload fields) exceeded the limit")
-			s.resultsLogger.PausableBytesLimitExceeded(req, lengthLimits.MaxLengthPausable)
+			resultsLogger.PausableBytesLimitExceeded(lengthLimits.MaxLengthPausable)
 		} else if err == ErrTotalBytesLimitExceeded {
 			logger.Info().Int("limit", lengthLimits.MaxLengthTotal).Msg("Request body length exceeded the limit")
-			s.resultsLogger.TotalBytesLimitExceeded(req, lengthLimits.MaxLengthTotal)
+			resultsLogger.TotalBytesLimitExceeded(lengthLimits.MaxLengthTotal)
 		} else if err == ErrTotalFullRawRequestBodyExceeded {
 			logger.Info().Int("limit", lengthLimits.MaxLengthTotalFullRawRequestBody).Msg("Request body length exceeded the limit while entire body was being scanned as a single field")
-			s.resultsLogger.TotalFullRawRequestBodyLimitExceeded(req, lengthLimits.MaxLengthTotalFullRawRequestBody)
+			resultsLogger.TotalFullRawRequestBodyLimitExceeded(lengthLimits.MaxLengthTotalFullRawRequestBody)
 		} else {
 			logger.Info().Err(err).Msg("Request body scanning error")
-			s.resultsLogger.BodyParseError(req, err)
+			resultsLogger.BodyParseError(err)
 		}
 
 		decision = Block
@@ -197,7 +201,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	if engines.ireEnabled {
-		decision = s.ipReputationEngine.EvalRequest(req)
+		decision = s.ipReputationEngine.EvalRequest(req, resultsLogger)
 		if decision == Allow || decision == Block {
 			return
 		}
@@ -217,7 +221,9 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 	}
 
 	for _, config := range c.PolicyConfigs() {
-		engines := engineInstances{}
+		engines := engineInstances{
+			configLogMetaData: c.LogMetaData(),
+		}
 		configID := config.ConfigID()
 		engines.isDetectionMode = config.IsDetectionMode()
 
@@ -251,7 +257,6 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		s.engines[configID] = engines
 	}
 
-	s.resultsLogger.SetLogMetaData(c.LogMetaData())
 	return
 }
 

@@ -24,13 +24,14 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
 	reslog := newMockResultsLogger()
-	ef := secrule.NewEngineFactory(logger, rl, rsf, re, reslog)
+	rlf := &mockResultsLoggerFactory{mockResultsLogger: reslog}
+	ef := secrule.NewEngineFactory(logger, rl, rsf, re)
 	e, err := ef.NewEngine(&mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
-	wafServer, err := waf.NewStandaloneSecruleServer(logger, e, rbp, reslog)
+	wafServer, err := waf.NewStandaloneSecruleServer(logger, rlf, e, rbp)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
@@ -41,7 +42,7 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 func newTestAzwafServer(t *testing.T) waf.Server {
 	// Setup logger.
 	logger := testutils.NewTestLogger(t)
-	log, err := logging.NewFileResultsLogger(&logging.LogFileSystemImpl{}, logger)
+	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger)
 
 	// Setup config manager
 	cm, c, err := waf.NewConfigMgr(&mockFileSystem{}, &mockConfigConverter{})
@@ -58,16 +59,16 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
 	re := secrule.NewRuleEvaluator()
-	sref := secrule.NewEngineFactory(logger, rl, rsf, re, log)
+	sref := secrule.NewEngineFactory(logger, rl, rsf, re)
 
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 
 	// Setup customrule engine
 	gfs := &mockGeoDBFileSystem{}
 	geoDB := geodb.NewGeoDB(logger, gfs)
-	cref := customrule.NewEngineFactory(mref, log, geoDB)
-	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{}, log)
-	wafServer, err := waf.NewServer(logger, cm, c, sref, rbp, log, cref, ire, geoDB)
+	cref := customrule.NewEngineFactory(mref, geoDB)
+	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{})
+	wafServer, err := waf.NewServer(logger, cm, c, rlf, sref, rbp, cref, ire, geoDB)
 
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)

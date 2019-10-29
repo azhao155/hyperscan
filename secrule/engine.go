@@ -11,12 +11,12 @@ type engineImpl struct {
 	reqScanner             ReqScanner
 	scratchSpaceNext       chan *ReqScannerScratchSpace
 	ruleEvaluator          RuleEvaluator
-	resultsLogger          ResultsLogger
 	usesFullRawRequestBody bool
+	ruleSetID              waf.RuleSetID
 }
 
 // NewEngine creates a SecRule engine from statements
-func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, rl ResultsLogger) (engine waf.SecRuleEngine, err error) {
+func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
 	reqScanner, err := rsf.NewReqScanner(statements)
 	if err != nil {
 		return
@@ -36,9 +36,9 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, 
 		statements:             statements,
 		reqScanner:             reqScanner,
 		ruleEvaluator:          re,
-		resultsLogger:          rl,
 		scratchSpaceNext:       scratchSpaceNext,
 		usesFullRawRequestBody: usesFullRawRequestBody,
+		ruleSetID:              ruleSetID,
 	}
 
 	return
@@ -46,6 +46,7 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, 
 
 type secRuleEvaluationImpl struct {
 	logger               zerolog.Logger
+	resultsLogger        waf.SecRuleResultsLogger
 	engine               *engineImpl
 	request              waf.HTTPRequest
 	scanResults          *ScanResults
@@ -55,7 +56,7 @@ type secRuleEvaluationImpl struct {
 	scratchSpace         *ReqScannerScratchSpace
 }
 
-func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) waf.SecRuleEvaluation {
+func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecRuleResultsLogger, req waf.HTTPRequest) waf.SecRuleEvaluation {
 	ruleTriggeredCb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
 		action := "Matched"
 		if isDisruptive {
@@ -71,7 +72,7 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 		}
 		logger.Info().Int("ruleID", ruleID).Str("action", action).Str("msg", msg).Str("logData", logData).Msg("SecRule triggered")
 
-		s.resultsLogger.SecRuleTriggered(req, stmt, action, msg, logData)
+		resultsLogger.SecRuleTriggered(ruleID, action, msg, logData, s.ruleSetID)
 	}
 
 	// Reuse a scratch space, or create a new one if there are none available
@@ -90,6 +91,7 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) w
 
 	return &secRuleEvaluationImpl{
 		request:              req,
+		resultsLogger:        resultsLogger,
 		logger:               logger,
 		engine:               s,
 		ruleTriggeredCb:      ruleTriggeredCb,

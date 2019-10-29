@@ -13,6 +13,7 @@ func TestWafServerEvalRequest(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -25,7 +26,7 @@ func TestWafServerEvalRequest(t *testing.T) {
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -93,6 +94,7 @@ func TestWafDetectionMode(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 
 	// Block request
 	msrev := &mockSecRuleEvaluation{decision: Block}
@@ -109,7 +111,7 @@ func TestWafDetectionMode(t *testing.T) {
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -128,6 +130,7 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -139,7 +142,7 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -190,6 +193,7 @@ func testBytesLimit(
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -207,7 +211,7 @@ func testBytesLimit(
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, msref, mrbp, mrl, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
@@ -299,7 +303,7 @@ type mockSecRuleEngine struct {
 	msrev               *mockSecRuleEvaluation
 }
 
-func (m *mockSecRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) SecRuleEvaluation {
+func (m *mockSecRuleEngine) NewEvaluation(logger zerolog.Logger, resultsLogger SecRuleResultsLogger, req HTTPRequest) SecRuleEvaluation {
 	m.newEvaluationCalled++
 	return m.msrev
 }
@@ -328,7 +332,7 @@ func (m *mockIPReputationEngine) PutIPReputationList([]string) {
 	m.putIPReputationListCount++
 }
 
-func (m *mockIPReputationEngine) EvalRequest(req IPReputationEngineHTTPRequest) Decision {
+func (m *mockIPReputationEngine) EvalRequest(req IPReputationEngineHTTPRequest, resultsLogger IPReputationResultsLogger) Decision {
 	m.evalRequestCount++
 	return Pass
 }
@@ -351,6 +355,14 @@ type mockLogMetaData struct {
 func (h *mockLogMetaData) Scope() string     { return "Global" }
 func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
 
+type mockResultsLoggerFactory struct {
+	mockResultsLogger *mockResultsLogger
+}
+
+func (f *mockResultsLoggerFactory) NewResultsLogger(request HTTPRequest, configLogMetaData ConfigLogMetaData, isDetectionMode bool) ResultsLogger {
+	return f.mockResultsLogger
+}
+
 type mockResultsLogger struct {
 	fieldBytesLimitExceededCalled              int
 	pausableBytesLimitExceededCalled           int
@@ -359,24 +371,29 @@ type mockResultsLogger struct {
 	bodyParseErrorCalled                       int
 }
 
-func (r *mockResultsLogger) FieldBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
+func (r *mockResultsLogger) FieldBytesLimitExceeded(limit int) {
 	r.fieldBytesLimitExceededCalled++
 }
-func (r *mockResultsLogger) PausableBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
+func (r *mockResultsLogger) PausableBytesLimitExceeded(limit int) {
 	r.pausableBytesLimitExceededCalled++
 }
-func (r *mockResultsLogger) TotalBytesLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
+func (r *mockResultsLogger) TotalBytesLimitExceeded(limit int) {
 	r.totalBytesLimitExceededCalled++
 }
-func (r *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(request ResultsLoggerHTTPRequest, limit int) {
+func (r *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(limit int) {
 	r.totalFullRawRequestBodyLimitExceededCalled++
 }
-func (r *mockResultsLogger) BodyParseError(request ResultsLoggerHTTPRequest, err error) {
+func (r *mockResultsLogger) BodyParseError(err error) {
 	r.bodyParseErrorCalled++
 }
 
-func (r *mockResultsLogger) SetLogMetaData(metaData ConfigLogMetaData) {
+func (r *mockResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID RuleSetID) {
 }
+
+func (r *mockResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []ResultsLoggerCustomRulesMatchedConditions) {
+}
+
+func (r *mockResultsLogger) IPReputationTriggered() {}
 
 type mockConfigMgr struct {
 	configMap map[int][]string
@@ -417,7 +434,7 @@ func (m *mockCustomRuleEngineFactory) NewEngine(c CustomRuleConfig) (engine Cust
 	return
 }
 
-func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, req HTTPRequest) CustomRuleEvaluation {
+func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, resultsLogger CustomRuleResultsLogger, req HTTPRequest) CustomRuleEvaluation {
 	s.newEvaluationCalled++
 	return s.mcrev
 }

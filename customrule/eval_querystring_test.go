@@ -37,13 +37,13 @@ func TestQueryStringContainsBlockPositive(t *testing.T) {
 		uri:    "/?firstName=john&lastName=lenon",
 		method: "GET",
 	}
-	engine, _, err := newEngineWithCustomRules(queryStringContainsBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(queryStringContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -62,13 +62,13 @@ func TestQueryStringContainsBlockNegative(t *testing.T) {
 		uri:    "/?firstName=bob&lastName=dylan",
 		method: "GET",
 	}
-	engine, _, err := newEngineWithCustomRules(queryStringContainsBlockRule)
+	engine, resLog, err := newEngineWithCustomRules(queryStringContainsBlockRule)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, req)
+	eval := engine.NewEvaluation(logger, resLog, req)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()

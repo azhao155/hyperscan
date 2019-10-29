@@ -17,22 +17,20 @@ import (
 
 type customRuleEngineFactoryImpl struct {
 	multiRegexEngineFactory waf.MultiRegexEngineFactory
-	resultsLogger           ResultsLogger
+	resultsLogger           waf.CustomRuleResultsLogger
 	geoDB                   waf.GeoDB
 }
 
 // NewEngineFactory creates a custom rule engine factory
-func NewEngineFactory(multiRegexEngineFactory waf.MultiRegexEngineFactory, resultsLogger ResultsLogger, geoDB waf.GeoDB) waf.CustomRuleEngineFactory {
+func NewEngineFactory(multiRegexEngineFactory waf.MultiRegexEngineFactory, geoDB waf.GeoDB) waf.CustomRuleEngineFactory {
 	return &customRuleEngineFactoryImpl{
 		multiRegexEngineFactory: multiRegexEngineFactory,
-		resultsLogger:           resultsLogger,
 		geoDB:                   geoDB,
 	}
 }
 
 func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleConfig) (customRuleEngine waf.CustomRuleEngine, err error) {
 	engine := &customRuleEngineImpl{
-		resultsLogger:   f.resultsLogger,
 		rules:           customRuleConfig.CustomRules(),
 		geoDB:           f.geoDB,
 		conditionGroups: make(map[matchVariable]*conditionsWithSameMatchVar),
@@ -147,7 +145,6 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 }
 
 type customRuleEngineImpl struct {
-	resultsLogger    ResultsLogger
 	rules            []waf.CustomRule
 	geoDB            waf.GeoDB
 	conditionGroups  map[matchVariable]*conditionsWithSameMatchVar
@@ -181,12 +178,13 @@ type scratchSpaces map[*waf.MultiRegexEngine]waf.MultiRegexEngineScratchSpace
 
 type customRuleEvaluationImpl struct {
 	engine                *customRuleEngineImpl
+	resultsLogger         waf.CustomRuleResultsLogger
 	req                   waf.HTTPRequest
 	results               *scanResults
 	scratchSpacesInstance *scratchSpaces
 }
 
-func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTPRequest) waf.CustomRuleEvaluation {
+func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.CustomRuleResultsLogger, req waf.HTTPRequest) waf.CustomRuleEvaluation {
 	// Reuse a scratch space, or create a new one if there are none available
 	var scratchSpacesInstance *scratchSpaces
 	if len(c.scratchSpaceNext) > 0 {
@@ -201,6 +199,7 @@ func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, req waf.HTTP
 
 	return &customRuleEvaluationImpl{
 		engine:                c,
+		resultsLogger:         resultsLogger,
 		req:                   req,
 		results:               &scanResults{matches: make(map[matchConditionPath]match)},
 		scratchSpacesInstance: scratchSpacesInstance,
@@ -323,16 +322,16 @@ func (e *customRuleEvaluationImpl) EvalRules() waf.Decision {
 		}
 
 		// Prepare struct for logging that describes the data that triggered the conditions
-		rlmc := make([]ResultsLoggerMatchedConditions, len(rule.MatchConditions()))
+		rlcrmc := make([]waf.ResultsLoggerCustomRulesMatchedConditions, len(rule.MatchConditions()))
 		for mcIdx := range rule.MatchConditions() {
 			mcp := matchConditionPath{ruleIdx, mcIdx}
-			rlmc[mcIdx].ConditionIndex = mcIdx
-			rlmc[mcIdx].VariableName = e.results.matches[mcp].VariableName
-			rlmc[mcIdx].FieldName = e.results.matches[mcp].FieldName
-			rlmc[mcIdx].MatchedValue = string(e.results.matches[mcp].Data)
+			rlcrmc[mcIdx].ConditionIndex = mcIdx
+			rlcrmc[mcIdx].VariableName = e.results.matches[mcp].VariableName
+			rlcrmc[mcIdx].FieldName = e.results.matches[mcp].FieldName
+			rlcrmc[mcIdx].MatchedValue = string(e.results.matches[mcp].Data)
 		}
 
-		e.engine.resultsLogger.CustomRuleTriggered(e.req, rule, rlmc)
+		e.resultsLogger.CustomRuleTriggered(rule.Name(), rule.Action(), rlcrmc)
 
 		switch rule.Action() {
 		case "Allow":
