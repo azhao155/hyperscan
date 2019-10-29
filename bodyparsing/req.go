@@ -196,6 +196,11 @@ func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorat
 				return
 			}
 
+			err = cb(waf.MultipartFormDataFileNames, part.FormName(), cdParams["filename"])
+			if err != nil {
+				return
+			}
+
 			continue
 		}
 

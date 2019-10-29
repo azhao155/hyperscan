@@ -106,10 +106,10 @@ aaaaaaabccc
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	contentType := waf.MultipartFormDataContent
 	expectedCalls := []parsedBodyFieldCbCall{
-		{contentType, "a", "hello world 1"},
-		{contentType, "b", ""},
+		{waf.MultipartFormDataContent, "a", "hello world 1"},
+		{waf.MultipartFormDataContent, "b", ""},
+		{waf.MultipartFormDataFileNames, "b", "vcredist_x64.exe"},
 	}
 
 	if len(calls) != len(expectedCalls) {

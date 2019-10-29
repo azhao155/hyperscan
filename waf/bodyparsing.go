@@ -37,6 +37,7 @@ const (
 	_ ContentType = iota
 	FullRawRequestBody
 	MultipartFormDataContent
+	MultipartFormDataFileNames
 	URLEncodedContent
 	XMLContent
 	JSONContent

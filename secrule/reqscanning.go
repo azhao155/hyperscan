@@ -363,6 +363,17 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 			return
 		}
 
+	case waf.MultipartFormDataFileNames:
+		err = r.scanField("FILES_NAMES", "", fieldName, results)
+		if err != nil {
+			return
+		}
+
+		err = r.scanField("FILES", "", data, results)
+		if err != nil {
+			return
+		}
+
 	case waf.JSONContent:
 		err = r.scanField("ARGS", "", data, results)
 		if err != nil {
