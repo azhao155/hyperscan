@@ -71,54 +71,57 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 		var actions []Action
 		var stmtID int
 		var triggered bool
-
-		switch stmt := stmt.(type) {
-		case *Rule:
-			triggered = true
-
-			for curRuleItemIdx, ruleItem := range stmt.Items {
-				if !evalPredicate(perRequestEnv, ruleItem, scanResults, stmt, curRuleItemIdx) {
-					triggered = false
-					break
-				}
-			}
-
-			// Did all chain items match?
-			if triggered {
-				logger.Debug().Int("ruleID", stmt.ID).Msg("SecRule triggered")
-
-				stmtID = stmt.ID
-
-				// Queue up all actions to be run
-				for _, ruleItem := range stmt.Items {
-					actions = append(actions, ruleItem.Actions...)
-				}
-			}
-
-		case *ActionStmt:
-			logger.Debug().Int("ruleID", stmt.ID).Msg("SecAction triggered")
-			triggered = true
-			stmtID = stmt.ID
-			actions = append(actions, stmt.Actions...)
-		}
-
 		shouldLog := true
 		var msg string
-		if len(actions) > 0 {
+
+		runActionsAfterSingleRuleItem := func(actions []Action) {
 			// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
 			for _, action := range actions {
 				switch action := action.(type) {
-
-				case *SkipAfterAction:
-					skipAfter = action.Label
-					logger.Debug().Str("label", skipAfter).Msg("Skipping to marker")
 
 				case *SetVarAction:
 					err := executeSetVarAction(action, perRequestEnv)
 					if err != nil {
 						logger.Warn().Int("ruleID", stmtID).Err(err).Msg("Error executing setVar action")
 					}
+				}
+			}
+		}
+
+		switch stmt := stmt.(type) {
+		case *Rule:
+			triggered = false
+			stmtID = stmt.ID
+
+			for curRuleItemIdx, ruleItem := range stmt.Items {
+				if evalPredicate(perRequestEnv, ruleItem, scanResults, stmt, curRuleItemIdx) {
+					triggered = true
+					runActionsAfterSingleRuleItem(ruleItem.Actions) // Some actions are to be run after each chain item.
+					actions = append(actions, ruleItem.Actions...)  // Other actions later, only when all chain items triggered.
+				} else {
+					triggered = false
+					break
+				}
+			}
+
+		case *ActionStmt:
+			triggered = true
+			stmtID = stmt.ID
+			actions = stmt.Actions
+			runActionsAfterSingleRuleItem(actions)
+		}
+
+		if triggered {
+			logger.Debug().Int("ruleID", stmtID).Msg("Rule triggered")
+
+			// Some actions are to be run after all rule items in the chain triggered.
+			for _, action := range actions {
+				switch action := action.(type) {
+
+				case *SkipAfterAction:
+					skipAfter = action.Label
+					logger.Debug().Str("label", skipAfter).Msg("Skipping to marker")
 
 				case *NoLogAction:
 					shouldLog = false
@@ -139,9 +142,7 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 					statusCode = 403
 				}
 			}
-		}
 
-		if triggered {
 			if shouldLog {
 				// TODO implement the "logdata" action, so we can put something better than "" in logData
 				triggeredCb(stmt, phaseDisruptive, msg, "")
@@ -232,9 +233,4 @@ func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule
 	}
 
 	return anyMatched
-}
-
-func (r *ruleEvaluatorImpl) runActions(perRequestEnv envMap, actions []Action, ruleID int) (disruptive bool, allow bool, statusCode int, logMsg string, skipAfter string) {
-
-	return
 }

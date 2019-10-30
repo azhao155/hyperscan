@@ -246,7 +246,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	assert.Equal(200, code)
 }
 
-func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) {
+func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	sv1, _ := parseSetVarAction("tx.somevar=123")
@@ -287,6 +287,48 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRunAnyway(t *testing.T) 
 	assert.True(ok)
 	assert.Equal(&stringObject{"123"}, v)
 	assert.Equal(403, code)
+}
+
+func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	sv1, _ := parseSetVarAction("tx.somevar=123")
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&sv1},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "shouldNotMatch"},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{m, tc}
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := NewRuleEvaluator()
+
+	// Act
+	decision, code, err := re.Process(logger, env, rules, sr, nil)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"123"}, v)
+	assert.Equal(200, code)
 }
 
 func TestRuleEvaluatorSecAction(t *testing.T) {
