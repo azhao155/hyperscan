@@ -1,14 +1,7 @@
 package main
 
 import (
-	"azwaf/bodyparsing"
-	"azwaf/customrule"
-	"azwaf/geodb"
 	"azwaf/grpc"
-	"azwaf/hyperscan"
-	"azwaf/ipreputation"
-	"azwaf/logging"
-	"azwaf/secrule"
 	"azwaf/waf"
 	"flag"
 	"fmt"
@@ -23,7 +16,6 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// Dependency injection composition root
 func main() {
 	rand.Seed(time.Now().UnixNano())
 
@@ -42,77 +34,18 @@ func main() {
 		}()
 	}
 
-	// Initialize common dependencies
 	loglevel, _ := zerolog.ParseLevel(*logLevel)
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
-	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger)
-	if err != nil {
-		logger.Fatal().Err(err).Msg("Error while creating file logger")
-	}
+	lengthLimits := parseLengthLimitsArgOrDefault(logger, *limitsArg)
 
-	lengthLimits := parseLengthLimitsArgOrDefault(logger, limitsArg)
-	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
-	p := secrule.NewRuleParser()
-	rlfs := secrule.NewRuleLoaderFileSystem()
-	hsfs := hyperscan.NewCacheFileSystem()
-	hscache := hyperscan.NewDbCache(hsfs)
-	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
-
-	// Initialize a WAF server, either via config manager, or standalone just with a SecRule engine
-	var wafServer waf.Server
-	if standaloneSecruleServer {
-		logger.Info().Str("secruleconf", *secruleconf).Msg("Creating a standalone WAF with a SecRule engine")
-
-		srl := secrule.NewStandaloneRuleLoader(p, rlfs, *secruleconf)
-		stmts, err := srl.Rules()
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error while loading rules")
-		}
-
-		sre, err := secrule.NewEngine(stmts, rsf, re, "") // TODO some sensible ruleSetID?
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
-		}
-
-		wafServer, err = waf.NewStandaloneSecruleServer(logger, rlf, sre, rbp)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error while creating standalone SecRule engine WAF")
-		}
-	} else {
-		// TODO Implement config manager config restore and pass restored config to NewServer. Also pass the config mgr to the grpc NewServer
-		cm, c, err := waf.NewConfigMgr(&waf.ConfigFileSystemImpl{}, &grpc.ConfigConverterImpl{})
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error while creating config manager")
-		}
-
-		gfs := geodb.NewGeoIPFileSystem(logger)
-		geoDB := geodb.NewGeoDB(logger, gfs)
-		cref := customrule.NewEngineFactory(mref, geoDB)
-		rl := secrule.NewCrsRuleLoader(p, rlfs)
-		sref := secrule.NewEngineFactory(logger, rl, rsf, re)
-		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
-
-		wafServer, err = waf.NewServer(logger, cm, c, rlf, sref, rbp, cref, ire, geoDB)
-		if err != nil {
-			logger.Fatal().Err(err).Msg("Error while creating service manager")
-		}
-	}
-
-	// Start the gRPC server using the given WAF server
-	grpcServer := grpc.NewServer(logger, wafServer)
-	logger.Info().Msg("Starting gRPC WAF server")
-	if err := grpcServer.Serve(); err != nil {
-		logger.Fatal().Err(err).Msg("Error while running gRPC WAF server")
-	}
+	grpc.StartServer(logger, *secruleconf, lengthLimits, standaloneSecruleServer, "tcp", ":37291")
 }
 
-func parseLengthLimitsArgOrDefault(logger zerolog.Logger, limitsArg *string) (lengthLimits waf.LengthLimits) {
+func parseLengthLimitsArgOrDefault(logger zerolog.Logger, limitsArg string) (lengthLimits waf.LengthLimits) {
 	lengthLimits = waf.DefaultLengthLimits
 
-	if *limitsArg != "" {
-		nn := strings.Split(*limitsArg, ",")
+	if limitsArg != "" {
+		nn := strings.Split(limitsArg, ",")
 		if len(nn) != 3 {
 			logger.Fatal().Msg("The limits arg must contain exactly 3 comma separated integer values")
 		}
