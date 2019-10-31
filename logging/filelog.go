@@ -20,16 +20,19 @@ const FileName = "waf_json.log"
 
 const azureLogDateFormat = "2006-01-02T15:04:05-07:00"
 
+const retryOpenTimes = 20
+
 type logFileWriter struct {
 	fileSystem   LogFileSystem
 	file         LogFile
 	logger       zerolog.Logger
 	writelogline chan []byte
 	writeDone    chan bool
+	reopenFileCh chan bool
 }
 
-func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger) (*logFileWriter, error) {
-	r := &logFileWriter{fileSystem: fileSystem, logger: logger}
+func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger, reopenFileCh chan bool) (*logFileWriter, error) {
+	r := &logFileWriter{fileSystem: fileSystem, logger: logger, reopenFileCh: reopenFileCh}
 
 	err := fileSystem.MkDir(Path)
 	if err != nil {
@@ -46,14 +49,38 @@ func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger) (*logFile
 	r.writelogline = make(chan []byte)
 	r.writeDone = make(chan bool)
 	go func() {
-		for v := range r.writelogline {
-			r.file.Append(v)
-			r.file.Append([]byte("\n"))
-			r.writeDone <- true
+		for {
+			select {
+			case <-reopenFileCh:
+				r.openFilewithRetry(fileSystem, logger)
+
+			case bytes := <-r.writelogline:
+				r.file.Append(bytes)
+				r.file.Append([]byte("\n"))
+				r.writeDone <- true
+			}
 		}
 	}()
 
 	return r, nil
+}
+
+func (l *logFileWriter) openFilewithRetry(fileSystem LogFileSystem, logger zerolog.Logger) {
+	var err error
+	l.file.Close()
+
+	for i := 0; i < retryOpenTimes; i++ {
+		l.file, err = fileSystem.Open(Path + FileName)
+		if err != nil {
+			logger.Error().Err(err).Str("file", Path+FileName).Msg("Failed to open the file during reopen")
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		return
+	}
+
+	panic(fmt.Sprintf("Failed to reopen log file: %v after %v retries.", Path+FileName, retryOpenTimes))
 }
 
 func (l *logFileWriter) writeLogLine(data interface{}) {
@@ -71,9 +98,9 @@ type fileLogResultsLoggerFactory struct {
 }
 
 // NewFileLogResultsLoggerFactory creates a factory which can create result loggers that writes to files.
-func NewFileLogResultsLoggerFactory(fileSystem LogFileSystem, logger zerolog.Logger) (resultsLoggerFactory waf.ResultsLoggerFactory, err error) {
+func NewFileLogResultsLoggerFactory(fileSystem LogFileSystem, logger zerolog.Logger, reopenFileCh chan bool) (resultsLoggerFactory waf.ResultsLoggerFactory, err error) {
 	var writer *logFileWriter
-	writer, err = newLogFileWriter(fileSystem, logger)
+	writer, err = newLogFileWriter(fileSystem, logger, reopenFileCh)
 	if err != nil {
 		return
 	}

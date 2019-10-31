@@ -17,5 +17,5 @@ func startServer(t *testing.T) {
 		t.Fatal(err)
 	}
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(zerolog.ErrorLevel).With().Timestamp().Caller().Logger()
-	go grpc.StartServer(logger, "", waf.DefaultLengthLimits, false, "unix", sockAddr)
+	go grpc.StartServer(logger, "", waf.DefaultLengthLimits, false, "unix", sockAddr, nil)
 }

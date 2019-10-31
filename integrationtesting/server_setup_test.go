@@ -42,7 +42,8 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 func newTestAzwafServer(t *testing.T) waf.Server {
 	// Setup logger.
 	logger := testutils.NewTestLogger(t)
-	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger)
+	reopenLogFileChan := make(chan bool)
+	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan)
 
 	// Setup config manager
 	cm, c, err := waf.NewConfigMgr(&mockFileSystem{}, &mockConfigConverter{})

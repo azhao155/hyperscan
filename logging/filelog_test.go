@@ -16,12 +16,16 @@ import (
 
 func TestSecRuleTriggered(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 
 	// Act
 	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
+	if fileSystem.openCalledMap[Path+FileName] != 1 {
+		t.Fatalf("file open count wrong")
+	}
+
 	logLine := fileSystem.Get(Path + FileName)
 	assertJSONLogLine(t, logLine, `
 		{
@@ -58,7 +62,7 @@ func TestSecRuleTriggered(t *testing.T) {
 
 func TestSecRuleTriggeredBlocked(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 
 	// Act
 	logger.SecRuleTriggered(11, "Blocked", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
@@ -98,9 +102,56 @@ func TestSecRuleTriggeredBlocked(t *testing.T) {
 	`)
 }
 
+func TestLogFileReopen(t *testing.T) {
+	// Arrange
+	logger, fileSystem, reopenFileCh := arrangeTestResultsLogger(t, false)
+
+	// Act
+	reopenFileCh <- true
+	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+
+	// Assert
+	if fileSystem.openCalledMap[Path+FileName] != 2 {
+		t.Fatalf("file reopen failed")
+	}
+
+	logLine := fileSystem.Get(Path + FileName)
+	assertJSONLogLine(t, logLine, `
+			{
+				"timeStamp": "0000-00-00T00:00:00+00:00",
+				"resourceId": "appgw",
+				"operationName": "ApplicationGatewayFirewall",
+				"category": "ApplicationGatewayFirewallLog",
+				"properties": {
+					"instanceId": "vm1",
+					"clientIp": "1.2.3.4",
+					"requestUri": "/hello.php?arg1=aaaaaaabccc",
+					"ruleSetType": "OWASP",
+					"ruleSetVersion": "CRS 3.0",
+					"ruleId": "11",
+					"ruleGroup": "",
+					"message": "abc",
+					"action": "Matched",
+					"details": {
+						"message": "bce",
+						"data": "",
+						"file": "",
+						"line": ""
+					},
+					"hostname": "example.com",
+					"transactionId": "abc",
+					"policyId": "waf policy 1",
+					"policyScope": "Global",
+					"policyScopeName": "Default Policy",
+					"engine": "Azwaf"
+				}
+			}
+		`)
+}
+
 func TestSecRuleDetectionModeTriggered(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 
 	// Act
 	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
@@ -142,7 +193,7 @@ func TestSecRuleDetectionModeTriggered(t *testing.T) {
 
 func TestSecRuleDetectionModeBlocked(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 
 	// Act
 	logger.SecRuleTriggered(11, "Blocked", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
@@ -184,7 +235,7 @@ func TestSecRuleDetectionModeBlocked(t *testing.T) {
 
 func TestIPReputationTriggered(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 
 	// Act
 	logger.IPReputationTriggered()
@@ -217,7 +268,7 @@ func TestIPReputationTriggered(t *testing.T) {
 
 func TestIPReputationDetectionMode(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 
 	// Act
 	logger.IPReputationTriggered()
@@ -250,7 +301,7 @@ func TestIPReputationDetectionMode(t *testing.T) {
 
 func TestCustomRuleTriggeredBlocked(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
 		{
 			ConditionIndex: 0,
@@ -298,7 +349,7 @@ func TestCustomRuleTriggeredBlocked(t *testing.T) {
 
 func TestCustomRuleTriggeredAllowed(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, false)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
 		{
 			ConditionIndex: 0,
@@ -340,7 +391,7 @@ func TestCustomRuleTriggeredAllowed(t *testing.T) {
 
 func TestCustomRuleDetectionModeBlocked(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
 		{
 			ConditionIndex: 0,
@@ -382,7 +433,7 @@ func TestCustomRuleDetectionModeBlocked(t *testing.T) {
 
 func TestCustomRuleDetectionModeAllowed(t *testing.T) {
 	// Arrange
-	logger, fileSystem := arrangeTestResultsLogger(t, true)
+	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 	rlmc := []waf.ResultsLoggerCustomRulesMatchedConditions{
 		{
 			ConditionIndex: 0,
@@ -422,11 +473,14 @@ func TestCustomRuleDetectionModeAllowed(t *testing.T) {
 	`)
 }
 
-func arrangeTestResultsLogger(t *testing.T, isDetectionMode bool) (waf.ResultsLogger, *mockFileSystem) {
+func arrangeTestResultsLogger(t *testing.T, isDetectionMode bool) (waf.ResultsLogger, *mockFileSystem, chan bool) {
 	request := &mockWafHTTPRequest{}
 	zeroLogger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(1).With().Timestamp().Caller().Logger()
 	fileSystem := newMockFileSystem()
-	f, err := NewFileLogResultsLoggerFactory(fileSystem, zeroLogger)
+
+	reopenFileCh := make(chan bool)
+
+	f, err := NewFileLogResultsLoggerFactory(fileSystem, zeroLogger, reopenFileCh)
 	if err != nil {
 		t.Fatalf("Unexpected error %T: %v", err, err)
 	}
@@ -435,7 +489,7 @@ func arrangeTestResultsLogger(t *testing.T, isDetectionMode bool) (waf.ResultsLo
 	if err != nil {
 		t.Fatalf("Unexpected error %T: %v", err, err)
 	}
-	return logger, fileSystem
+	return logger, fileSystem, reopenFileCh
 }
 
 func assertJSONLogLine(t *testing.T, actual string, expected string) {
@@ -481,13 +535,19 @@ func (fs *mockFile) Append(content []byte) (err error) {
 	return nil
 }
 
+func (fs *mockFile) Close() (err error) {
+	return nil
+}
+
 type mockFileSystem struct {
-	fmap map[string]LogFile
+	fmap          map[string]LogFile
+	openCalledMap map[string]int
 }
 
 func newMockFileSystem() *mockFileSystem {
 	fileSystem := &mockFileSystem{}
 	fileSystem.fmap = make(map[string]LogFile)
+	fileSystem.openCalledMap = make(map[string]int)
 	return fileSystem
 }
 
@@ -498,6 +558,13 @@ func (fs *mockFileSystem) MkDir(name string) error {
 func (fs *mockFileSystem) Open(name string) (f LogFile, err error) {
 	f = &mockFile{}
 	fs.fmap[name] = f
+
+	if c, ok := fs.openCalledMap[name]; ok {
+		fs.openCalledMap[name] = c + 1
+		return f, nil
+	}
+
+	fs.openCalledMap[name] = 1
 	return f, nil
 }
 

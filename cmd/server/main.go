@@ -9,6 +9,8 @@ import (
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"os/signal"
+	"syscall"
 	"strconv"
 	"strings"
 	"time"
@@ -38,7 +40,18 @@ func main() {
 	logger := zerolog.New(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).Level(loglevel).With().Timestamp().Caller().Logger()
 	lengthLimits := parseLengthLimitsArgOrDefault(logger, *limitsArg)
 
-	grpc.StartServer(logger, *secruleconf, lengthLimits, standaloneSecruleServer, "tcp", ":37291")
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, os.Interrupt, syscall.SIGUSR1)
+
+	reopenLogFileChan := make(chan bool)
+	go func() {
+	   for {
+		  <-signalChan
+		  reopenLogFileChan <- true
+	   }
+	}()
+
+	grpc.StartServer(logger, *secruleconf, lengthLimits, standaloneSecruleServer, "tcp", ":37291", reopenLogFileChan)
 }
 
 func parseLengthLimitsArgOrDefault(logger zerolog.Logger, limitsArg string) (lengthLimits waf.LengthLimits) {

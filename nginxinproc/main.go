@@ -28,12 +28,13 @@ import (
 	"azwaf/logging"
 	"azwaf/secrule"
 	"azwaf/waf"
-	"github.com/rs/zerolog"
 	"io"
 	"os"
 	"reflect"
 	"time"
 	"unsafe"
+
+	"github.com/rs/zerolog"
 )
 
 // AzwafEvalRequest is the interface to the rest of Azwaf called from the in-proc Nginx plugin.
@@ -69,7 +70,10 @@ func getInstance(secruleconf string) waf.Server {
 	}
 
 	// Initialize common dependencies
-	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger)
+
+	// TODO implement log file reopening ability.
+	reopenLogFileChan := make(chan bool)
+	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}

@@ -7,6 +7,7 @@ import (
 // LogFile is the interface to handle log file append
 type LogFile interface {
 	Append(content []byte) (err error)
+	Close()(err error)
 }
 
 // LogFileSystem is the interface to handle log file directory creation and file open/append
@@ -23,6 +24,12 @@ type LogFileImpl struct {
 // Append will append the text(bytes) after if file is opened, otherwise it will do nothing
 func (fs *LogFileImpl) Append(content []byte) (err error) {
 	_, err = fs.f.Write(content)
+	return
+}
+
+// Close will close the file handler
+func (fs *LogFileImpl) Close() (err error) {
+	err = fs.f.Close()
 	return
 }
 
