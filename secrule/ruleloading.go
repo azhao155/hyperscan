@@ -32,6 +32,8 @@ func NewCrsRuleLoader(parser RuleParser, fs RuleLoaderFileSystem) RuleLoader {
 var ruleSetPathsMap = map[waf.RuleSetID][]string{
 	"OWASP CRS 3.0": {"crs3.0/main.conf"},
 	"OWASP CRS 3.0 with config for regression tests": {"crs3.0/main.regressiontesting.conf"},
+	"OWASP CRS 3.1": {"crs3.1/main.conf"},
+	"OWASP CRS 3.1 with config for regression tests": {"crs3.1/main.regressiontesting.conf"},
 }
 
 type includeLoaderCb func(filePath string) (statements []Statement, err error)

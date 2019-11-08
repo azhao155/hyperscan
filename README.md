@@ -32,6 +32,9 @@ dlv debug --api-version=2 --headless --listen=:2345 "azwaf/cmd/server" -- -secru
 # To run all CRS regression tests
 RUN_CRS_REGRESSION_TESTS=1 go test azwaf/integrationtesting -run TestCrsRules
 
+# To run CRS regression tests for a specific version
+RUN_CRS_REGRESSION_TESTS=1 go test azwaf/integrationtesting -run TestCrsRules -ruleSetVersion 3.0
+
 # To run CRS regression tests for a specific rule
 RUN_CRS_REGRESSION_TESTS=1 go test azwaf/integrationtesting -run TestCrsRules --ruleID=941100
 
