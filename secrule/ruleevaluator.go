@@ -23,11 +23,6 @@ func NewRuleEvaluator() RuleEvaluator {
 }
 
 func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
-	// The triggered callback is optional. Default to do nothing.
-	if triggeredCb == nil {
-		triggeredCb = func(stmt Statement, isDisruptive bool, msg string, logData string) {}
-	}
-
 	// Evaluate each phase, but stop if there was a disruptive action.
 	for phase := 1; phase <= 4; phase++ {
 		logger.Debug().Int("phase", phase).Msg("Starting rule evaluation phase")
@@ -68,13 +63,12 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 			continue
 		}
 
-		var actions []Action
 		var stmtID int
-		var triggered bool
 		shouldLog := true
 		var msg string
 
-		runActionsAfterSingleRuleItem := func(actions []Action) {
+		// This runs the actions that need to run after each rule item had a target that triggered
+		runActions := func(actions []Action) {
 			// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
 			for _, action := range actions {
@@ -85,34 +79,19 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 					if err != nil {
 						logger.Warn().Int("ruleID", stmtID).Err(err).Msg("Error executing setVar action")
 					}
+
+				case *NoLogAction:
+					shouldLog = false
+
+				case *LogAction:
+					shouldLog = true
+
 				}
 			}
 		}
 
-		switch stmt := stmt.(type) {
-		case *Rule:
-			triggered = false
-			stmtID = stmt.ID
-
-			for curRuleItemIdx, ruleItem := range stmt.Items {
-				if evalPredicate(perRequestEnv, ruleItem, scanResults, stmt, curRuleItemIdx) {
-					triggered = true
-					runActionsAfterSingleRuleItem(ruleItem.Actions) // Some actions are to be run after each chain item.
-					actions = append(actions, ruleItem.Actions...)  // Other actions later, only when all chain items triggered.
-				} else {
-					triggered = false
-					break
-				}
-			}
-
-		case *ActionStmt:
-			triggered = true
-			stmtID = stmt.ID
-			actions = stmt.Actions
-			runActionsAfterSingleRuleItem(actions)
-		}
-
-		if triggered {
+		// This runs the actions that need to run after all rule items have triggered
+		runActionsAfterAllRuleItemsTriggered := func(actions []Action) {
 			logger.Debug().Int("ruleID", stmtID).Msg("Rule triggered")
 
 			// Some actions are to be run after all rule items in the chain triggered.
@@ -122,12 +101,6 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 				case *SkipAfterAction:
 					skipAfter = action.Label
 					logger.Debug().Str("label", skipAfter).Msg("Skipping to marker")
-
-				case *NoLogAction:
-					shouldLog = false
-
-				case *LogAction:
-					shouldLog = true
 
 				case *MsgAction:
 					msg = action.Msg
@@ -142,6 +115,48 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 					statusCode = 403
 				}
 			}
+		}
+
+		switch stmt := stmt.(type) {
+		case *Rule:
+			stmtID = stmt.ID
+
+			for curRuleItemIdx, ruleItem := range stmt.Items {
+				anyRuleItemTriggered := false
+				for _, target := range ruleItem.Predicate.Targets {
+					if evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx) {
+						// Some actions are to be run after each rule item.
+						runActions(ruleItem.Actions)
+
+						// Some actions are only to be run when all rule items triggered.
+						if curRuleItemIdx == len(stmt.Items)-1 {
+							for _, r := range stmt.Items {
+								runActionsAfterAllRuleItemsTriggered(r.Actions)
+							}
+
+							if shouldLog {
+								// TODO implement the "logdata" action, so we can put something better than "" in logData
+								triggeredCb(stmt, phaseDisruptive, msg, "")
+							}
+
+							if phaseDisruptive {
+								return
+							}
+						}
+
+						anyRuleItemTriggered = true
+					}
+				}
+
+				if !anyRuleItemTriggered {
+					break
+				}
+			}
+
+		case *ActionStmt:
+			stmtID = stmt.ID
+			runActions(stmt.Actions)
+			runActionsAfterAllRuleItemsTriggered(stmt.Actions)
 
 			if shouldLog {
 				// TODO implement the "logdata" action, so we can put something better than "" in logData
@@ -176,61 +191,44 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env envMap, ruleItem RuleItem, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
-	anyMatched := false
-	anyChecked := false
+func evalPredicate(env envMap, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
+	isTxTarget := strings.EqualFold(target.Name, "tx")
+	isTxTargetPresent := isTxTarget && env.hasKey(target.Name+"."+target.Selector)
 
-	for _, target := range ruleItem.Predicate.Targets {
-		isTxTarget := strings.EqualFold(target.Name, "tx")
-		isTxTargetPresent := isTxTarget && env.hasKey(target.Name+"."+target.Selector)
+	if target.IsCount {
+		// Count-targets are special. They can be used to check in SecRule-lang whether a target was present. Therefore don't skip for now.
+		// TODO fully handle count-targets
+	} else if isTxTarget {
+		if !isTxTargetPresent {
+			return false
+		}
+	} else {
+		// Targets that we never even came across
+		if scanResults.targetsCount[target] == 0 {
+			return false
+		}
+	}
 
-		// For targets that we never even came across, we just always skip the predicate like ModSec does
-		if target.IsCount {
-			// Count-targets are special. They can be used to check in SecRule-lang whether a target was present. Therefore don't skip for now.
-			// TODO fully handle count-targets
-		} else if isTxTarget {
-			if !isTxTargetPresent {
-				continue
-			}
-		} else {
-			if scanResults.targetsCount[target] == 0 {
-				continue
-			}
+	toReturnIfTrigger := !ruleItem.Predicate.Neg
+	switch ruleItem.Predicate.Op {
+	case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within, DetectXSS, ValidateURLEncoding:
+		_, ok := scanResults.GetResultsFor(rule.ID, curRuleItemIdx, target)
+		if ok {
+			return toReturnIfTrigger
 		}
 
-		anyChecked = true
-
-		switch ruleItem.Predicate.Op {
-		case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Strmatch, Streq, Within, DetectXSS, ValidateURLEncoding:
-			_, ok := scanResults.GetResultsFor(rule.ID, curRuleItemIdx, target)
-			if ok {
-				anyMatched = true
-				break
-			}
-
-			if len(ruleItem.Predicate.valMacroMatches) > 0 {
-				matchFound, _, _ := ruleItem.Predicate.eval(scanResults, env)
-				if matchFound {
-					anyMatched = true
-					break
-				}
-			}
-		case Eq, Ge, Gt, Le, Lt:
+		if len(ruleItem.Predicate.valMacroMatches) > 0 {
 			matchFound, _, _ := ruleItem.Predicate.eval(scanResults, env)
-			anyMatched = anyMatched || matchFound
 			if matchFound {
-				break
+				return toReturnIfTrigger
 			}
+		}
+	case Eq, Ge, Gt, Le, Lt:
+		matchFound, _, _ := ruleItem.Predicate.eval(scanResults, env)
+		if matchFound {
+			return toReturnIfTrigger
 		}
 	}
 
-	if !anyChecked {
-		return false
-	}
-
-	if ruleItem.Predicate.Neg {
-		return !anyMatched
-	}
-
-	return anyMatched
+	return !toReturnIfTrigger
 }

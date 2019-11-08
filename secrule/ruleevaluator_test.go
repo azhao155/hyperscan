@@ -9,11 +9,21 @@ import (
 )
 
 func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
+	// Arrange
 	logger := testutils.NewTestLogger(t)
 	sv, _ := parseSetVarAction("tx.anomaly_score=+%{tx.critical_anomaly_score}")
 	rules := []Statement{
 		&Rule{
 			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "something"},
+					Actions:   []Action{sv, &DenyAction{}}, // The predicate will not be satisfied, so this should not run
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
 			Items: []RuleItem{
 				{
 					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
@@ -23,21 +33,27 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 			},
 		},
 	}
-
 	assert := assert.New(t)
-	key := matchKey{100, 0, Target{Name: "ARGS"}}
+	key := matchKey{200, 0, Target{Name: "ARGS"}}
 	m := make(map[matchKey]Match)
 	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
-
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	// Act
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
+
+	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
@@ -64,11 +80,16 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorAllowAction(t *testing.T) {
@@ -104,11 +125,16 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 	assert.Nil(err)
 	assert.Equal(waf.Allow, decision)
 	assert.Equal(200, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
@@ -137,10 +163,16 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{targetsCount: tc}
 
-	decision, code, err := re.Process(logger, em, rules, sr, nil)
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	decision, code, err := re.Process(logger, em, rules, sr, cb)
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorChain(t *testing.T) {
@@ -168,14 +200,19 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorChainNegative(t *testing.T) {
@@ -202,14 +239,19 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
@@ -236,14 +278,19 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
@@ -275,9 +322,13 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
@@ -287,6 +338,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	assert.True(ok)
 	assert.Equal(&stringObject{"123"}, v)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
@@ -317,9 +369,13 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
@@ -329,6 +385,7 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 	assert.True(ok)
 	assert.Equal(&stringObject{"123"}, v)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorSecAction(t *testing.T) {
@@ -345,9 +402,13 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
@@ -357,6 +418,44 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"123"}, v)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorSetVarString(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.somevar=a")
+	sv2, _ := parseSetVarAction("tx.somevar=%{tx.somevar}b")
+	sv3, _ := parseSetVarAction("tx.somevar=%{tx.somevar}c")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1}},
+		&ActionStmt{ID: 200, Actions: []Action{&sv2}},
+		&ActionStmt{ID: 300, Actions: []Action{&sv3}},
+	}
+	m := make(map[matchKey]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{m, tc}
+	env := newEnvMap()
+	assert.False(env.hasKey("tx.somevar"))
+	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"abc"}, v)
+	assert.Equal(3, cbCalled)
 }
 
 func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
@@ -374,9 +473,13 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, env, rules, sr, nil)
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
@@ -386,6 +489,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&integerObject{124}, v)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorMultiTarget1(t *testing.T) {
@@ -409,14 +513,19 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorMultiTarget2(t *testing.T) {
@@ -440,14 +549,174 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.somevar=0")
+	sv2, _ := parseSetVarAction("tx.somevar=+1")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&sv2},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	m[matchKey{200, 0, Target{Name: "REQUEST_COOKIES"}}] = Match{}
+	m[matchKey{200, 0, Target{Name: "ARGS"}}] = Match{}
+	tc := make(map[Target]int)
+	tc[Target{Name: "REQUEST_COOKIES"}] = 1
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	env := newEnvMap()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&integerObject{2}, v)
+	assert.Equal(2, cbCalled)
+}
+
+func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.somevar=0")
+	sv2, _ := parseSetVarAction("tx.somevar=+1")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&sv2},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&sv2},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{}
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = Match{}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = Match{}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = Match{}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: "ARGS", Selector: "b"}] = 1
+	tc[Target{Name: "ARGS", Selector: "c"}] = 1
+	tc[Target{Name: "ARGS", Selector: "d"}] = 1
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	env := newEnvMap()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&integerObject{4}, v)
+	assert.Equal(2, cbCalled)
+}
+
+func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.somevar=a")
+	sv2, _ := parseSetVarAction("tx.somevar=%{tx.somevar}b")
+	sv3, _ := parseSetVarAction("tx.somevar=%{tx.somevar}c")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&sv2},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: "abc"},
+					Actions:   []Action{&sv3},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{}
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = Match{}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = Match{}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = Match{}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: "ARGS", Selector: "b"}] = 1
+	tc[Target{Name: "ARGS", Selector: "c"}] = 1
+	tc[Target{Name: "ARGS", Selector: "d"}] = 1
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	env := newEnvMap()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&stringObject{"abbcc"}, v)
+	assert.Equal(cbCalled, 2)
 }
 
 func TestRuleEvaluatorNolog(t *testing.T) {
@@ -472,16 +741,16 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
-	cbCalled := false
+	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
-		cbCalled = true
+		cbCalled++
 	}
 
 	// Act
 	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
-	assert.False(cbCalled)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorNologOverride(t *testing.T) {
@@ -506,16 +775,16 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
-	cbCalled := false
+	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
-		cbCalled = true
+		cbCalled++
 	}
 
 	// Act
 	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
-	assert.True(cbCalled)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorNologChain(t *testing.T) {
@@ -557,16 +826,16 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
-	cbCalled := false
+	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
-		cbCalled = true
+		cbCalled++
 	}
 
 	// Act
 	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
-	assert.False(cbCalled)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorNologNegative(t *testing.T) {
@@ -590,16 +859,16 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
-	cbCalled := false
+	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
-		cbCalled = true
+		cbCalled++
 	}
 
 	// Act
 	re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
-	assert.True(cbCalled)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorPhases(t *testing.T) {
@@ -618,15 +887,20 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	re.Process(logger, env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(2, cbCalled)
 }
 
 func TestRuleEvaluatorDefaultPhase(t *testing.T) {
@@ -645,15 +919,20 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	re.Process(logger, env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(2, cbCalled)
 }
 
 func TestSkipAfter(t *testing.T) {
@@ -675,9 +954,13 @@ func TestSkipAfter(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	re.Process(logger, env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
@@ -689,6 +972,7 @@ func TestSkipAfter(t *testing.T) {
 	v, ok = env.get("tx.othervar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(2, cbCalled)
 }
 
 func TestSkipAfterWithinPhase(t *testing.T) {
@@ -710,15 +994,20 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	re.Process(logger, env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"20"}, v)
+	assert.Equal(3, cbCalled)
 }
 
 func TestMarkerCaseSensitive(t *testing.T) {
@@ -737,12 +1026,17 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	re.Process(logger, env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.False(env.hasKey("tx.somevar"))
+	assert.Equal(1, cbCalled)
 }
 
 func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
@@ -761,15 +1055,20 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	env := newEnvMap()
 	assert.False(env.hasKey("tx.somevar"))
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	re.Process(logger, env, rules, sr, nil)
+	re.Process(logger, env, rules, sr, cb)
 
 	// Assert
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
 	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(2, cbCalled)
 }
 
 func TestRuleEvaluatorNegate(t *testing.T) {
@@ -793,14 +1092,19 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorNegateNegative(t *testing.T) {
@@ -823,14 +1127,19 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
 }
 
 func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
@@ -842,28 +1151,156 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc", Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
-	m[matchKey{100, 0, Target{Name: "ARGS_NAMES"}}] = Match{}
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{}
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "b"}}] = Match{}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
-	tc[Target{Name: "ARGS_NAMES"}] = 1
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: "ARGS", Selector: "b"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
+}
+
+func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+
+	sv1, _ := parseSetVarAction("tx.somevar=0")
+	sv2, _ := parseSetVarAction("tx.somevar=+1")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&sv2},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: "ARGS", Selector: "b"}] = 1
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+	env := newEnvMap()
+
+	// Act
+	_, _, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&integerObject{2}, v)
+	assert.Equal(2, cbCalled)
+}
+
+func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+
+	sv1, _ := parseSetVarAction("tx.somevar=0")
+	sv2, _ := parseSetVarAction("tx.somevar=+1")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&sv2},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1 // Note ARGS:b not present in this negative test
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+	env := newEnvMap()
+
+	// Act
+	_, _, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.True(env.hasKey("tx.somevar"))
+	v, ok := env.get("tx.somevar")
+	assert.True(ok)
+	assert.Equal(&integerObject{1}, v)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorNegateMultiTxTargets(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = Match{}
+	m[matchKey{100, 0, Target{Name: "TX", Selector: "def"}}] = Match{}
+	tc := make(map[Target]int)
+	tc[Target{Name: "TX", Selector: "abc"}] = 1
+	tc[Target{Name: "TX", Selector: "def"}] = 1
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
@@ -883,19 +1320,59 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 	}
 	m := make(map[matchKey]Match)
 	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
-	m[matchKey{100, 0, Target{Name: "ARGS_NAMES"}}] = Match{}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1 // Note: only ARGS, not ARGS_NAMES in this negative test
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
+}
+
+func TestRuleEvaluatorNegateMultiTxTargetsNegative(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: "abc", Neg: true},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = Match{}
+	tc := make(map[Target]int)
+	tc[Target{Name: "TX", Selector: "abc"}] = 1 // Note: only TX:abc, not TX:def in this negative test
+	sr := &ScanResults{m, tc}
+	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
@@ -919,14 +1396,19 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 	tc[Target{Name: "ARGS", Selector: "myarg1"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
@@ -950,14 +1432,19 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 	tc[Target{Name: "ARGS", Selector: "myarg2"}] = 1
 	sr := &ScanResults{m, tc}
 	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, nil)
+	decision, code, err := re.Process(logger, newEnvMap(), rules, sr, cb)
 
 	// Assert
 	assert.Nil(err)
 	assert.Equal(waf.Pass, decision)
 	assert.Equal(200, code)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorCountTarget(t *testing.T) {
@@ -983,10 +1470,14 @@ func TestRuleEvaluatorCountTarget(t *testing.T) {
 	tc2 := make(map[Target]int)
 	tc2[Target{Name: "ARGS", Selector: "hello", IsCount: true}] = 1
 	sr2 := &ScanResults{targetsCount: tc2}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
 
 	// Act
-	decision1, code1, err1 := re.Process(logger, em, rules, sr1, nil)
-	decision2, code2, err2 := re.Process(logger, em, rules, sr2, nil)
+	decision1, code1, err1 := re.Process(logger, em, rules, sr1, cb)
+	decision2, code2, err2 := re.Process(logger, em, rules, sr2, cb)
 
 	// Assert
 	assert.Nil(err1)
@@ -995,4 +1486,5 @@ func TestRuleEvaluatorCountTarget(t *testing.T) {
 	assert.Equal(waf.Pass, decision2)
 	assert.Equal(403, code1)
 	assert.Equal(200, code2)
+	assert.Equal(1, cbCalled)
 }
