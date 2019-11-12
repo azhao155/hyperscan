@@ -41,7 +41,7 @@ func main() {
 	lengthLimits := parseLengthLimitsArgOrDefault(logger, *limitsArg)
 
 	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt, syscall.SIGUSR1)
+	signal.Notify(signalChan, syscall.SIGUSR1)
 
 	reopenLogFileChan := make(chan bool)
 	go func() {
