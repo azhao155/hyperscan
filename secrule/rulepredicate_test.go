@@ -9,20 +9,21 @@ import (
 func TestVarCounting(t *testing.T) {
 	assert := assert.New(t)
 
+	target := Target{Name: "TX", Selector: "1", IsCount: true}
 	rp := RulePredicate{
-		Targets: []Target{{Name: "TX", Selector: "1", IsCount: true}},
+		Targets: []Target{target},
 		Op:      Gt,
 		Val:     "0",
 	}
 
 	em := newEnvMap()
 	sr := &ScanResults{targetsCount: make(map[Target]int)}
-	result, _, err := rp.eval(sr, em)
+	result, _, err := rp.eval(target, sr, em)
 	assert.Nil(err)
 	assert.False(result)
 
 	em.set("tx.1", &stringObject{Value: "v1"})
-	result, _, err = rp.eval(sr, em)
+	result, _, err = rp.eval(target, sr, em)
 	assert.Nil(err)
 	assert.True(result)
 }
@@ -31,8 +32,9 @@ func TestVarGt(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
 
+	target := Target{Name: "TX", Selector: "somevar"}
 	rp := RulePredicate{
-		Targets: []Target{{Name: "TX", Selector: "somevar"}},
+		Targets: []Target{target},
 		Op:      Gt,
 		Val:     "4",
 	}
@@ -41,11 +43,11 @@ func TestVarGt(t *testing.T) {
 	sr := &ScanResults{targetsCount: make(map[Target]int)}
 
 	// Act
-	result1, _, err1 := rp.eval(sr, em)
+	result1, _, err1 := rp.eval(target, sr, em)
 	em.set("tx.somevar", &integerObject{Value: 3})
-	result2, _, err2 := rp.eval(sr, em)
+	result2, _, err2 := rp.eval(target, sr, em)
 	em.set("tx.somevar", &integerObject{Value: 5})
-	result3, _, err3 := rp.eval(sr, em)
+	result3, _, err3 := rp.eval(target, sr, em)
 
 	// Assert
 	assert.NotNil(err1)

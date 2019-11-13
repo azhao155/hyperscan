@@ -87,6 +87,9 @@ type SetVarAction struct {
 	valMacroMatches [][]string
 }
 
+// CaptureAction makes the engine save regex groups to tx.0, tx.1, etc.
+type CaptureAction struct{}
+
 // Operator that the SecRule will use to evaluates the input against the value.
 type Operator int
 

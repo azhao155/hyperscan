@@ -141,16 +141,28 @@ func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (mat
 
 	// Re-validate the potential matches using Go regexp
 	for _, pmID := range potentialMatches {
-		loc := h.goregexes[pmID].FindIndex(input)
+		loc := h.goregexes[pmID].FindSubmatchIndex(input)
 		if loc == nil {
 			continue
 		}
 
+		// FindSubmatchIndex will always return an even number, because it returns pairs of start-end-locations.
+		var captureGroups [][]byte
+		for i := 0; i < len(loc); i = i + 2 {
+			if loc[i] != -1 {
+				captureGroups = append(captureGroups, input[loc[i]:loc[i+1]])
+			} else {
+				// This capture group was not found
+				captureGroups = append(captureGroups, []byte{})
+			}
+		}
+
 		m := waf.MultiRegexEngineMatch{
-			ID:       pmID,
-			StartPos: loc[0],
-			EndPos:   loc[1],
-			Data:     input[loc[0]:loc[1]],
+			ID:            pmID,
+			StartPos:      loc[0],
+			EndPos:        loc[1],
+			Data:          input[loc[0]:loc[1]],
+			CaptureGroups: captureGroups,
 		}
 
 		matches = append(matches, m)

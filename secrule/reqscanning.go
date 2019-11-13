@@ -25,9 +25,10 @@ type ReqScannerEvaluation interface {
 
 // Match represents when a match was found during the request scanning phase.
 type Match struct {
-	StartPos int
-	EndPos   int
-	Data     []byte
+	StartPos      int
+	EndPos        int
+	Data          []byte
+	CaptureGroups [][]byte
 }
 
 // ScanResults is the collection of all results found while scanning.
@@ -442,9 +443,10 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
 				if _, alreadyFound := results.matches[key]; !alreadyFound {
 					results.matches[key] = Match{
-						StartPos: m.StartPos,
-						EndPos:   m.EndPos,
-						Data:     m.Data,
+						StartPos:      m.StartPos,
+						EndPos:        m.EndPos,
+						Data:          m.Data,
+						CaptureGroups: m.CaptureGroups,
 					}
 				}
 			}

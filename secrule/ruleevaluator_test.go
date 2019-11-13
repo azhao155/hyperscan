@@ -1488,3 +1488,288 @@ func TestRuleEvaluatorCountTarget(t *testing.T) {
 	assert.Equal(200, code2)
 	assert.Equal(1, cbCalled)
 }
+
+func TestRuleEvaluatorLateScanTarget(t *testing.T) {
+	// This test should always trigger regardless of the input request.
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:501,nolog,setvar:tx.myvar=hello1234"
+		SecRule TX:myvar "@streq hello1234" "id:502,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=hello1234")
+	rules := []Statement{
+		&ActionStmt{ID: 501, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 502,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "myvar"}}, Op: Streq, Val: `hello1234`},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
+
+}
+
+func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
+	// This test should trigger on ?a=hello1234worlda but not on ?a=hello1111worlda
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecRule ARGS "(hello\d+)worlda" "id:101,capture,deny,chain"
+			SecRule TX:1 "@streq hello1234worlda" ""
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 101,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `(hello\d+)worlda`},
+					Actions:   []Action{&CaptureAction{}, &DenyAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Streq, Val: "hello1234"},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = Match{
+		Data:          []byte("hello1234worlda"),
+		CaptureGroups: [][]byte{[]byte("hello1234worlda"), []byte("hello1234")},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
+	// This test should trigger on ?a=hello1234worldb but not on ?a=hello1111worldb
+	// This does not work in ModSecurity. Tried and failed with the following config:
+	/*
+		SecAction "id:201,nolog,setvar:tx.myvar=h.l.o.2.4"
+		SecRule ARGS "(hello\d+)worldb" "id:202,capture,deny,chain"
+			SecRule TX:1 "^%{tx.myvar}$" ""
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	//	sv1, _ := parseSetVarAction("tx.myvar=h.l.o.2.4")
+	sv1, _ := parseSetVarAction("tx.myvar=hello1234")
+	val := `^%{tx.myvar}$`
+	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(val, -1) // TODO this would not be needed if the val field was a lits of tokens rather than a string
+	rules := []Statement{
+		&ActionStmt{ID: 201, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 202,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `(hello\d+)worldb`},
+					Actions:   []Action{&CaptureAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: val, valMacroMatches: valMacroMatches},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{202, 0, Target{Name: "ARGS"}}] = Match{
+		Data:          []byte("hello1234worldb"),
+		CaptureGroups: [][]byte{[]byte("hello1234worldb"), []byte("hello1234")},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
+	// This test should trigger on ?a=hello123world123c but not on ?a=hello123world234c
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecRule ARGS "hello(\d+)world(\d+)c" "id:303,capture,deny,chain"
+			SecRule TX:1 "^%{tx.2}$" ""
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	val := `^%{tx.2}$`
+	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(val, -1) // TODO this would not be needed if the val field was a lits of tokens rather than a string
+	rules := []Statement{
+		&Rule{
+			ID: 303,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `hello(\d+)world(\d+)c`},
+					Actions:   []Action{&CaptureAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: val, valMacroMatches: valMacroMatches},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{303, 0, Target{Name: "ARGS"}}] = Match{
+		Data: []byte("hello1234world1234c"),
+		CaptureGroups: [][]byte{
+			[]byte("hello1234world1234c"),
+			[]byte("1234"),
+			[]byte("1234"),
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(403, code)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanValue(t *testing.T) {
+	t.SkipNow() // Skip until we support scanning of request fields with variables on the right side for the two special cases where we need it
+
+	// This test should trigger on ?a=hello1234worldd
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:401,nolog,setvar:tx.myvar=hello1234"
+		SecRule ARGS "%{tx.myvar}worldd" "id:402,deny"
+	*/
+
+	// Late-scanning a request field is not supported by Azwaf.
+	// TODO write a test that ensures that we get some kind of error if we try this
+	// TODO there are some special cases (920430, 911100),  where this is needed, but only for certain fields, so let's just keep these fields in scanresults.
+	t.Fail()
+}
+
+func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	val := `^%{tx.2}$`
+	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(val, -1) // TODO this would not be needed if the val field was a lits of tokens rather than a string
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `hello(\d+)world(\d+)c`},
+					Actions:   []Action{&CaptureAction{}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: val, valMacroMatches: valMacroMatches},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{
+		Data: []byte("hello1234world1234c"),
+		CaptureGroups: [][]byte{
+			[]byte("hello1234world1234c"),
+			[]byte("1234"),
+			[]byte("1234"),
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.Equal(1, cbCalled)
+}

@@ -117,7 +117,7 @@ func TestHyperscanSimple(t *testing.T) {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
 	}
 	if r[0].StartPos != 3 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].EndPos)
+		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
 	}
 	if r[0].EndPos != 9 {
 		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
@@ -266,9 +266,153 @@ func TestHyperscanEmptyString(t *testing.T) {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
 	}
 	if r[0].StartPos != 0 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].EndPos)
+		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
 	}
 	if r[0].EndPos != 0 {
 		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
+	}
+}
+
+func TestHyperscanCaptureGroup(t *testing.T) {
+	// Arrange
+	patterns := []waf.MultiRegexEnginePattern{
+		{ID: 1, Expr: `hello(\d+)world`},
+	}
+
+	// Act
+	f := NewMultiRegexEngineFactory(nil)
+	m, err := f.NewMultiRegexEngine(patterns)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	s, err := m.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte("xyzhello1234worldxyz"), s)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	m.Close()
+	m.Close() // Ensure that it doesn't fail on second close
+
+	// Assert
+	if len(r) != 1 {
+		t.Fatalf("Got unexpected number of matches: %d", len(r))
+	}
+	if r[0].ID != 1 {
+		t.Fatalf("Unexpected id: %d", r[0].ID)
+	}
+	if string(r[0].Data) != "hello1234world" {
+		t.Fatalf("Unexpected data: %s", string(r[0].Data))
+	}
+	if r[0].StartPos != 3 {
+		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
+	}
+	if r[0].EndPos != 17 {
+		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
+	}
+	if len(r[0].CaptureGroups) != 2 {
+		t.Fatalf("Unexpected len(r[0].CaptureGroups): %d", len(r[0].CaptureGroups))
+	}
+	if string(r[0].CaptureGroups[0]) != "hello1234world" {
+		t.Fatalf("Unexpected r[0].CaptureGroups[0]: %s", r[0].CaptureGroups[0])
+	}
+	if string(r[0].CaptureGroups[1]) != "1234" {
+		t.Fatalf("Unexpected r[0].CaptureGroups[1]: %s", r[0].CaptureGroups[1])
+	}
+}
+
+func TestHyperscanNonCaptureGroup(t *testing.T) {
+	// Arrange
+	patterns := []waf.MultiRegexEnginePattern{
+		{ID: 1, Expr: `hello(?:\d+)world`},
+	}
+
+	// Act
+	f := NewMultiRegexEngineFactory(nil)
+	m, err := f.NewMultiRegexEngine(patterns)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	s, err := m.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte("xyzhello1234worldxyz"), s)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	m.Close()
+	m.Close() // Ensure that it doesn't fail on second close
+
+	// Assert
+	if len(r) != 1 {
+		t.Fatalf("Got unexpected number of matches: %d", len(r))
+	}
+	if r[0].ID != 1 {
+		t.Fatalf("Unexpected id: %d", r[0].ID)
+	}
+	if string(r[0].Data) != "hello1234world" {
+		t.Fatalf("Unexpected data: %s", string(r[0].Data))
+	}
+	if r[0].StartPos != 3 {
+		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
+	}
+	if r[0].EndPos != 17 {
+		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
+	}
+	if len(r[0].CaptureGroups) != 1 {
+		t.Fatalf("Unexpected len(r[0].CaptureGroups): %d", len(r[0].CaptureGroups))
+	}
+	if string(r[0].CaptureGroups[0]) != "hello1234world" {
+		t.Fatalf("Unexpected r[0].CaptureGroups[0]: %s", r[0].CaptureGroups[0])
+	}
+}
+
+func TestHyperscanParenthesis(t *testing.T) {
+	// Arrange
+	patterns := []waf.MultiRegexEnginePattern{
+		{ID: 1, Expr: `hello\(\d+\)world`}, // The parenthesis here are literal parenthesis, not a capture group
+	}
+
+	// Act
+	f := NewMultiRegexEngineFactory(nil)
+	m, err := f.NewMultiRegexEngine(patterns)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	s, err := m.CreateScratchSpace()
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	r, err := m.Scan([]byte("xyzhello(1234)worldxyz"), s)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+	m.Close()
+	m.Close() // Ensure that it doesn't fail on second close
+
+	// Assert
+	if len(r) != 1 {
+		t.Fatalf("Got unexpected number of matches: %d", len(r))
+	}
+	if r[0].ID != 1 {
+		t.Fatalf("Unexpected id: %d", r[0].ID)
+	}
+	if string(r[0].Data) != "hello(1234)world" {
+		t.Fatalf("Unexpected data: %s", string(r[0].Data))
+	}
+	if r[0].StartPos != 3 {
+		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
+	}
+	if r[0].EndPos != 19 {
+		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
+	}
+	if len(r[0].CaptureGroups) != 1 {
+		t.Fatalf("Unexpected len(r[0].CaptureGroups): %d", len(r[0].CaptureGroups))
+	}
+	if string(r[0].CaptureGroups[0]) != "hello(1234)world" {
+		t.Fatalf("Unexpected r[0].CaptureGroups[0]: %s", r[0].CaptureGroups[0])
 	}
 }

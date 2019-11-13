@@ -662,7 +662,7 @@ func TestSecRuleActions(t *testing.T) {
 			continue
 		}
 
-		compareActions(test.expectedActions, r.Items[0].Actions, b, test.input)
+		compareActions(test.expectedActions, r.Items[0].Actions, &b, test.input)
 	}
 
 	if b.Len() > 0 {
@@ -670,9 +670,9 @@ func TestSecRuleActions(t *testing.T) {
 	}
 }
 
-func compareActions(expectedActions []Action, actualActions []Action, b strings.Builder, rawinput string) {
+func compareActions(expectedActions []Action, actualActions []Action, b *strings.Builder, rawinput string) {
 	if len(expectedActions) != len(actualActions) {
-		fmt.Fprintf(&b, "Wrong actions count. Expected: %v. Actual: %v. Tested input: %s\n", len(expectedActions), len(actualActions), rawinput)
+		fmt.Fprintf(b, "Wrong actions count. Expected: %v. Actual: %v. Tested input: %s\n", len(expectedActions), len(actualActions), rawinput)
 		return
 	}
 
@@ -683,105 +683,126 @@ func compareActions(expectedActions []Action, actualActions []Action, b strings.
 		case *RawAction:
 			expectedVal, ok := expectedVal.(*RawAction)
 			if !ok {
-				fmt.Fprintf(&b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
 				continue
 			}
 
 			if a.Key != expectedVal.Key {
-				fmt.Fprintf(&b, "Got wrong action key: %s. Expected: %s. Tested input: %s\n", a.Key, expectedVal.Key, rawinput)
+				fmt.Fprintf(b, "Got wrong action key: %s. Expected: %s. Tested input: %s\n", a.Key, expectedVal.Key, rawinput)
 			}
 
 			if a.Val != expectedVal.Val {
-				fmt.Fprintf(&b, "Got wrong action val: %s. Expected: %s. Tested input: %s\n", a.Val, expectedVal.Val, rawinput)
+				fmt.Fprintf(b, "Got wrong action val: %s. Expected: %s. Tested input: %s\n", a.Val, expectedVal.Val, rawinput)
 			}
 
 		case *DenyAction:
 			expectedVal, ok := expectedVal.(*DenyAction)
 			if !ok {
-				fmt.Fprintf(&b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
 				continue
 			}
 
 		case *NoLogAction:
-			expectedVal, ok := expectedVal.(*DenyAction)
+			expectedVal, ok := expectedVal.(*NoLogAction)
 			if !ok {
-				fmt.Fprintf(&b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
 				continue
 			}
 
 		case *MsgAction:
 			expectedVal, ok := expectedVal.(*MsgAction)
 			if !ok {
-				fmt.Fprintf(&b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
 				continue
 			}
 
 			if a.Msg != expectedVal.Msg {
-				fmt.Fprintf(&b, "Got wrong action msg: %s. Expected: %s. Tested input: %s\n", a.Msg, expectedVal.Msg, rawinput)
+				fmt.Fprintf(b, "Got wrong action msg: %s. Expected: %s. Tested input: %s\n", a.Msg, expectedVal.Msg, rawinput)
 			}
 
 		case *SetVarAction:
 			expectedVal, ok := expectedVal.(*SetVarAction)
 			if !ok {
-				fmt.Fprintf(&b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
 				continue
 			}
 
 			if a.variable != expectedVal.variable {
-				fmt.Fprintf(&b, "Wrong variable: %v. Tested input: %v\n", a.variable, rawinput)
+				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.variable, rawinput)
 				continue
 			}
 
 			if a.operator != expectedVal.operator {
-				fmt.Fprintf(&b, "Wrong operator: %v. Tested input: %v\n", a.operator, rawinput)
+				fmt.Fprintf(b, "Wrong operator: %v. Tested input: %v\n", a.operator, rawinput)
 				continue
 			}
 
 			if a.value != expectedVal.value {
-				fmt.Fprintf(&b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
+				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
 				continue
 			}
 
 			if len(a.varMacroMatches) != len(expectedVal.varMacroMatches) {
-				fmt.Fprintf(&b, "Wrong len(varMacroMatches): %v. Tested input: %v\n", len(a.varMacroMatches), rawinput)
+				fmt.Fprintf(b, "Wrong len(varMacroMatches): %v. Tested input: %v\n", len(a.varMacroMatches), rawinput)
 				continue
 			}
 
 			for i := range a.varMacroMatches {
 				if len(a.varMacroMatches[i]) != len(expectedVal.varMacroMatches[i]) {
-					fmt.Fprintf(&b, "Wrong len(a.varMacroMatches[i]): %v. Tested input: %v\n", len(a.varMacroMatches[i]), rawinput)
+					fmt.Fprintf(b, "Wrong len(a.varMacroMatches[i]): %v. Tested input: %v\n", len(a.varMacroMatches[i]), rawinput)
 					continue
 				}
 
 				for j := range a.varMacroMatches[i] {
 					if a.varMacroMatches[i][j] != expectedVal.varMacroMatches[i][j] {
-						fmt.Fprintf(&b, "Wrong a.varMacroMatches[i][j]: %v. Tested input: %v\n", a.varMacroMatches[i][j], rawinput)
+						fmt.Fprintf(b, "Wrong a.varMacroMatches[i][j]: %v. Tested input: %v\n", a.varMacroMatches[i][j], rawinput)
 						continue
 					}
 				}
 			}
 
 			if len(a.valMacroMatches) != len(expectedVal.valMacroMatches) {
-				fmt.Fprintf(&b, "Wrong len(valMacroMatches): %v. Tested input: %v\n", len(a.valMacroMatches), rawinput)
+				fmt.Fprintf(b, "Wrong len(valMacroMatches): %v. Tested input: %v\n", len(a.valMacroMatches), rawinput)
 				continue
 			}
 
 			for i := range a.valMacroMatches {
 				if len(a.valMacroMatches[i]) != len(expectedVal.valMacroMatches[i]) {
-					fmt.Fprintf(&b, "Wrong len(a.valMacroMatches[i]): %v. Tested input: %v\n", len(a.valMacroMatches[i]), rawinput)
+					fmt.Fprintf(b, "Wrong len(a.valMacroMatches[i]): %v. Tested input: %v\n", len(a.valMacroMatches[i]), rawinput)
 					continue
 				}
 
 				for j := range a.valMacroMatches[i] {
 					if a.valMacroMatches[i][j] != expectedVal.valMacroMatches[i][j] {
-						fmt.Fprintf(&b, "Wrong a.valMacroMatches[i][j]: %v. Tested input: %v\n", a.valMacroMatches[i][j], rawinput)
+						fmt.Fprintf(b, "Wrong a.valMacroMatches[i][j]: %v. Tested input: %v\n", a.valMacroMatches[i][j], rawinput)
 						continue
 					}
 				}
 			}
 
+		case *LogAction:
+			expectedVal, ok := expectedVal.(*LogAction)
+			if !ok {
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				continue
+			}
+
+		case *AllowAction:
+			expectedVal, ok := expectedVal.(*AllowAction)
+			if !ok {
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				continue
+			}
+
+		case *CaptureAction:
+			expectedVal, ok := expectedVal.(*CaptureAction)
+			if !ok {
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				continue
+			}
+
 		default:
-			fmt.Fprintf(&b, "Test harness does not support this type yet: %T. Please implement.", a)
+			fmt.Fprintf(b, "Test harness does not support this type yet: %T. Please implement.", a)
 
 		}
 	}
@@ -873,7 +894,7 @@ func TestSecAction900990(t *testing.T) {
 		},
 	}
 	var b strings.Builder
-	compareActions(expectedActions, a.Actions, b, "")
+	compareActions(expectedActions, a.Actions, &b, "")
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
 	}
@@ -978,7 +999,7 @@ func TestRule942320(t *testing.T) {
 		&RawAction{`ver`, `OWASP_CRS/3.0.0`},
 		&RawAction{`maturity`, `9`},
 		&RawAction{`accuracy`, `8`},
-		&RawAction{`capture`, ``},
+		&CaptureAction{},
 		&RawAction{`block`, ``},
 		&MsgAction{Msg: "Detects MySQL and PostgreSQL stored procedure/function injections"},
 		&RawAction{`tag`, `application-multi`},
@@ -1024,7 +1045,7 @@ func TestRule942320(t *testing.T) {
 	}
 
 	var b strings.Builder
-	compareActions(expectedActions, r.Actions, b, "")
+	compareActions(expectedActions, r.Actions, &b, "")
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
 	}
@@ -1108,13 +1129,14 @@ func TestRule901001(t *testing.T) {
 
 	expectedActions := []Action{
 		&RawAction{`auditlog`, ``},
+		&LogAction{},
 		&DenyAction{},
 		&RawAction{`status`, `500`},
 		&RawAction{`severity`, `CRITICAL`},
-		&MsgAction{Msg: "ModSecurity Core Rule Set is deployed without configuration! Please copy the crs-setup.conf.example template to crs-setup.conf, and include the crs-setup.conf file in your webserver configuration before including the CRS rules. See the INSTALL file in the CRS directory for detailed instructions."},
+		&MsgAction{Msg: ""},
 	}
 	var b strings.Builder
-	compareActions(expectedActions, r.Actions, b, "")
+	compareActions(expectedActions, r.Actions, &b, "")
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
 	}
@@ -1191,7 +1213,35 @@ func TestNolog(t *testing.T) {
 		&NoLogAction{},
 	}
 	var b strings.Builder
-	compareActions(expectedActions, rc.Items[0].Actions, b, "")
+	compareActions(expectedActions, rc.Items[0].Actions, &b, "")
+	if b.Len() > 0 {
+		t.Fatalf("\n%s", b.String())
+	}
+}
+
+func TestCaptureAction(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `SecRule ARGS "hello" "id:901001,capture"`
+
+	// Act
+	rr, err := p.Parse(rule, nil, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	expectedActions := []Action{
+		&CaptureAction{},
+	}
+	var b strings.Builder
+	compareActions(expectedActions, rc.Items[0].Actions, &b, "")
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
 	}
@@ -1433,7 +1483,7 @@ func TestParseSetVar(t *testing.T) {
 			SetVarAction{
 				variable:        "tx.anomaly_score",
 				operator:        deleteVar,
-				value:           "123",
+				value:           "1",
 				varMacroMatches: nil,
 				valMacroMatches: nil,
 			},
@@ -1453,7 +1503,7 @@ func TestParseSetVar(t *testing.T) {
 			SetVarAction{
 				variable:        "tx.anomaly_score",
 				operator:        set,
-				value:           "%{tx.critical_anomaly_score}",
+				value:           "%{tx.critical_anomaly_score} %{tx.something}",
 				varMacroMatches: nil,
 				valMacroMatches: [][]string{
 					{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"},
@@ -1484,7 +1534,7 @@ func TestParseSetVar(t *testing.T) {
 			continue
 		}
 
-		compareActions([]Action{&test.expected}, []Action{&sv}, b, test.input)
+		compareActions([]Action{&test.expected}, []Action{&sv}, &b, test.input)
 	}
 
 	if b.Len() > 0 {

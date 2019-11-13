@@ -6,52 +6,51 @@ import (
 	"strings"
 )
 
-func (rp *RulePredicate) eval(scanResults *ScanResults, perRequestEnv envMap) (result bool, output string, err error) {
-	for _, target := range rp.Targets {
-		expectedVal, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
-		if err != nil {
-			return false, "", err
-		}
-
-		actualVal := ""
-		const transactionVariableCollectionTargetName string = "TX"
-		if target.Name == transactionVariableCollectionTargetName {
-			if target.IsCount {
-				// Variable counting
-				actualVal = "0"
-				if target.Selector != "" {
-					key := target.Name + "." + target.Selector
-					if perRequestEnv.hasKey(key) {
-						actualVal = "1"
-					}
-				}
-			} else {
-				key := target.Name + "." + target.Selector
-
-				varObj, ok := perRequestEnv.get(key)
-				if !ok {
-					return false, "", fmt.Errorf("Target %s not found in env map", key)
-				}
-
-				actualVal = varObj.ToString()
-			}
-		} else if target.IsCount {
-			actualVal = strconv.Itoa(scanResults.targetsCount[target])
-		} else {
-			// TODO Support ways of getting actualVal
-		}
-
-		opFunc := toOperatorFunc(rp.Op)
-		result, output, err = opFunc(actualVal, expectedVal)
-
-		if err != nil {
-			return result, "", err
-		}
-
-		if result {
-			return result, output, nil
-		}
+func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perRequestEnv envMap) (result bool, output string, err error) {
+	expectedVal, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
+	if err != nil {
+		return false, "", err
 	}
+
+	actualVal := ""
+	const transactionVariableCollectionTargetName string = "TX"
+	if target.Name == transactionVariableCollectionTargetName {
+		if target.IsCount {
+			// Variable counting
+			actualVal = "0"
+			if target.Selector != "" {
+				key := target.Name + "." + target.Selector
+				if perRequestEnv.hasKey(key) {
+					actualVal = "1"
+				}
+			}
+		} else {
+			key := target.Name + "." + target.Selector
+
+			varObj, ok := perRequestEnv.get(key)
+			if !ok {
+				return false, "", fmt.Errorf("Target %s not found in env map", key)
+			}
+
+			actualVal = varObj.ToString()
+		}
+	} else if target.IsCount {
+		actualVal = strconv.Itoa(scanResults.targetsCount[target])
+	} else {
+		// TODO Support ways of getting actualVal
+	}
+
+	opFunc := toOperatorFunc(rp.Op)
+	result, output, err = opFunc(actualVal, expectedVal)
+
+	if err != nil {
+		return result, "", err
+	}
+
+	if result {
+		return result, output, nil
+	}
+
 	return false, "", nil
 }
 

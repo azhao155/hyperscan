@@ -495,9 +495,14 @@ func parseActions(rawActions []RawAction) (
 		case "skipafter":
 			actions = append(actions, &SkipAfterAction{Label: a.Val})
 
+		case "capture":
+			actions = append(actions, &CaptureAction{})
+
 		default:
 			// TODO support all actions and do a proper error here for unknown actions
-			actions = append(actions, &a)
+			var rawAction RawAction
+			rawAction = a
+			actions = append(actions, &rawAction)
 
 		}
 	}

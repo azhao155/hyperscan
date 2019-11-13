@@ -2,6 +2,7 @@ package secrule
 
 import (
 	li "azwaf/libinjection"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -22,6 +23,7 @@ var operatorFuncsMap = map[Operator]operatorFunc{
 	Strmatch:     containsOperatorEval,
 	Within:       wordListSearchOperatorEval,
 	Pm:           wordListSearchOperatorEval,
+	Rx:           rxOperatorEval,
 }
 
 type operatorFunc func(string, string) (bool, string, error)
@@ -129,4 +131,19 @@ func wordListSearchOperatorEval(target string, value string) (bool, string, erro
 		}
 	}
 	return false, "", nil
+}
+
+// Note that this operator-function is only used during late scanning, when scanning for or in a variable.
+// Most regex rules are not based on a variable, and can therefore be scanned during request scanning.
+func rxOperatorEval(actual string, expected string) (bool, string, error) {
+	rx, err := regexp.Compile(expected)
+	if err != nil {
+		return false, "", err
+	}
+
+	captureGroups := rx.FindStringSubmatch(actual)
+	// TODO find a way to return the capture groups up so they can be put in TX.1, etc.
+	triggered := len(captureGroups) > 0
+
+	return triggered, "", nil
 }

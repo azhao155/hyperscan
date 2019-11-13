@@ -20,10 +20,11 @@ type MultiRegexEnginePattern struct {
 
 // MultiRegexEngineMatch is used by the MultiRegexEngine interface to communicate back which matches were found.
 type MultiRegexEngineMatch struct {
-	ID       int
-	StartPos int
-	EndPos   int
-	Data     []byte
+	ID            int
+	StartPos      int
+	EndPos        int
+	Data          []byte
+	CaptureGroups [][]byte
 }
 
 // MultiRegexEngineScratchSpace is temporary memory needed by a MultiRegexEngine, which may not be concurrently used.
