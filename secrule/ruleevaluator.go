@@ -112,6 +112,8 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 						cleanUpCapturedVars = nil
 					}
 
+				case *CtlAction:
+					perRequestEnv.set(action.setting, &stringObject{Value: action.value})
 				}
 			}
 		}

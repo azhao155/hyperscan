@@ -90,6 +90,12 @@ type SetVarAction struct {
 // CaptureAction makes the engine save regex groups to tx.0, tx.1, etc.
 type CaptureAction struct{}
 
+// CtlAction is the action that modifies configuration during run time
+type CtlAction struct {
+	setting         string
+	value           string
+}
+
 // Operator that the SecRule will use to evaluates the input against the value.
 type Operator int
 

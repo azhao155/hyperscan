@@ -1843,3 +1843,36 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 	assert.Equal(200, code)
 	assert.Equal(1, cbCalled)
 }
+
+func TestRuleEvaluatorCtlAction(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	c1, _ := parseCtlAction("forceRequestBodyVariable=On")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&c1}},
+	}
+	m := make(map[matchKey]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{m, tc}
+	env := newEnvMap()
+	assert.False(env.hasKey("forceRequestBodyVariable"))
+	re := NewRuleEvaluator()
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, code, err := re.Process(logger, env, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(200, code)
+	assert.True(env.hasKey("forceRequestBodyVariable"))
+	v, ok := env.get("forceRequestBodyVariable")
+	assert.True(ok)
+	assert.Equal(&stringObject{"On"}, v)
+	assert.Equal(1, cbCalled)
+}

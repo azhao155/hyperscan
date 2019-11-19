@@ -22,6 +22,7 @@ var operatorRegex = regexp.MustCompile(`^@\w+`)
 var actionRegex = regexp.MustCompile(`^(\w+:('(\\.|[^'\\])+'|[^,]+))|\w+`)
 var variableMacroRegex = regexp.MustCompile(`%{(?P<variable>[^}]+)}`)
 var setVarParameterRegex = regexp.MustCompile(`!?(?P<variable>[^=]+)(?P<operator>=[+-]?)?(?P<value>.+)?`)
+var ctlParameterRegex = regexp.MustCompile(`(?P<setting>[^=]+)=(?P<value>.+)`)
 
 var transformationsMap = map[string]Transformation{
 	"cmdline":            CmdLine,
@@ -498,6 +499,14 @@ func parseActions(rawActions []RawAction) (
 		case "capture":
 			actions = append(actions, &CaptureAction{})
 
+		case "ctl":
+			var ctl CtlAction
+			ctl, err = parseCtlAction(a.Val)
+			if err != nil {
+				return
+			}
+
+			actions = append(actions, &ctl)
 		default:
 			// TODO support all actions and do a proper error here for unknown actions
 			var rawAction RawAction
@@ -546,6 +555,23 @@ func parseSetVarAction(parameter string) (sv SetVarAction, err error) {
 		value:           result["value"],
 		varMacroMatches: varMacroMatches,
 		valMacroMatches: valMacroMatches,
+	}
+
+	return
+}
+
+func parseCtlAction(parameter string) (ctl CtlAction, err error) {
+	matches := ctlParameterRegex.FindStringSubmatch(parameter)
+	if matches == nil {
+		err = fmt.Errorf("unsupported parameter %s for ctl operation", parameter)
+		return
+	}
+
+	result := findStringSubmatchMap(ctlParameterRegex, parameter)
+
+	ctl = CtlAction{
+		setting:         result["setting"],
+		value:           result["value"],
 	}
 
 	return

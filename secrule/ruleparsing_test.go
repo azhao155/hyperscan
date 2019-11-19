@@ -801,6 +801,23 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
+		case *CtlAction:
+			expectedVal, ok := expectedVal.(*CtlAction)
+			if !ok {
+				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				continue
+			}
+
+			if a.setting != expectedVal.setting {
+				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.setting, rawinput)
+				continue
+			}
+
+			if a.value != expectedVal.value {
+				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
+				continue
+			}
+
 		default:
 			fmt.Fprintf(b, "Test harness does not support this type yet: %T. Please implement.", a)
 
@@ -1537,6 +1554,47 @@ func TestParseSetVar(t *testing.T) {
 		compareActions([]Action{&test.expected}, []Action{&sv}, &b, test.input)
 	}
 
+	if b.Len() > 0 {
+		t.Fatalf("\n%s", b.String())
+	}
+}
+
+func TestCtlAction(t *testing.T) {
+	// Arrange
+	p := NewRuleParser()
+	rule := `
+		SecRule REQBODY_PROCESSOR "!@rx (?:URLENCODED|MULTIPART|XML|JSON)" \
+        "id:901340,\
+    	ctl:forceRequestBodyVariable=On"\
+	`
+
+	// Act
+	rr, err := p.Parse(rule, nil, nil)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	rc, ok := rr[0].(*Rule)
+	if !ok {
+		t.Fatalf("Wrong statement type: %T", rr[0])
+	}
+
+	if len(rc.Items) != 1 {
+		t.Fatalf("Unexpected rule count: %d", len(rc.Items))
+	}
+
+	r := rc.Items[0]
+	expectedActions := []Action{
+		&CtlAction{
+			setting:        "forceRequestBodyVariable",
+			value:           "On",
+		},
+	}
+
+	var b strings.Builder
+	compareActions(expectedActions, r.Actions, &b, "")
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
 	}
