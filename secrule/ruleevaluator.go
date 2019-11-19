@@ -263,11 +263,9 @@ func evalPredicateLateScan(env envMap, ruleItem RuleItem, target Target, scanRes
 	isTxTarget := strings.EqualFold(target.Name, "tx")
 	isTxTargetPresent := isTxTarget && env.hasKey(target.Name+"."+target.Selector) // TODO support regex selectors for tx variable names
 
-	if isTxTarget {
-		if !isTxTargetPresent {
-			// This is a tx variable that is not set
-			return false
-		}
+	if isTxTarget && !isTxTargetPresent && !target.IsCount {
+		// This is a tx variable that is not set
+		return false
 	}
 
 	triggered, _, _ := ruleItem.Predicate.eval(target, scanResults, env)

@@ -1447,7 +1447,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 	assert.Equal(0, cbCalled)
 }
 
-func TestRuleEvaluatorCountTarget(t *testing.T) {
+func TestRuleEvaluatorCountArgsTarget(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
@@ -1487,6 +1487,76 @@ func TestRuleEvaluatorCountTarget(t *testing.T) {
 	assert.Equal(403, code1)
 	assert.Equal(200, code2)
 	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorCountTxTargetSet(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.critical_anomaly_score=123")
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: "0"},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+	tc1 := make(map[Target]int)
+	sr1 := &ScanResults{targetsCount: tc1}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision1, code1, err1 := re.Process(logger, em, rules, sr1, cb)
+
+	// Assert
+	assert.Nil(err1)
+	assert.Equal(waf.Block, decision1)
+	assert.Equal(403, code1)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorCountTxTargetNotSet(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: "0"},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvMap()
+	re := NewRuleEvaluator()
+	tc1 := make(map[Target]int)
+	sr1 := &ScanResults{targetsCount: tc1}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision1, code1, err1 := re.Process(logger, em, rules, sr1, cb)
+
+	// Assert
+	assert.Nil(err1)
+	assert.Equal(waf.Pass, decision1)
+	assert.Equal(200, code1)
+	assert.Equal(0, cbCalled)
 }
 
 func TestRuleEvaluatorLateScanTarget(t *testing.T) {
