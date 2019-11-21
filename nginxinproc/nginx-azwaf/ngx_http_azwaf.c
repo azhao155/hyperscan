@@ -184,7 +184,7 @@ static ngx_int_t ngx_http_azwaf_handler(ngx_http_request_t *r)
     }
 
     // Process only main request
-    if (r->main != r) {
+    if (r->main != r || r->internal) {
         return NGX_DECLINED;
     }
 
