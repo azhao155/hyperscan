@@ -92,7 +92,7 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoad
 	lineNumber := 0
 	for {
 		var stmt string
-		stmt, rest = r.nextStatement(rest, &lineNumber)
+		stmt, rest = nextStatement(rest, &lineNumber)
 		if stmt == "" {
 			// There were no more statements
 			break
@@ -103,25 +103,25 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoad
 			continue
 		}
 
-		statementName, rest := r.findConsume(statementNameRegex, stmt)
+		statementName, rest := findConsume(statementNameRegex, stmt)
 		statementName = strings.Trim(statementName, " \\\t\r\n")
 		statementName = strings.ToLower(statementName)
 
 		switch statementName {
 		case "secrule":
-			err = r.parseSecRule(rest, &curRule, &statements, pf)
+			err = parseSecRule(rest, &curRule, &statements, pf)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecRule on line %d: %s", lineNumber, err)
 				return
 			}
 		case "secaction":
-			err = r.parseSecActionStmt(rest, &curRule, &statements)
+			err = parseSecActionStmt(rest, &curRule, &statements)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecAction on line %d: %s", lineNumber, err)
 				return
 			}
 		case "secmarker":
-			err = r.parseSecMarker(rest, &curRule, &statements)
+			err = parseSecMarker(rest, &curRule, &statements)
 			if err != nil {
 				err = fmt.Errorf("parse error in SecMarker on line %d: %s", lineNumber, err)
 				return
@@ -157,17 +157,17 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoad
 }
 
 // Parse a single rule.
-func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLoaderCb) (err error) {
+func parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLoaderCb) (err error) {
 	ru := &RuleItem{}
 
-	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = r.parseTargets(s)
+	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = parseTargets(s)
 	if err != nil {
 		return
 	}
 
-	_, s = r.findConsume(argSpaceRegex, s)
+	_, s = findConsume(argSpaceRegex, s)
 
-	ru.Predicate.Op, ru.Predicate.Val, ru.Predicate.Neg, s, err = r.parseOperator(s)
+	ru.Predicate.Op, ru.Predicate.Val, ru.Predicate.Neg, s, err = parseOperator(s)
 	if err != nil {
 		return
 	}
@@ -189,15 +189,15 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 
 	//TODO: Expand macros that are available during initialization
 	ru.Predicate.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(ru.Predicate.Val, -1)
-	_, s = r.findConsume(argSpaceRegex, s)
+	_, s = findConsume(argSpaceRegex, s)
 
-	rawActions, s, err := r.parseRawActions(s)
+	rawActions, s, err := parseRawActions(s)
 	if err != nil {
 		return
 	}
 
-	_, s = r.findConsume(argSpaceRegex, s)
-	s, _ = r.nextArg(s)
+	_, s = findConsume(argSpaceRegex, s)
+	s, _ = nextArg(s)
 	if s != "" {
 		err = fmt.Errorf("unexpected arg: %s", s)
 		return
@@ -247,16 +247,16 @@ func (r *ruleParserImpl) parseSecRule(s string, curRule **Rule, statements *[]St
 }
 
 // Parse a single SecAction statement.
-func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements *[]Statement) (err error) {
+func parseSecActionStmt(s string, curRule **Rule, statements *[]Statement) (err error) {
 	actionStmt := &ActionStmt{}
 
-	rawActions, s, err := r.parseRawActions(s)
+	rawActions, s, err := parseRawActions(s)
 	if err != nil {
 		return
 	}
 
-	_, s = r.findConsume(argSpaceRegex, s)
-	s, _ = r.nextArg(s)
+	_, s = findConsume(argSpaceRegex, s)
+	s, _ = nextArg(s)
 	if s != "" {
 		err = fmt.Errorf("unexpected arg: %s", s)
 		return
@@ -280,12 +280,12 @@ func (r *ruleParserImpl) parseSecActionStmt(s string, curRule **Rule, statements
 }
 
 // Parse a single SecAction statement.
-func (r *ruleParserImpl) parseSecMarker(s string, curRule **Rule, statements *[]Statement) (err error) {
+func parseSecMarker(s string, curRule **Rule, statements *[]Statement) (err error) {
 	marker := &Marker{}
 
-	marker.Label, s = r.nextArg(s)
+	marker.Label, s = nextArg(s)
 
-	s, _ = r.nextArg(s)
+	s, _ = nextArg(s)
 	if s != "" {
 		err = fmt.Errorf("unexpected arg: %s", s)
 		return
@@ -297,12 +297,12 @@ func (r *ruleParserImpl) parseSecMarker(s string, curRule **Rule, statements *[]
 }
 
 // Parse a SecRule targets field (aka. variables field).
-func (r *ruleParserImpl) parseTargets(s string) (targets []Target, exceptTargets []Target, rest string, err error) {
-	s, rest = r.nextArg(s)
+func parseTargets(s string) (targets []Target, exceptTargets []Target, rest string, err error) {
+	s, rest = nextArg(s)
 
 	for {
 		var targetStr string
-		targetStr, s = r.findConsume(targetRegex, s)
+		targetStr, s = findConsume(targetRegex, s)
 		if targetStr == "" {
 			err = fmt.Errorf("unable to parse targets")
 			return
@@ -331,7 +331,7 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []Target, exceptTargets
 
 		if len(selector) >= 2 && selector[0] == '\'' && selector[len(selector)-1] == '\'' {
 			// Reusing nextArg to unquote and unescape
-			selector, _ = r.nextArg(selector)
+			selector, _ = nextArg(selector)
 		}
 
 		isRegexSelector := false
@@ -360,29 +360,29 @@ func (r *ruleParserImpl) parseTargets(s string) (targets []Target, exceptTargets
 			targets = append(targets, target)
 		}
 
-		_, s = r.findConsume(argSpaceRegex, s)
+		_, s = findConsume(argSpaceRegex, s)
 		if len(s) == 0 {
 			return
 		} else if s[0] == '|' || s[0] == ',' {
 			// Another target will come
 			s = s[1:]
-			_, s = r.findConsume(argSpaceRegex, s)
+			_, s = findConsume(argSpaceRegex, s)
 		}
 	}
 }
 
 // Parse a SecRule Operator field.
-func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, neg bool, rest string, err error) {
+func parseOperator(s string) (op Operator, val string, neg bool, rest string, err error) {
 	op = Rx
 
-	s, rest = r.nextArg(s)
+	s, rest = nextArg(s)
 
 	if len(s) > 0 && s[0] == '!' {
 		neg = true
 		s = s[1:]
 	}
 
-	ops, s := r.findConsume(operatorRegex, s)
+	ops, s := findConsume(operatorRegex, s)
 	if ops != "" {
 
 		if o, ok := operatorsMap[strings.ToLower(ops)]; ok {
@@ -401,8 +401,8 @@ func (r *ruleParserImpl) parseOperator(s string) (op Operator, val string, neg b
 }
 
 // Parse a raw SecRule actions arg into RawAction key-value pairs.
-func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest string, err error) {
-	s, rest = r.nextArg(s)
+func parseRawActions(s string) (actions []RawAction, rest string, err error) {
+	s, rest = nextArg(s)
 	s = strings.Trim(s, " \t\r\n")
 
 	// Empty action set is OK. For example last rule item in a rule chain might be like this.
@@ -412,25 +412,25 @@ func (r *ruleParserImpl) parseRawActions(s string) (actions []RawAction, rest st
 
 	for {
 		var a string
-		a, s = r.findConsume(actionRegex, s)
+		a, s = findConsume(actionRegex, s)
 		if a == "" {
 			err = fmt.Errorf("unable to parse actions")
 			return
 		}
 
 		var k, v string
-		k, v = r.parseActionKeyValue(a)
+		k, v = parseActionKeyValue(a)
 		k = strings.ToLower(k)
 		actions = append(actions, RawAction{k, v})
 
 		// Consume whitespace
-		_, s = r.findConsume(argSpaceRegex, s)
+		_, s = findConsume(argSpaceRegex, s)
 		if len(s) == 0 {
 			return
 		} else if s[0] == ',' {
 			// Another action will come
 			s = s[1:]
-			_, s = r.findConsume(argSpaceRegex, s)
+			_, s = findConsume(argSpaceRegex, s)
 		}
 	}
 }
@@ -616,7 +616,7 @@ func parsePhase(s string) (phase int, err error) {
 }
 
 // Get the next full statement from the reader. Statements can continue on multiple lines using \.
-func (r *ruleParserImpl) nextStatement(input string, lineNumber *int) (stmt string, rest string) {
+func nextStatement(input string, lineNumber *int) (stmt string, rest string) {
 	var sb strings.Builder
 	rest = input
 	for {
@@ -656,8 +656,8 @@ func (r *ruleParserImpl) nextStatement(input string, lineNumber *int) (stmt stri
 }
 
 // Extract and unescape a single or double quoted string, or a non-quoted string without whitespaces, from the beginning of the given string, and return the rest.
-func (r *ruleParserImpl) nextArg(s string) (arg string, rest string) {
-	qs, qsRest := r.findConsume(doubleQuotedStringRegex, s)
+func nextArg(s string) (arg string, rest string) {
+	qs, qsRest := findConsume(doubleQuotedStringRegex, s)
 	if qs != "" {
 		rest = qsRest
 		qs = qs[1 : len(qs)-1]
@@ -668,7 +668,7 @@ func (r *ruleParserImpl) nextArg(s string) (arg string, rest string) {
 		return
 	}
 
-	qs, qsRest = r.findConsume(singleQuotedStringRegex, s)
+	qs, qsRest = findConsume(singleQuotedStringRegex, s)
 	if qs != "" {
 		rest = qsRest
 		qs = qs[1 : len(qs)-1]
@@ -679,12 +679,12 @@ func (r *ruleParserImpl) nextArg(s string) (arg string, rest string) {
 		return
 	}
 
-	arg, rest = r.findConsume(nonQuotedStringRegex, s)
+	arg, rest = findConsume(nonQuotedStringRegex, s)
 	return
 }
 
 // Parse a SecRule action key-value pair.
-func (r *ruleParserImpl) parseActionKeyValue(s string) (key string, val string) {
+func parseActionKeyValue(s string) (key string, val string) {
 	pos := strings.Index(s, ":")
 	if pos == -1 {
 		key = s
@@ -707,8 +707,6 @@ func (r *ruleParserImpl) parseActionKeyValue(s string) (key string, val string) 
 // A "value" is a string with macros, or sometimes just an integer value. It is used for logging and comparisons.
 // Example: "Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}".
 func parseValue(s string) (e Value) {
-	// TODO remove (r *ruleParserImpl) from other funcs...
-
 	// Append macro-tokens and possibly the string tokens tokens between them.
 	var pos int
 	for _, match := range variableMacroRegex.FindAllStringSubmatchIndex(s, -1) {
@@ -744,7 +742,7 @@ func parseValue(s string) (e Value) {
 }
 
 // Find the given regexp in str and return it. Return the remaining string after the match too.
-func (r *ruleParserImpl) findConsume(re *regexp.Regexp, s string) (match string, rest string) {
+func findConsume(re *regexp.Regexp, s string) (match string, rest string) {
 	loc := re.FindStringIndex(s)
 	if loc == nil {
 		rest = s

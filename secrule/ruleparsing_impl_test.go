@@ -11,7 +11,6 @@ import (
 
 func TestFindConsume(t *testing.T) {
 	// Arrange
-	p := &ruleParserImpl{}
 	type testcase struct {
 		r             *regexp.Regexp
 		testVal       string
@@ -27,7 +26,7 @@ func TestFindConsume(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		match, rest := p.findConsume(test.r, test.testVal)
+		match, rest := findConsume(test.r, test.testVal)
 
 		if match != test.expectedMatch {
 			fmt.Fprintf(&b, "Wrong match: %s. Tested input: %s\n", test.expectedMatch, test.testVal)
@@ -44,11 +43,8 @@ func TestFindConsume(t *testing.T) {
 }
 
 func TestNextArgSimple(t *testing.T) {
-	// Arrange
-	p := &ruleParserImpl{}
-
 	// Act
-	arg, rest := p.nextArg("hello world")
+	arg, rest := nextArg("hello world")
 
 	// Assert
 	if arg != "hello" {
@@ -61,11 +57,8 @@ func TestNextArgSimple(t *testing.T) {
 }
 
 func TestNextArgDoubleQuoted(t *testing.T) {
-	// Arrange
-	p := &ruleParserImpl{}
-
 	// Act
-	arg, rest := p.nextArg(`"hello '\" world" something`)
+	arg, rest := nextArg(`"hello '\" world" something`)
 
 	// Assert
 	if arg != `hello '" world` {
@@ -78,11 +71,8 @@ func TestNextArgDoubleQuoted(t *testing.T) {
 }
 
 func TestNextArgSingleQuoted(t *testing.T) {
-	// Arrange
-	p := &ruleParserImpl{}
-
 	// Act
-	arg, rest := p.nextArg(`'hello \'" world' something`)
+	arg, rest := nextArg(`'hello \'" world' something`)
 
 	// Assert
 	if arg != `hello '" world` {
@@ -96,7 +86,6 @@ func TestNextArgSingleQuoted(t *testing.T) {
 
 func TestNextStatement1(t *testing.T) {
 	// Arrange
-	p := &ruleParserImpl{}
 	input := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
 		SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"
@@ -104,7 +93,7 @@ func TestNextStatement1(t *testing.T) {
 	lineNumber := 1
 
 	// Act
-	stmt, _ := p.nextStatement(input, &lineNumber)
+	stmt, _ := nextStatement(input, &lineNumber)
 
 	// Assert
 	expected := `SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"`
@@ -115,7 +104,6 @@ func TestNextStatement1(t *testing.T) {
 
 func TestNextStatement2(t *testing.T) {
 	// Arrange
-	p := &ruleParserImpl{}
 	input := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
 		SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"
@@ -123,8 +111,8 @@ func TestNextStatement2(t *testing.T) {
 	lineNumber := 1
 
 	// Act
-	stmt, rest := p.nextStatement(input, &lineNumber)
-	stmt, rest = p.nextStatement(rest, &lineNumber)
+	stmt, rest := nextStatement(input, &lineNumber)
+	stmt, rest = nextStatement(rest, &lineNumber)
 
 	// Assert
 	if stmt != `SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"` {
@@ -135,12 +123,11 @@ func TestNextStatement2(t *testing.T) {
 func TestNextStatementMultiline1(t *testing.T) {
 
 	// Arrange
-	p := &ruleParserImpl{}
 	input := "SecRule \"ARGS| \\\nARGS_NAMES\" \"<script>\" \"id:'950902'\""
 	lineNumber := 1
 
 	// Act
-	stmt, _ := p.nextStatement(input, &lineNumber)
+	stmt, _ := nextStatement(input, &lineNumber)
 
 	// Assert
 	var expected = input
@@ -151,7 +138,6 @@ func TestNextStatementMultiline1(t *testing.T) {
 
 func TestNextStatementMultiline2(t *testing.T) {
 	// Arrange
-	p := &ruleParserImpl{}
 	input := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
 		SecRule ARGS \
@@ -162,8 +148,8 @@ func TestNextStatementMultiline2(t *testing.T) {
 	lineNumber := 1
 
 	// Act
-	stmt, rest := p.nextStatement(input, &lineNumber)
-	stmt, rest = p.nextStatement(rest, &lineNumber)
+	stmt, rest := nextStatement(input, &lineNumber)
+	stmt, rest = nextStatement(rest, &lineNumber)
 
 	// Assert
 	var expected = "SecRule ARGS \\\n\"<script>\" \\\n\"deny,msg:'XSS Attack',id:'950902'\""
@@ -174,7 +160,6 @@ func TestNextStatementMultiline2(t *testing.T) {
 
 func TestNextStatementEnd(t *testing.T) {
 	// Arrange
-	p := &ruleParserImpl{}
 	input := `
 		SecRule ARGS "1=1" "deny,msg:'SQL Injection Attack',id:'950901'"
 		SecRule ARGS "<script>" "deny,msg:'XSS Attack',id:'950902'"
@@ -182,9 +167,9 @@ func TestNextStatementEnd(t *testing.T) {
 	lineNumber := 1
 
 	// Act
-	stmt, rest := p.nextStatement(input, &lineNumber)
-	stmt, rest = p.nextStatement(rest, &lineNumber)
-	stmt, rest = p.nextStatement(rest, &lineNumber)
+	stmt, rest := nextStatement(input, &lineNumber)
+	stmt, rest = nextStatement(rest, &lineNumber)
+	stmt, rest = nextStatement(rest, &lineNumber)
 
 	// Assert
 	if stmt != "" {
@@ -194,7 +179,6 @@ func TestNextStatementEnd(t *testing.T) {
 
 func TestParseActionKeyValue(t *testing.T) {
 	// Arrange
-	p := &ruleParserImpl{}
 	type testcase struct {
 		input       string
 		expectedKey string
@@ -209,7 +193,7 @@ func TestParseActionKeyValue(t *testing.T) {
 	// Act and assert
 	var b strings.Builder
 	for _, test := range tests {
-		k, v := p.parseActionKeyValue(test.input)
+		k, v := parseActionKeyValue(test.input)
 
 		if k != test.expectedKey {
 			fmt.Fprintf(&b, "Wrong key: %s. Tested input: %s\n", k, test.input)
