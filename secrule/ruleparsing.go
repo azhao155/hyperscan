@@ -462,7 +462,10 @@ func parseActions(rawActions []RawAction) (
 			actions = append(actions, &DenyAction{})
 
 		case "msg":
-			actions = append(actions, &MsgAction{Msg: a.Val})
+			actions = append(actions, &MsgAction{Msg: parseValue(a.Val)})
+
+		case "logdata":
+			actions = append(actions, &LogDataAction{LogData: parseValue(a.Val)})
 
 		case "t":
 			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
@@ -570,8 +573,8 @@ func parseCtlAction(parameter string) (ctl CtlAction, err error) {
 	result := findStringSubmatchMap(ctlParameterRegex, parameter)
 
 	ctl = CtlAction{
-		setting:         result["setting"],
-		value:           result["value"],
+		setting: result["setting"],
+		value:   result["value"],
 	}
 
 	return
@@ -697,6 +700,45 @@ func (r *ruleParserImpl) parseActionKeyValue(s string) (key string, val string) 
 		valEnd--
 	}
 	val = s[valStart : valEnd+1]
+
+	return
+}
+
+// A "value" is a string with macros, or sometimes just an integer value. It is used for logging and comparisons.
+// Example: "Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}".
+func parseValue(s string) (e Value) {
+	// TODO remove (r *ruleParserImpl) from other funcs...
+
+	// Append macro-tokens and possibly the string tokens tokens between them.
+	var pos int
+	for _, match := range variableMacroRegex.FindAllStringSubmatchIndex(s, -1) {
+		if pos != match[0] {
+			e = append(e, StringToken(s[pos:match[0]]))
+		}
+
+		macroName := s[match[0]+2 : match[1]-1] // Get rid of "%{" and "}"
+		macroName = strings.ToLower(macroName)
+		e = append(e, MacroToken(macroName))
+		pos = match[1]
+	}
+
+	// If there were macros, append the remainder as a string literal.
+	if len(e) > 0 {
+		if pos != len(s) {
+			e = append(e, StringToken(s[pos:len(s)]))
+		}
+		return
+	}
+
+	// There were no macros. Try if the value is just an int token.
+	n, err := strconv.Atoi(s)
+	if err == nil {
+		e = append(e, IntToken(n))
+		return
+	}
+
+	// The value is a string literal.
+	e = append(e, StringToken(s))
 
 	return
 }

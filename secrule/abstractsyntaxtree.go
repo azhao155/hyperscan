@@ -25,6 +25,23 @@ type RuleItem struct {
 	PmPhrases       []string
 }
 
+// Value is a string with macros, or sometimes just an integer value. It is used for logging and comparisons.
+// Example: "Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}".
+// We store it as a list of tokens.
+type Value []Token
+
+// Token is an element in Value.
+type Token interface{}
+
+// StringToken is an element in a Value-string that is a literal string.
+type StringToken []byte
+
+// IntToken is an element in a Value-string that is a literal integer.
+type IntToken int
+
+// MacroToken is an element in a Value-string that is a macro (variable). Macros can be expanded to concrete values, given an environment.
+type MacroToken string
+
 // RulePredicate that determines whether a rule is triggered.
 type RulePredicate struct {
 	Targets         []Target
@@ -69,7 +86,12 @@ type LogAction struct{}
 
 // MsgAction is an action that says what message to log.
 type MsgAction struct {
-	Msg string
+	Msg Value
+}
+
+// LogDataAction is an action that says what additional message to log.
+type LogDataAction struct {
+	LogData Value
 }
 
 // SkipAfterAction instructs to skip all subsequent statements until the SecMarker with the given label is found.

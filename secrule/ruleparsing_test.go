@@ -606,7 +606,7 @@ func TestSecRuleActions(t *testing.T) {
 		{`"   id:'950902',deny"`, 950902, []Action{&DenyAction{}}},
 		{`'id:\'950902\''`, 950902, []Action{}},
 		{`'id:\'950902\',deny'`, 950902, []Action{&DenyAction{}}},
-		{`"id:'950902',deny,msg:'Hello World Attack'"`, 950902, []Action{&DenyAction{}, &MsgAction{Msg: "Hello World Attack"}}},
+		{`"id:'950902',deny,msg:'Hello World Attack'"`, 950902, []Action{&DenyAction{}, &MsgAction{Msg: Value{StringToken("Hello World Attack")}}}},
 		{`"id:950902,setvar:tx.sql_injection_score=+%{tx.critical_anomaly_score}"`, 950902, []Action{
 			&SetVarAction{
 				variable:        "tx.sql_injection_score",
@@ -626,7 +626,13 @@ func TestSecRuleActions(t *testing.T) {
 			},
 		}},
 		{`"id:'950902',logdata:'Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}'"`, 950902, []Action{
-			&RawAction{`logdata`, `Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}`},
+			&LogDataAction{LogData: Value{
+				StringToken("Matched Data: "),
+				MacroToken("tx.0"),
+				StringToken(" found within "),
+				MacroToken("matched_var_name"),
+				StringToken(": "),
+				MacroToken("matched_var")}},
 		}},
 	}
 
@@ -683,7 +689,7 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 		case *RawAction:
 			expectedVal, ok := expectedVal.(*RawAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
@@ -696,34 +702,47 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 			}
 
 		case *DenyAction:
-			expectedVal, ok := expectedVal.(*DenyAction)
+			_, ok := expectedVal.(*DenyAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
 		case *NoLogAction:
-			expectedVal, ok := expectedVal.(*NoLogAction)
+			_, ok := expectedVal.(*NoLogAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
 		case *MsgAction:
 			expectedVal, ok := expectedVal.(*MsgAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
-			if a.Msg != expectedVal.Msg {
-				fmt.Fprintf(b, "Got wrong action msg: %s. Expected: %s. Tested input: %s\n", a.Msg, expectedVal.Msg, rawinput)
+			if !a.Msg.equal(expectedVal.Msg) {
+				fmt.Fprintf(b, "Unexpected Msg: %v", a.Msg)
+				continue
+			}
+
+		case *LogDataAction:
+			expectedVal, ok := expectedVal.(*LogDataAction)
+			if !ok {
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
+				continue
+			}
+
+			if !a.LogData.equal(expectedVal.LogData) {
+				fmt.Fprintf(b, "Unexpected LogData: %v. Expected: %v.", a.LogData, expectedVal.LogData)
+				continue
 			}
 
 		case *SetVarAction:
 			expectedVal, ok := expectedVal.(*SetVarAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
@@ -781,23 +800,23 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 			}
 
 		case *LogAction:
-			expectedVal, ok := expectedVal.(*LogAction)
+			_, ok := expectedVal.(*LogAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
 		case *AllowAction:
-			expectedVal, ok := expectedVal.(*AllowAction)
+			_, ok := expectedVal.(*AllowAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
 		case *CaptureAction:
-			expectedVal, ok := expectedVal.(*CaptureAction)
+			_, ok := expectedVal.(*CaptureAction)
 			if !ok {
-				fmt.Fprintf(b, "Got wrong action type: %T. Expected: %T. Tested input: %s\n", a, expectedVal, rawinput)
+				fmt.Fprintf(b, "Wrong expected action type. Tested input: %s\n", rawinput)
 				continue
 			}
 
@@ -899,7 +918,7 @@ func TestSecAction900990(t *testing.T) {
 	}
 
 	expectedActions := []Action{
-		&MsgAction{Msg: "this message isnt actually in the original 900990"},
+		&MsgAction{Msg: Value{StringToken("this message isnt actually in the original 900990")}},
 		&NoLogAction{},
 		&RawAction{`pass`, ``},
 		&SetVarAction{
@@ -1018,7 +1037,7 @@ func TestRule942320(t *testing.T) {
 		&RawAction{`accuracy`, `8`},
 		&CaptureAction{},
 		&RawAction{`block`, ``},
-		&MsgAction{Msg: "Detects MySQL and PostgreSQL stored procedure/function injections"},
+		&MsgAction{Msg: Value{StringToken("Detects MySQL and PostgreSQL stored procedure/function injections")}},
 		&RawAction{`tag`, `application-multi`},
 		&RawAction{`tag`, `language-multi`},
 		&RawAction{`tag`, `platform-multi`},
@@ -1028,7 +1047,13 @@ func TestRule942320(t *testing.T) {
 		&RawAction{`tag`, `OWASP_TOP_10/A1`},
 		&RawAction{`tag`, `OWASP_AppSensor/CIE1`},
 		&RawAction{`tag`, `PCI/6.5.2`},
-		&RawAction{`logdata`, `Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}`},
+		&LogDataAction{LogData: Value{
+			StringToken("Matched Data: "),
+			MacroToken("tx.0"),
+			StringToken(" found within "),
+			MacroToken("matched_var_name"),
+			StringToken(": "),
+			MacroToken("matched_var")}},
 		&RawAction{`severity`, `CRITICAL`},
 		&SetVarAction{
 			variable:        "tx.msg",
@@ -1150,7 +1175,7 @@ func TestRule901001(t *testing.T) {
 		&DenyAction{},
 		&RawAction{`status`, `500`},
 		&RawAction{`severity`, `CRITICAL`},
-		&MsgAction{Msg: ""},
+		&MsgAction{Msg: Value{StringToken("")}},
 	}
 	var b strings.Builder
 	compareActions(expectedActions, r.Actions, &b, "")
@@ -1564,8 +1589,8 @@ func TestCtlAction(t *testing.T) {
 	p := NewRuleParser()
 	rule := `
 		SecRule REQBODY_PROCESSOR "!@rx (?:URLENCODED|MULTIPART|XML|JSON)" \
-        "id:901340,\
-    	ctl:forceRequestBodyVariable=On"\
+		"id:901340,\
+		ctl:forceRequestBodyVariable=On"\
 	`
 
 	// Act
@@ -1588,13 +1613,68 @@ func TestCtlAction(t *testing.T) {
 	r := rc.Items[0]
 	expectedActions := []Action{
 		&CtlAction{
-			setting:        "forceRequestBodyVariable",
-			value:           "On",
+			setting: "forceRequestBodyVariable",
+			value:   "On",
 		},
 	}
 
 	var b strings.Builder
 	compareActions(expectedActions, r.Actions, &b, "")
+	if b.Len() > 0 {
+		t.Fatalf("\n%s", b.String())
+	}
+}
+
+func TestParseValue(t *testing.T) {
+	// Arrange
+	type testCase struct {
+		input    string
+		expected Value
+	}
+	tests := []testCase{
+		{`hello`, Value{StringToken("hello")}},
+		{`%{tx.somevar1}`, Value{MacroToken("tx.somevar1")}},
+		{`hello%{tx.somevar1}`, Value{StringToken("hello"), MacroToken("tx.somevar1")}},
+		{`hello%{tx.somevar1}world`, Value{StringToken("hello"), MacroToken("tx.somevar1"), StringToken("world")}},
+		{`%{tx.somevar1}world`, Value{MacroToken("tx.somevar1"), StringToken("world")}},
+		{`%{tx.somevar1}world%{tx.somevar2}`, Value{MacroToken("tx.somevar1"), StringToken("world"), MacroToken("tx.somevar2")}},
+		{`123`, Value{IntToken(123)}},
+	}
+
+	var b strings.Builder
+	for _, test := range tests {
+
+		// Arrange
+		p := NewRuleParser()
+		rule := `SecRule ARGS "hello" "id:901001,msg:'` + test.input + `'"`
+
+		// Act
+		rr, err := p.Parse(rule, nil, nil)
+
+		// Assert
+		if err != nil {
+			fmt.Fprintf(&b, "Got unexpected error: %s", err)
+			continue
+		}
+
+		r, ok := rr[0].(*Rule)
+		if !ok {
+			fmt.Fprintf(&b, "Wrong statement type: %T", rr[0])
+			continue
+		}
+
+		msgAction, ok := r.Items[0].Actions[0].(*MsgAction)
+		if !ok {
+			fmt.Fprintf(&b, "Wrong action type: %T", msgAction)
+			continue
+		}
+
+		if !test.expected.equal(msgAction.Msg) {
+			t.Fatalf("Unexpected msgAction.Msg: %v", msgAction.Msg)
+			continue
+		}
+	}
+
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
 	}

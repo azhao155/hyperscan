@@ -70,6 +70,15 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 		case *ActionStmt:
 			ruleID = stmt.ID
 		}
+
+		// ModSec truncates these fields to 512 bytes, so we will too.
+		if len(msg) > 512 {
+			msg = msg[:512-3] + "..."
+		}
+		if len(logData) > 512 {
+			logData = logData[:512-3] + "..."
+		}
+
 		logger.Info().Int("ruleID", ruleID).Str("action", action).Str("msg", msg).Str("logData", logData).Msg("SecRule triggered")
 
 		resultsLogger.SecRuleTriggered(ruleID, action, msg, logData, s.ruleSetID)
@@ -127,7 +136,7 @@ func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 		}
 	}
 
-	perRequestEnv := newEnvMap()
+	perRequestEnv := newEnvMap(s.scanResults)
 
 	wafDecision, statusCode, err := s.engine.ruleEvaluator.Process(s.logger, perRequestEnv, s.engine.statements, s.scanResults, s.ruleTriggeredCb)
 	if err != nil {

@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"azwaf/encoding"
+	"azwaf/libinjection"
 	"azwaf/waf"
 	"bytes"
 	"fmt"
@@ -25,16 +26,21 @@ type ReqScannerEvaluation interface {
 
 // Match represents when a match was found during the request scanning phase.
 type Match struct {
-	StartPos      int
-	EndPos        int
-	Data          []byte
-	CaptureGroups [][]byte
+	StartPos           int
+	EndPos             int
+	Data               []byte
+	CaptureGroups      [][]byte
+	EntireFieldContent []byte
+	TargetName         []byte
+	FieldName          []byte
 }
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
 	matches      map[matchKey]Match
 	targetsCount map[Target]int
+	requestLine  []byte
+	hostHeader   []byte
 }
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
@@ -208,6 +214,11 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 }
 
 func (r *reqScannerImpl) getTargets(targetName string, fieldName string) (targets []Target) {
+	// Also get targets that do not specify field names. Example: ARGS vs. ARGS:somefield.
+	if fieldName != "" {
+		targets = append(targets, r.getTargets(targetName, "")...)
+	}
+
 	// Are we looking for this simple target?
 	t := Target{Name: targetName, Selector: fieldName}
 	if r.targetsSimple[t] {
@@ -283,6 +294,8 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 		return
 	}
 
+	results.requestLine = reqLine.Bytes()
+
 	err = r.scanField("REMOTE_ADDR", "", req.RemoteAddr(), results)
 	if err != nil {
 		return
@@ -308,16 +321,15 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 		k := h.Key()
 		v := h.Value()
 
+		if strings.EqualFold(k, "host") {
+			results.hostHeader = []byte(v)
+		}
+
 		if strings.EqualFold(k, "cookie") {
 			r.scanCookies(v, results)
 		}
 
 		err = r.scanField("REQUEST_HEADERS_NAMES", "", k, results)
-		if err != nil {
-			return
-		}
-
-		err = r.scanField("REQUEST_HEADERS", "", v, results)
 		if err != nil {
 			return
 		}
@@ -344,17 +356,7 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 			return
 		}
 
-		err = r.scanField("ARGS", "", data, results)
-		if err != nil {
-			return
-		}
-
 		err = r.scanField("ARGS", fieldName, data, results)
-		if err != nil {
-			return
-		}
-
-		err = r.scanField("ARGS_POST", "", data, results)
 		if err != nil {
 			return
 		}
@@ -443,10 +445,13 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
 				if _, alreadyFound := results.matches[key]; !alreadyFound {
 					results.matches[key] = Match{
-						StartPos:      m.StartPos,
-						EndPos:        m.EndPos,
-						Data:          m.Data,
-						CaptureGroups: m.CaptureGroups,
+						StartPos:           m.StartPos,
+						EndPos:             m.EndPos,
+						Data:               m.Data,
+						CaptureGroups:      m.CaptureGroups,
+						EntireFieldContent: []byte(content),
+						TargetName:         []byte(targetName),
+						FieldName:          []byte(fieldName),
 					}
 				}
 			}
@@ -457,9 +462,13 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 			key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
 			if _, alreadyFound := results.matches[key]; !alreadyFound {
 				results.matches[key] = Match{
-					StartPos: 0,
-					EndPos:   len(content),
-					Data:     []byte(content),
+					StartPos:           0,
+					EndPos:             len(content),
+					CaptureGroups:      [][]byte{[]byte(content)},
+					Data:               []byte(content),
+					EntireFieldContent: []byte(content),
+					TargetName:         []byte(targetName),
+					FieldName:          []byte(fieldName),
 				}
 			}
 		}
@@ -467,14 +476,30 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 		// Handle conditions that the regex engine could not handle
 		for _, cr := range sg.conditions {
 			switch cr.ruleItem.Predicate.Op {
+
 			case DetectXSS:
-				var match bool
-				match, _, err = detectXSSOperatorEval(contentTransformed, "")
-				if err != nil {
-					return
-				}
-				if match {
+				if libinjection.IsXSS(contentTransformed) {
 					storeEntireContentAsMatch(cr)
+				}
+
+			case DetectSQLi:
+				found, fingerprint := libinjection.IsSQLi(contentTransformed)
+				if found {
+					// TODO investigate if this "fingerprint" is actually meaningful to log. ModSec logs it, but I cannot make sense of the values.
+
+					// Store the match for fast retrieval in the eval phase
+					key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
+					if _, alreadyFound := results.matches[key]; !alreadyFound {
+						results.matches[key] = Match{
+							StartPos:           0,
+							EndPos:             len(content),
+							Data:               []byte([]byte(fingerprint)),
+							CaptureGroups:      [][]byte{[]byte(fingerprint)},
+							EntireFieldContent: []byte(content),
+							TargetName:         []byte(targetName),
+							FieldName:          []byte(fieldName),
+						}
+					}
 				}
 
 			case ValidateURLEncoding:
@@ -578,11 +603,6 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		}
 
 		for _, v := range vv {
-			err = r.scanField("ARGS", "", v, results)
-			if err != nil {
-				return
-			}
-
 			err = r.scanField("ARGS", k, v, results)
 			if err != nil {
 				return
@@ -600,11 +620,6 @@ func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (
 	for _, cookie := range cookies {
 
 		err = r.scanField("REQUEST_COOKIES_NAMES", "", cookie.Name, results)
-		if err != nil {
-			return
-		}
-
-		err = r.scanField("REQUEST_COOKIES", "", cookie.Value, results)
 		if err != nil {
 			return
 		}

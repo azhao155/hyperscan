@@ -73,10 +73,10 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 
 		var stmtID int
 		shouldLog := true
-		var msg string
+		var msg, logData Value
 
 		// This runs the actions that need to run after each rule item had a target that triggered
-		runActions := func(actions []Action, captureGroups [][]byte) {
+		runActions := func(actions []Action, match Match) {
 			// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
 			for _, action := range actions {
@@ -95,13 +95,13 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 					shouldLog = true
 
 				case *CaptureAction:
-					txVarCount := len(captureGroups)
+					txVarCount := len(match.CaptureGroups)
 					if txVarCount > 10 {
 						txVarCount = 10
 					}
 
 					for i := 0; i < txVarCount; i++ {
-						perRequestEnv.set("tx."+strconv.Itoa(i), &stringObject{Value: string(captureGroups[i])})
+						perRequestEnv.set("tx."+strconv.Itoa(i), &stringObject{Value: string(match.CaptureGroups[i])})
 					}
 
 					cleanUpCapturedVars = func() {
@@ -133,6 +133,9 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 				case *MsgAction:
 					msg = action.Msg
 
+				case *LogDataAction:
+					logData = action.LogData
+
 				case *AllowAction:
 					phaseDisruptive = true
 					decision = waf.Allow
@@ -153,10 +156,21 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				anyRuleItemTriggered := false
 				for _, target := range ruleItem.Predicate.Targets {
-					triggered, captureGroups := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
+					triggered, match := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
 					if triggered {
+						perRequestEnv.matchedVar = match.EntireFieldContent
+						perRequestEnv.matchedVarName = match.TargetName
+
+						// If there is a field name too, then append it to matchedVarName.
+						if len(match.FieldName) > 0 {
+							perRequestEnv.matchedVarName = make([]byte, 0, len(match.TargetName)+1+len(match.FieldName))
+							perRequestEnv.matchedVarName = append(perRequestEnv.matchedVarName, match.TargetName...)
+							perRequestEnv.matchedVarName = append(perRequestEnv.matchedVarName, ':')
+							perRequestEnv.matchedVarName = append(perRequestEnv.matchedVarName, match.FieldName...)
+						}
+
 						// Some actions are to be run after each rule item.
-						runActions(ruleItem.Actions, captureGroups)
+						runActions(ruleItem.Actions, match)
 
 						// Some actions are only to be run when all rule items triggered.
 						if curRuleItemIdx == len(stmt.Items)-1 {
@@ -165,8 +179,7 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 							}
 
 							if shouldLog {
-								// TODO implement the "logdata" action, so we can put something better than "" in logData
-								triggeredCb(stmt, phaseDisruptive, msg, "")
+								triggeredCb(stmt, phaseDisruptive, msg.expandMacros(perRequestEnv).string(), logData.expandMacros(perRequestEnv).string())
 							}
 
 							if phaseDisruptive {
@@ -185,12 +198,11 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 
 		case *ActionStmt:
 			stmtID = stmt.ID
-			runActions(stmt.Actions, nil)
+			runActions(stmt.Actions, Match{})
 			runActionsAfterAllRuleItemsTriggered(stmt.Actions)
 
 			if shouldLog {
-				// TODO implement the "logdata" action, so we can put something better than "" in logData
-				triggeredCb(stmt, phaseDisruptive, msg, "")
+				triggeredCb(stmt, phaseDisruptive, msg.expandMacros(perRequestEnv).string(), logData.expandMacros(perRequestEnv).string())
 			}
 
 			if phaseDisruptive {
@@ -225,11 +237,12 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env envMap, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, captureGroups [][]byte) {
+func evalPredicate(env envMap, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, match Match) {
 	if requiresLateScan(ruleItem.Predicate, target) {
 		// We need to a late scan for this predicate now, because we were not able to do it in the scanning phase.
 		// This is the less common case.
-		return evalPredicateLateScan(env, ruleItem, target, scanResults, rule, curRuleItemIdx), nil
+		triggered = evalPredicateLateScan(env, ruleItem, target, scanResults, rule, curRuleItemIdx)
+		return
 	}
 
 	// If we do not require a late scan, it's because we know the answer to this predicate already.
@@ -243,14 +256,14 @@ func evalPredicate(env envMap, ruleItem RuleItem, target Target, scanResults *Sc
 	}
 
 	returnValIfTrigger := !ruleItem.Predicate.Neg
-	sr, ok := scanResults.GetResultsFor(rule.ID, curRuleItemIdx, target)
+	m, ok := scanResults.GetResultsFor(rule.ID, curRuleItemIdx, target)
 	if !ok {
 		triggered = !returnValIfTrigger
 		return
 	}
 
 	triggered = returnValIfTrigger
-	captureGroups = sr.CaptureGroups
+	match = m
 
 	return
 
