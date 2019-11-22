@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perRequestEnv envMap) (result bool, output string, err error) {
+func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perRequestEnv environment) (result bool, output string, err error) {
 	expectedVal, err := expandMacros(rp.Val, perRequestEnv, rp.valMacroMatches)
 	if err != nil {
 		return false, "", err
@@ -55,7 +55,7 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 }
 
 // Substitute variable macros of the type %{variable_name} with actual values
-func expandMacros(s string, perRequestEnv envMap, matches [][]string) (string, error) {
+func expandMacros(s string, perRequestEnv environment, matches [][]string) (string, error) {
 	// TODO potential optimization: this could return object instead of string, so we could potentially return an integer if the entire input string was a macro (very common)
 
 	// Replace placeholders

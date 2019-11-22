@@ -82,7 +82,7 @@ func (f *mockReqScannerFactory) NewReqScanner(statements []Statement) (r ReqScan
 
 type mockRuleEvaluator struct{}
 
-func (r *mockRuleEvaluator) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
+func (r *mockRuleEvaluator) Process(logger zerolog.Logger, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
 	decision = waf.Pass
 	return
 }

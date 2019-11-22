@@ -10,7 +10,7 @@ import (
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error)
+	Process(logger zerolog.Logger, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error)
 }
 
 // RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
@@ -23,7 +23,7 @@ func NewRuleEvaluator() RuleEvaluator {
 	return &ruleEvaluatorImpl{}
 }
 
-func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
+func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
 	// Evaluate each phase, but stop if there was a disruptive action.
 	for phase := 1; phase <= 4; phase++ {
 		logger.Debug().Int("phase", phase).Msg("Starting rule evaluation phase")
@@ -41,7 +41,7 @@ func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv envMap,
 	return
 }
 
-func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRequestEnv envMap, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, phaseDisruptive bool) {
+func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, phaseDisruptive bool) {
 	var skipAfter string
 
 	var cleanUpCapturedVars func()
@@ -237,7 +237,7 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env envMap, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, match Match) {
+func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, match Match) {
 	if requiresLateScan(ruleItem.Predicate, target) {
 		// We need to a late scan for this predicate now, because we were not able to do it in the scanning phase.
 		// This is the less common case.
@@ -269,7 +269,7 @@ func evalPredicate(env envMap, ruleItem RuleItem, target Target, scanResults *Sc
 
 }
 
-func evalPredicateLateScan(env envMap, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
+func evalPredicateLateScan(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
 	// A predicate that requires late scanning means that it could not be scanned in the request scanning phase, and therefore must be scanned now.
 	// This is because either left or right side was a variable we could not yet know the value of in the request scanning phase.
 

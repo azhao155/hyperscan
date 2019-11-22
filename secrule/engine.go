@@ -136,7 +136,7 @@ func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 		}
 	}
 
-	perRequestEnv := newEnvMap(s.scanResults)
+	perRequestEnv := newEnvironment(s.scanResults)
 
 	wafDecision, statusCode, err := s.engine.ruleEvaluator.Process(s.logger, perRequestEnv, s.engine.statements, s.scanResults, s.ruleTriggeredCb)
 	if err != nil {

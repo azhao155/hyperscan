@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func executeSetVarAction(sv *SetVarAction, perRequestEnv envMap) (err error) {
+func executeSetVarAction(sv *SetVarAction, perRequestEnv environment) (err error) {
 	// Eval variable
 	variable, err := expandMacros(sv.variable, perRequestEnv, sv.varMacroMatches)
 	if err != nil {
@@ -36,7 +36,7 @@ func executeSetVarAction(sv *SetVarAction, perRequestEnv envMap) (err error) {
 	return
 }
 
-func performNumericalOperation(variable string, op setvarActionOperator, value string, perRequestEnv envMap) error {
+func performNumericalOperation(variable string, op setvarActionOperator, value string, perRequestEnv environment) error {
 	curr, ok := perRequestEnv.get(variable)
 	if !ok {
 		return fmt.Errorf("setvar: attempted use of uninitialized per request state variable %s", variable)

@@ -2,8 +2,8 @@ package secrule
 
 import "testing"
 
-func TestEnvMapSet(t *testing.T) {
-	m := newEnvMap(&ScanResults{})
+func TestEnvironmentSet(t *testing.T) {
+	m := newEnvironment(&ScanResults{})
 	v := &stringObject{Value: "v"}
 	m.set("k", v)
 	// Same case
@@ -23,8 +23,8 @@ func TestEnvMapSet(t *testing.T) {
 	}
 }
 
-func TestEnvMapGet(t *testing.T) {
-	m := newEnvMap(&ScanResults{})
+func TestEnvironmentGet(t *testing.T) {
+	m := newEnvironment(&ScanResults{})
 	v := &stringObject{Value: "v"}
 	m.set("k", v)
 
@@ -43,8 +43,8 @@ func TestEnvMapGet(t *testing.T) {
 	}
 }
 
-func TestEnvMapHasKey(t *testing.T) {
-	m := newEnvMap(&ScanResults{})
+func TestEnvironmentHasKey(t *testing.T) {
+	m := newEnvironment(&ScanResults{})
 	v := &stringObject{Value: "v"}
 	m.set("k", v)
 

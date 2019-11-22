@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func (v Value) expandMacros(env envMap) (output Value) {
+func (v Value) expandMacros(env environment) (output Value) {
 	output = make(Value, 0, len(v)) // Output will contain at max the same number of tokens as input.
 
 	for _, token := range v {
