@@ -3,8 +3,9 @@ package hyperscan
 import (
 	"azwaf/waf"
 	"fmt"
-	hs "github.com/flier/gohs/hyperscan"
 	"regexp"
+
+	hs "github.com/flier/gohs/hyperscan"
 )
 
 type engineFactoryImpl struct {
@@ -159,8 +160,6 @@ func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (mat
 
 		m := waf.MultiRegexEngineMatch{
 			ID:            pmID,
-			StartPos:      loc[0],
-			EndPos:        loc[1],
 			Data:          input[loc[0]:loc[1]],
 			CaptureGroups: captureGroups,
 		}

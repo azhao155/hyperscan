@@ -36,7 +36,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	assert := assert.New(t)
 	key := matchKey{200, 0, Target{Name: "ARGS"}}
 	m := make(map[matchKey]Match)
-	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
+	m[key] = Match{Data: []byte{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -75,7 +75,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	assert := assert.New(t)
 	key := matchKey{100, 0, Target{Name: "ARGS"}}
 	m := make(map[matchKey]Match)
-	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
+	m[key] = Match{Data: []byte{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -120,7 +120,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	assert := assert.New(t)
 	key := matchKey{100, 0, Target{Name: "ARGS"}}
 	m := make(map[matchKey]Match)
-	m[key] = Match{StartPos: 0, EndPos: 10, Data: []byte{}}
+	m[key] = Match{Data: []byte{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}

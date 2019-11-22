@@ -26,8 +26,6 @@ type ReqScannerEvaluation interface {
 
 // Match represents when a match was found during the request scanning phase.
 type Match struct {
-	StartPos           int
-	EndPos             int
 	Data               []byte
 	CaptureGroups      [][]byte
 	EntireFieldContent []byte
@@ -445,8 +443,6 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
 				if _, alreadyFound := results.matches[key]; !alreadyFound {
 					results.matches[key] = Match{
-						StartPos:           m.StartPos,
-						EndPos:             m.EndPos,
 						Data:               m.Data,
 						CaptureGroups:      m.CaptureGroups,
 						EntireFieldContent: []byte(content),
@@ -462,8 +458,6 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 			key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
 			if _, alreadyFound := results.matches[key]; !alreadyFound {
 				results.matches[key] = Match{
-					StartPos:           0,
-					EndPos:             len(content),
 					CaptureGroups:      [][]byte{[]byte(content)},
 					Data:               []byte(content),
 					EntireFieldContent: []byte(content),
@@ -491,8 +485,6 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 					key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
 					if _, alreadyFound := results.matches[key]; !alreadyFound {
 						results.matches[key] = Match{
-							StartPos:           0,
-							EndPos:             len(content),
 							Data:               []byte([]byte(fingerprint)),
 							CaptureGroups:      [][]byte{[]byte(fingerprint)},
 							EntireFieldContent: []byte(content),

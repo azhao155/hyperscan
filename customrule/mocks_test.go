@@ -178,54 +178,52 @@ func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
 			return &mockMultiRegexEngine{
 				scanMockFunc: func(input []byte) []waf.MultiRegexEngineMatch {
 					type preCannedAnswer struct {
-						rx       string
-						val      string
-						startPos int
-						endPos   int
-						data     []byte
+						rx   string
+						val  string
+						data []byte
 					}
 					preCannedAnswers := []preCannedAnswer{
-						{"^true$", "true", 0, 4, []byte("true")},
-						{"^john$", "john", 0, 4, []byte("john")},
-						{"john", "john", 0, 4, []byte("john")},
-						{"john", "firstname=john&lastname=lenon", 11, 15, []byte("john")},
-						{"neo", "neo+is+the+one", 0, 3, []byte("neo")},
-						{"^DELETE$", "DELETE", 0, 6, []byte("DELETE")},
-						{"^/sensitive\\.php", "/sensitive.php?password=12345", 0, 14, []byte("/sensitive.php?password=12345")},
-						{"abc", "a=abc", 2, 5, []byte("abc")},
-						{"def", "a=def", 2, 5, []byte("def")},
-						{"ab+c", "a=abbbc", 2, 7, []byte("abbbc")},
-						{"bc$", "a=abc", 4, 5, []byte("bc")},
-						{"^a=", "a=abc", 0, 2, []byte("a=")},
-						{"ab", "a=abc", 3, 4, []byte("ab")},
-						{"^a=abc$", "a=abc", 0, 6, []byte("a=abc")},
-						{"abc", "abc", 0, 3, []byte("abc")},
-						{"def", "def", 0, 3, []byte("def")},
-						{"^abc$", "abc", 0, 3, []byte("abc")},
-						{"^ABC$", "ABC", 0, 3, []byte("ABC")},
-						{"^ abc $", " abc ", 0, 5, []byte(" abc ")},
-						{"^%61%62%63$", "%61%62%63", 0, 9, []byte("%61%62%63")},
-						{"^a%20b$", "a%20b", 0, 5, []byte("a%20b")},
-						{"^a b$", "a b", 0, 3, []byte("a b")},
-						{"^a\x00bc$", "a\x00bc", 0, 4, []byte("a\x00bc")},
-						{"^a&#98;c$", "a&#98;c", 0, 4, []byte("a&#98;c")},
-						{`^hello world$`, `hello world`, 0, 11, []byte(`hello world`)},
-						{`^hello%ggworld$`, `hello%ggworld`, 0, 13, []byte(`hello%ggworld`)},
-						{`^hello $`, `hello `, 0, 6, []byte(`hello `)},
-						{`^hello%2$`, `hello%2`, 0, 7, []byte(`hello%2`)},
-						{`^hello%$`, `hello%`, 0, 6, []byte(`hello%`)},
-						{`^ $`, ` `, 0, 1, []byte(` `)},
-						{`^%2$`, `%2`, 0, 2, []byte(`%2`)},
-						{`^%$`, `%`, 0, 1, []byte(`%`)},
-						{`^$`, ``, 0, 0, []byte(``)},
-						{"^\x00$", "\x00", 0, 1, []byte("\x00")},
-						{`^xjx$`, `xjx`, 0, 3, []byte(`xjx`)},
+						{"^true$", "true", []byte("true")},
+						{"^john$", "john", []byte("john")},
+						{"john", "john", []byte("john")},
+						{"john", "firstname=john&lastname=lenon", []byte("john")},
+						{"neo", "neo+is+the+one", []byte("neo")},
+						{"^DELETE$", "DELETE", []byte("DELETE")},
+						{"^/sensitive\\.php", "/sensitive.php?password=12345", []byte("/sensitive.php?password=12345")},
+						{"abc", "a=abc", []byte("abc")},
+						{"def", "a=def", []byte("def")},
+						{"ab+c", "a=abbbc", []byte("abbbc")},
+						{"bc$", "a=abc", []byte("bc")},
+						{"^a=", "a=abc", []byte("a=")},
+						{"ab", "a=abc", []byte("ab")},
+						{"^a=abc$", "a=abc", []byte("a=abc")},
+						{"abc", "abc", []byte("abc")},
+						{"def", "def", []byte("def")},
+						{"^abc$", "abc", []byte("abc")},
+						{"^ABC$", "ABC", []byte("ABC")},
+						{"^ abc $", " abc ", []byte(" abc ")},
+						{"^%61%62%63$", "%61%62%63", []byte("%61%62%63")},
+						{"^a%20b$", "a%20b", []byte("a%20b")},
+						{"^a b$", "a b", []byte("a b")},
+						{"^a\x00bc$", "a\x00bc", []byte("a\x00bc")},
+						{"^a&#98;c$", "a&#98;c", []byte("a&#98;c")},
+						{`^hello world$`, `hello world`, []byte(`hello world`)},
+						{`^hello%ggworld$`, `hello%ggworld`, []byte(`hello%ggworld`)},
+						{`^hello $`, `hello `, []byte(`hello `)},
+						{`^hello%2$`, `hello%2`, []byte(`hello%2`)},
+						{`^hello%$`, `hello%`, []byte(`hello%`)},
+						{`^ $`, ` `, []byte(` `)},
+						{`^%2$`, `%2`, []byte(`%2`)},
+						{`^%$`, `%`, []byte(`%`)},
+						{`^$`, ``, []byte(``)},
+						{"^\x00$", "\x00", []byte("\x00")},
+						{`^xjx$`, `xjx`, []byte(`xjx`)},
 					}
 
 					r := []waf.MultiRegexEngineMatch{}
 					for _, a := range preCannedAnswers {
 						if id, ok := rxIds[a.rx]; ok && bytes.Equal(input, []byte(a.val)) {
-							r = append(r, waf.MultiRegexEngineMatch{ID: id, StartPos: a.startPos, EndPos: a.endPos, Data: a.data})
+							r = append(r, waf.MultiRegexEngineMatch{ID: id, Data: a.data})
 						}
 					}
 

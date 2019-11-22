@@ -45,12 +45,6 @@ func TestReqScanner1(t *testing.T) {
 	if string(m.Data) != "aaaaaaabc" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
 	}
-	if m.StartPos != 16 {
-		t.Fatalf("Unexpected match pos: %d", m.StartPos)
-	}
-	if m.EndPos != 25 {
-		t.Fatalf("Unexpected match pos: %d", m.EndPos)
-	}
 
 	m, ok = sr.GetResultsFor(200, 0, Target{Name: "ARGS"})
 	if !ok {
@@ -58,12 +52,6 @@ func TestReqScanner1(t *testing.T) {
 	}
 	if string(m.Data) != "abccc" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
-	}
-	if m.StartPos != 6 {
-		t.Fatalf("Unexpected match pos: %d", m.StartPos)
-	}
-	if m.EndPos != 11 {
-		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
@@ -235,12 +223,6 @@ func TestReqScannerBodyField(t *testing.T) {
 	}
 	if string(m.Data) != "abccc" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
-	}
-	if m.StartPos != 6 {
-		t.Fatalf("Unexpected match pos: %d", m.StartPos)
-	}
-	if m.EndPos != 11 {
-		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
@@ -633,7 +615,6 @@ func TestReqScannerBasenameEmpty(t *testing.T) {
 		}
 	}
 }
-
 
 func TestReqScannerRequestLine(t *testing.T) {
 	// Arrange
@@ -1133,12 +1114,6 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 	if string(m.Data) != "aaaaaaabc" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
 	}
-	if m.StartPos != 0 {
-		t.Fatalf("Unexpected match pos: %d", m.StartPos)
-	}
-	if m.EndPos != 9 {
-		t.Fatalf("Unexpected match pos: %d", m.EndPos)
-	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
 	if !ok {
@@ -1146,14 +1121,6 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 	}
 	if string(m.Data) != "xyz" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
-	}
-
-	// Note: the positions here are expected to be relative to what comes after arg1=, because the semicolon is not an acceptable delimiter here
-	if m.StartPos != 23 {
-		t.Fatalf("Unexpected match pos: %d", m.StartPos)
-	}
-	if m.EndPos != 26 {
-		t.Fatalf("Unexpected match pos: %d", m.EndPos)
 	}
 }
 

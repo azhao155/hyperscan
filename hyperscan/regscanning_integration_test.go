@@ -45,12 +45,6 @@ func TestReqScannerSimpleRules(t *testing.T) {
 	if string(m.Data) != "aaaaaaabc" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
 	}
-	if m.StartPos != 18 {
-		t.Fatalf("Unexpected match pos: %d", m.StartPos)
-	}
-	if m.EndPos != 27 {
-		t.Fatalf("Unexpected match pos: %d", m.EndPos)
-	}
 
 	m, ok = sr.GetResultsFor(200, 0, secrule.Target{Name: "ARGS"})
 	if !ok {
@@ -58,12 +52,6 @@ func TestReqScannerSimpleRules(t *testing.T) {
 	}
 	if string(m.Data) != "abccc" {
 		t.Fatalf("Unexpected match data: %s", string(m.Data))
-	}
-	if m.StartPos != 8 {
-		t.Fatalf("Unexpected match StartPos: %d", m.StartPos)
-	}
-	if m.EndPos != 13 {
-		t.Fatalf("Unexpected match EndPos: %d", m.EndPos)
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, secrule.Target{Name: "ARGS"})

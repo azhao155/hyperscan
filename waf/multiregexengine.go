@@ -21,8 +21,6 @@ type MultiRegexEnginePattern struct {
 // MultiRegexEngineMatch is used by the MultiRegexEngine interface to communicate back which matches were found.
 type MultiRegexEngineMatch struct {
 	ID            int
-	StartPos      int
-	EndPos        int
 	Data          []byte
 	CaptureGroups [][]byte
 }

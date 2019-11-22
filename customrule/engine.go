@@ -391,8 +391,6 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 				results.matches[mcp] = match{
 					VariableName: m.variableName,
 					FieldName:    m.selector,
-					StartPos:     mrematch.StartPos,
-					EndPos:       mrematch.EndPos,
 					Data:         mrematch.Data,
 				}
 			}

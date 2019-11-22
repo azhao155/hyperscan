@@ -2,8 +2,9 @@ package hyperscan
 
 import (
 	"azwaf/waf"
-	hs "github.com/flier/gohs/hyperscan"
 	"testing"
+
+	hs "github.com/flier/gohs/hyperscan"
 )
 
 func TestHyperscanStandalone(t *testing.T) {
@@ -116,12 +117,6 @@ func TestHyperscanSimple(t *testing.T) {
 	if string(r[0].Data) != "abbbbc" {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
 	}
-	if r[0].StartPos != 3 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
-	}
-	if r[0].EndPos != 9 {
-		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
-	}
 }
 
 func TestHyperscanSimpleTwoScans(t *testing.T) {
@@ -152,12 +147,6 @@ func TestHyperscanSimpleTwoScans(t *testing.T) {
 	if m[0].ID != 1 {
 		t.Fatalf("Scan 1, unexpected match ID: %d", m[0].ID)
 	}
-	if m[0].StartPos != 0 {
-		t.Fatalf("Scan 1, unexpected match StartPos: %d", m[0].StartPos)
-	}
-	if m[0].EndPos != 5 {
-		t.Fatalf("Scan 1, unexpected match EndPos: %d", m[0].EndPos)
-	}
 	if string(m[0].Data) != "abbbb" {
 		t.Fatalf("Scan 2, unexpected match data: %s", string(m[0].Data))
 	}
@@ -174,12 +163,6 @@ func TestHyperscanSimpleTwoScans(t *testing.T) {
 	}
 	if m[0].ID != 2 {
 		t.Fatalf("Scan 2, unexpected match ID: %d", m[0].ID)
-	}
-	if m[0].StartPos != 6 {
-		t.Fatalf("Scan 1, unexpected match StartPos: %d", m[0].StartPos)
-	}
-	if m[0].EndPos != 13 {
-		t.Fatalf("Scan 2, unexpected match EndPos: %d", m[0].EndPos)
 	}
 	if string(m[0].Data) != "acccccc" {
 		t.Fatalf("Scan 2, unexpected match data: %s", string(m[0].Data))
@@ -222,14 +205,6 @@ func TestExpressionWithPCREPossessiveQuantifier(t *testing.T) {
 	if string(r[0].Data) != "aaabc" {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
 	}
-
-	if r[0].StartPos != 3 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
-	}
-
-	if r[0].EndPos != 8 {
-		t.Fatalf("Unexpected EndPos: %d", r[0].EndPos)
-	}
 }
 
 func TestHyperscanEmptyString(t *testing.T) {
@@ -265,12 +240,6 @@ func TestHyperscanEmptyString(t *testing.T) {
 	if string(r[0].Data) != "" {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
 	}
-	if r[0].StartPos != 0 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
-	}
-	if r[0].EndPos != 0 {
-		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
-	}
 }
 
 func TestHyperscanCaptureGroup(t *testing.T) {
@@ -305,12 +274,6 @@ func TestHyperscanCaptureGroup(t *testing.T) {
 	}
 	if string(r[0].Data) != "hello1234world" {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
-	}
-	if r[0].StartPos != 3 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
-	}
-	if r[0].EndPos != 17 {
-		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
 	}
 	if len(r[0].CaptureGroups) != 2 {
 		t.Fatalf("Unexpected len(r[0].CaptureGroups): %d", len(r[0].CaptureGroups))
@@ -356,12 +319,6 @@ func TestHyperscanNonCaptureGroup(t *testing.T) {
 	if string(r[0].Data) != "hello1234world" {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
 	}
-	if r[0].StartPos != 3 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
-	}
-	if r[0].EndPos != 17 {
-		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
-	}
 	if len(r[0].CaptureGroups) != 1 {
 		t.Fatalf("Unexpected len(r[0].CaptureGroups): %d", len(r[0].CaptureGroups))
 	}
@@ -402,12 +359,6 @@ func TestHyperscanParenthesis(t *testing.T) {
 	}
 	if string(r[0].Data) != "hello(1234)world" {
 		t.Fatalf("Unexpected data: %s", string(r[0].Data))
-	}
-	if r[0].StartPos != 3 {
-		t.Fatalf("Unexpected StartPos: %d", r[0].StartPos)
-	}
-	if r[0].EndPos != 19 {
-		t.Fatalf("Unexpected endPos: %d", r[0].EndPos)
 	}
 	if len(r[0].CaptureGroups) != 1 {
 		t.Fatalf("Unexpected len(r[0].CaptureGroups): %d", len(r[0].CaptureGroups))
