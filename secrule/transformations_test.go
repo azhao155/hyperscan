@@ -114,6 +114,8 @@ func TestTransformations(t *testing.T) {
 		{"hello\xa0world", []Transformation{CompressWhitespace}, "hello world"},
 		{"hello\xa0\xa0\xa0world", []Transformation{CompressWhitespace}, "hello world"},
 
+		{"helloworld", []Transformation{Length}, "10"},
+
 		// Combinations
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, `aaaaaaa bccc`},
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, RemoveWhitespace, URLDecodeUni}, `aaaaaaa bccc`}, // Not removing space because URLDecodeUni hasn't yet turned %20 into space

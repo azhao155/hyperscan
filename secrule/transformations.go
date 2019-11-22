@@ -40,7 +40,7 @@ func applyTransformations(s string, tt []Transformation) string {
 			s = jsUnescape(s)
 		case Length:
 			// TODO is this really used? Isn't @ for this? Should we use the type-system to keep this as int here?
-			s = string(len(s))
+			s = strconv.Itoa(len(s))
 		case Lowercase:
 			s = strings.ToLower(s)
 		case None:
