@@ -10,39 +10,73 @@ import (
 	"testing"
 )
 
-func TestPutIPReputationList(t *testing.T) {
-	assert := assert.New(t)
-	startServer(t)
-	c := newWafServiceClient(t)
-	ctx := context.Background()
+const configID = "abc"
 
-	irStream, err := c.PutIPReputationList(ctx, grpc.WaitForReady(true))
-	assert.Nil(err)
-
-	err = irStream.Send(&pb.IpReputationList{
-		Ip: []string{"0.0.0.0/32=bot:1", "1.2.3.4/32=bot:1"},
-	})
-	assert.Nil(err)
-
-	_, err = irStream.CloseAndRecv()
-	assert.Nil(err)
+var geoBlacklistRule = &pb.CustomRule{
+	Name:     "geoBlacklistRule",
+	Priority: 3,
+	RuleType: "MatchRule",
+	MatchConditions: []*pb.MatchCondition{
+		&pb.MatchCondition{
+			MatchVariables: []*pb.MatchVariable{
+				&pb.MatchVariable{
+					VariableName: "RemoteAddr",
+				},
+				&pb.MatchVariable{
+					VariableName: "RequestHeaders",
+					Selector:     "X-Forwarded-For",
+				},
+			},
+			Operator:        "GeoMatch",
+			NegateCondition: false,
+			MatchValues:     []string{"AB", "CD", "EF"},
+		},
+	},
+	Action: "Block",
 }
 
-func TestIPReputationEngineBlockedRequest(t *testing.T) {
+var geoIPData = &pb.GeoIPData{
+	GeoIPDataRecords: []*pb.GeoIPDataRecord{
+		&pb.GeoIPDataRecord{StartIP: 0x00000000, EndIP: 0x9fffffff, CountryCode: "OK"},
+		&pb.GeoIPDataRecord{StartIP: 0xa0000000, EndIP: 0xbfffffff, CountryCode: "AB"},
+		&pb.GeoIPDataRecord{StartIP: 0xc0000000, EndIP: 0xdfffffff, CountryCode: "CD"},
+		&pb.GeoIPDataRecord{StartIP: 0xe0000000, EndIP: 0xffffffff, CountryCode: "EF"},
+	},
+}
+
+func TestPutGeoIpData(t *testing.T) {
 	assert := assert.New(t)
 	startServer(t)
 	c := newWafServiceClient(t)
 	ctx := context.Background()
 
-	const configID = "abc"
+	giStream, err := c.PutGeoIPData(ctx, grpc.WaitForReady(true))
+	assert.Nil(err)
+
+	err = giStream.Send(geoIPData)
+	assert.Nil(err)
+
+	_, err = giStream.CloseAndRecv()
+	assert.Nil(err)
+
+}
+
+func TestCustomRuleEngineBlockedRequest(t *testing.T) {
+	assert := assert.New(t)
+	startServer(t)
+	c := newWafServiceClient(t)
+	ctx := context.Background()
+
 	config := &pb.WAFConfig{
 		ConfigVersion: 1,
 		PolicyConfigs: []*pb.PolicyConfig{
 			&pb.PolicyConfig{
 				ConfigID:        configID,
 				IsDetectionMode: false,
-				IpReputationConfig: &pb.IPReputationConfig{
-					Enabled: true,
+				CustomRuleConfig: &pb.CustomRuleConfig{
+					CustomRules: []*pb.CustomRule{
+						geoBlacklistRule,
+					},
 				},
 			},
 		},
@@ -51,19 +85,18 @@ func TestIPReputationEngineBlockedRequest(t *testing.T) {
 	_, err := c.PutConfig(ctx, config, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	irStream, err := c.PutIPReputationList(ctx, grpc.WaitForReady(true))
+	giStream, err := c.PutGeoIPData(ctx, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	err = irStream.Send(&pb.IpReputationList{
-		Ip: []string{"0.0.0.0/32=bot:1", "1.2.3.4/32=bot:1"},
-	})
+	err = giStream.Send(geoIPData)
 	assert.Nil(err)
 
-	_, err = irStream.CloseAndRecv()
+	_, err = giStream.CloseAndRecv()
 	assert.Nil(err)
 
 	uri := "/index.php?hello=world"
-	remoteAddr := "1.2.3.4"
+	// 255.255.255.255 == 0xffffffff => "EF", blocked.
+	remoteAddr := "255.255.255.255"
 	var headers []*pb.HeaderPair
 	var bodyChunk []byte
 	moreBodyChunks := false
@@ -82,24 +115,25 @@ func TestIPReputationEngineBlockedRequest(t *testing.T) {
 	}
 
 	wafDecision := evalRequest(ctx, t, c, r)
-	assert.Equal(wafDecision.Action, pb.WafDecision_BLOCK, "IPReputationEngine failed to catch malicious request")
+	assert.Equal(wafDecision.Action, pb.WafDecision_BLOCK, "CustomRulesEngine failed to block malicious request")
 }
 
-func TestIPReputationEngineDetectionMode(t *testing.T) {
+func TestCustomRuleEngineDetectionMode(t *testing.T) {
 	assert := assert.New(t)
 	startServer(t)
 	c := newWafServiceClient(t)
 	ctx := context.Background()
 
-	const configID = "abc"
 	config := &pb.WAFConfig{
 		ConfigVersion: 1,
 		PolicyConfigs: []*pb.PolicyConfig{
 			&pb.PolicyConfig{
 				ConfigID:        configID,
 				IsDetectionMode: true,
-				IpReputationConfig: &pb.IPReputationConfig{
-					Enabled: true,
+				CustomRuleConfig: &pb.CustomRuleConfig{
+					CustomRules: []*pb.CustomRule{
+						geoBlacklistRule,
+					},
 				},
 			},
 		},
@@ -108,19 +142,18 @@ func TestIPReputationEngineDetectionMode(t *testing.T) {
 	_, err := c.PutConfig(ctx, config, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	irStream, err := c.PutIPReputationList(ctx, grpc.WaitForReady(true))
+	giStream, err := c.PutGeoIPData(ctx, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	err = irStream.Send(&pb.IpReputationList{
-		Ip: []string{"0.0.0.0/32=bot:1", "1.2.3.4/32=bot:1"},
-	})
+	err = giStream.Send(geoIPData)
 	assert.Nil(err)
 
-	_, err = irStream.CloseAndRecv()
+	_, err = giStream.CloseAndRecv()
 	assert.Nil(err)
 
 	uri := "/index.php?hello=world"
-	remoteAddr := "1.2.3.4"
+	// 255.255.255.255 == 0xffffffff => "EF", blocked.
+	remoteAddr := "255.255.255.255"
 	var headers []*pb.HeaderPair
 	var bodyChunk []byte
 	moreBodyChunks := false
@@ -139,43 +172,45 @@ func TestIPReputationEngineDetectionMode(t *testing.T) {
 	}
 
 	wafDecision := evalRequest(ctx, t, c, r)
-	assert.Equal(wafDecision.Action, pb.WafDecision_PASS, "IPReputationEngine blocked a request in Detection Mode")
+	assert.Equal(wafDecision.Action, pb.WafDecision_PASS, "CustomRulesEngine blocked a request in Detection Mode")
 }
 
-func TestIPReputationEngineLogPresence(t *testing.T) {
+func TestCustomRuleEngineLogPresence(t *testing.T) {
 	assert := assert.New(t)
 	startServer(t)
 	c := newWafServiceClient(t)
 	ctx := context.Background()
 
-	const configID = "abc"
 	config := &pb.WAFConfig{
 		ConfigVersion: 1,
 		PolicyConfigs: []*pb.PolicyConfig{
 			&pb.PolicyConfig{
 				ConfigID:        configID,
 				IsDetectionMode: true,
-				IpReputationConfig: &pb.IPReputationConfig{
-					Enabled: true,
+				CustomRuleConfig: &pb.CustomRuleConfig{
+					CustomRules: []*pb.CustomRule{
+						geoBlacklistRule,
+					},
 				},
 			},
 		},
 	}
+
 	_, err := c.PutConfig(ctx, config, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	irStream, err := c.PutIPReputationList(ctx, grpc.WaitForReady(true))
-
-	err = irStream.Send(&pb.IpReputationList{
-		Ip: []string{"0.0.0.0/32=bot:1", "1.2.3.4/32=bot:1"},
-	})
+	giStream, err := c.PutGeoIPData(ctx, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	_, err = irStream.CloseAndRecv()
+	err = giStream.Send(geoIPData)
+	assert.Nil(err)
+
+	_, err = giStream.CloseAndRecv()
 	assert.Nil(err)
 
 	uri := "/index.php?hello=world"
-	remoteAddr := "1.2.3.4"
+	// 255.255.255.255 == 0xffffffff => "EF", blocked.
+	remoteAddr := "255.255.255.255"
 	var headers []*pb.HeaderPair
 	var bodyChunk []byte
 	moreBodyChunks := false
@@ -198,21 +233,19 @@ func TestIPReputationEngineLogPresence(t *testing.T) {
 	evalRequest(ctx, t, c, r)
 
 	logs := readLogs(t)
-	assert.Equal(len(logs), 1, "Invalid number of logs for IPReputationTriggered")
+	assert.Equal(len(logs), 1, "Invalid number of logs for CustomRuleTriggered")
 
 	log := logs[0]
 
-	assert.Contains(log, "IPReputationTriggered", "IPReputation log is malformed")
-	assert.Contains(log, "Detected", "IPReputation log is malformed")
+	assert.Contains(log, "geoBlacklistRule", "CustomRule log is malformed")
+	assert.Contains(log, "Detected", "CustomRule log is malformed")
 }
 
-func TestIPReputationEngineBenignRequest(t *testing.T) {
+func TestCustomRuleEngineBenignRequest(t *testing.T) {
 	assert := assert.New(t)
 	startServer(t)
 	c := newWafServiceClient(t)
 	ctx := context.Background()
-
-	const configID = "abc"
 
 	config := &pb.WAFConfig{
 		ConfigVersion: 1,
@@ -220,28 +253,30 @@ func TestIPReputationEngineBenignRequest(t *testing.T) {
 			&pb.PolicyConfig{
 				ConfigID:        configID,
 				IsDetectionMode: false,
-				IpReputationConfig: &pb.IPReputationConfig{
-					Enabled: true,
+				CustomRuleConfig: &pb.CustomRuleConfig{
+					CustomRules: []*pb.CustomRule{
+						geoBlacklistRule,
+					},
 				},
 			},
 		},
 	}
+
 	_, err := c.PutConfig(ctx, config, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	irStream, err := c.PutIPReputationList(ctx, grpc.WaitForReady(true))
+	giStream, err := c.PutGeoIPData(ctx, grpc.WaitForReady(true))
 	assert.Nil(err)
 
-	err = irStream.Send(&pb.IpReputationList{
-		Ip: []string{"0.0.0.0/32=bot:1", "1.2.3.4/32=bot:1"},
-	})
+	err = giStream.Send(geoIPData)
 	assert.Nil(err)
 
-	_, err = irStream.CloseAndRecv()
+	_, err = giStream.CloseAndRecv()
 	assert.Nil(err)
 
 	uri := "/index.php?hello=world"
-	remoteAddr := "32.32.32.32"
+	// 0.0.0.0 == 0x00000000 => "OK", pass.
+	remoteAddr := "0.0.0.0"
 	var headers []*pb.HeaderPair
 	var bodyChunk []byte
 	moreBodyChunks := false
@@ -260,5 +295,5 @@ func TestIPReputationEngineBenignRequest(t *testing.T) {
 	}
 
 	wafDecision := evalRequest(ctx, t, c, r)
-	assert.Equal(wafDecision.Action, pb.WafDecision_PASS, "IPReputationEngine failed to pass benign request")
+	assert.Equal(wafDecision.Action, pb.WafDecision_PASS, "CustomRulesEngine failed to pass benign request")
 }

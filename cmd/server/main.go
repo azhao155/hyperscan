@@ -10,9 +10,9 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"syscall"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -45,10 +45,10 @@ func main() {
 
 	reopenLogFileChan := make(chan bool)
 	go func() {
-	   for {
-		  <-signalChan
-		  reopenLogFileChan <- true
-	   }
+		for {
+			<-signalChan
+			reopenLogFileChan <- true
+		}
 	}()
 
 	grpc.StartServer(logger, *secruleconf, lengthLimits, standaloneSecruleServer, "tcp", ":37291", reopenLogFileChan)

@@ -7,7 +7,7 @@ import (
 // LogFile is the interface to handle log file append
 type LogFile interface {
 	Append(content []byte) (err error)
-	Close()(err error)
+	Close() (err error)
 }
 
 // LogFileSystem is the interface to handle log file directory creation and file open/append

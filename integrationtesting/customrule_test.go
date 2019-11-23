@@ -235,7 +235,6 @@ func TestCustomRuleStringBypass(t *testing.T) {
 	assert.Nil(allowErr)
 }
 
-
 func TestTwoVal(t *testing.T) {
 	assert := assert.New(t)
 
@@ -249,20 +248,19 @@ func TestTwoVal(t *testing.T) {
 
 	// Act
 	req1 := &mockWafHTTPRequest{
-		uri:        "/?a=1",
+		uri: "/?a=1",
 	}
 	decision1, blockErr1 := wafServer.EvalRequest(req1)
 
 	req2 := &mockWafHTTPRequest{
-		uri:        "/?a=2",
+		uri: "/?a=2",
 	}
 	decision2, blockErr2 := wafServer.EvalRequest(req2)
 
 	req3 := &mockWafHTTPRequest{
-		uri:        "/?a=3",
+		uri: "/?a=3",
 	}
 	decision3, blockErr3 := wafServer.EvalRequest(req3)
-
 
 	// Assert
 	assert.Equal(waf.Allow, decision1)
