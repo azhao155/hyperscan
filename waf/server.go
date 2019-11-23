@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -101,7 +102,17 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		logger.Info().Str("uri", req.URI()).Msg("WAF got request")
 		startTime := time.Now()
 		defer func() {
-			logger.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Int("decision", int(decision)).Msg("WAF completed request")
+			d := strconv.Itoa(int(decision))
+			switch decision {
+			case Pass:
+				d = "Pass"
+			case Allow:
+				d = "Allow"
+			case Block:
+				d = "Block"
+			}
+
+			logger.Info().Dur("timeTaken", time.Since(startTime)).Str("uri", req.URI()).Str("decision", d).Msg("WAF completed request")
 		}()
 	}
 
