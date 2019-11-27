@@ -101,7 +101,12 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 					}
 
 					for i := 0; i < txVarCount; i++ {
-						perRequestEnv.set("tx."+strconv.Itoa(i), &stringObject{Value: string(match.CaptureGroups[i])})
+						var t Token = StringToken(match.CaptureGroups[i])
+						if n, err := strconv.Atoi(string(match.CaptureGroups[i])); err == nil {
+							t = IntToken(n)
+						}
+
+						perRequestEnv.set("tx."+strconv.Itoa(i), Value{t})
 					}
 
 					cleanUpCapturedVars = func() {
@@ -113,7 +118,7 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 					}
 
 				case *CtlAction:
-					perRequestEnv.set(action.setting, &stringObject{Value: action.value})
+					perRequestEnv.set(action.setting, action.value.expandMacros(perRequestEnv))
 				}
 			}
 		}
@@ -156,7 +161,11 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				anyRuleItemTriggered := false
 				for _, target := range ruleItem.Predicate.Targets {
-					triggered, match := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
+					triggered, match, err := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
+					if err != nil {
+						logger.Warn().Int("ruleID", stmtID).Int("ruleItemIdx", curRuleItemIdx).Err(err).Msg("Error evaluating predicate")
+					}
+
 					if triggered {
 						perRequestEnv.matchedVar = match.EntireFieldContent
 						perRequestEnv.matchedVarName = match.TargetName
@@ -237,11 +246,11 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, match Match) {
+func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, match Match, err error) {
 	if requiresLateScan(ruleItem.Predicate, target) {
 		// We need to a late scan for this predicate now, because we were not able to do it in the scanning phase.
 		// This is the less common case.
-		triggered = evalPredicateLateScan(env, ruleItem, target, scanResults, rule, curRuleItemIdx)
+		triggered, match, err = evalPredicateLateScan(env, ruleItem, target, scanResults, rule, curRuleItemIdx)
 		return
 	}
 
@@ -269,34 +278,50 @@ func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResult
 
 }
 
-func evalPredicateLateScan(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) bool {
+func evalPredicateLateScan(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (result bool, match Match, err error) {
 	// A predicate that requires late scanning means that it could not be scanned in the request scanning phase, and therefore must be scanned now.
 	// This is because either left or right side was a variable we could not yet know the value of in the request scanning phase.
 
 	returnValIfTrigger := !ruleItem.Predicate.Neg
 
 	isTxTarget := strings.EqualFold(target.Name, "tx")
-	isTxTargetPresent := isTxTarget && env.hasKey(target.Name+"."+target.Selector) // TODO support regex selectors for tx variable names
+	// TODO support regex selectors for tx variable names
+	isTxTargetPresent := isTxTarget && env.hasKey(strings.ToLower(target.Name+"."+target.Selector))
 
 	if isTxTarget && !isTxTargetPresent && !target.IsCount {
 		// This is a tx variable that is not set
-		return false
+		result = false
+		return
 	}
 
-	triggered, _, _ := ruleItem.Predicate.eval(target, scanResults, env)
+	var triggered bool
+	triggered, match, err = ruleItem.Predicate.eval(target, scanResults, env)
 	if triggered {
-		return returnValIfTrigger
+		result = returnValIfTrigger
+		return
 	}
-	return !returnValIfTrigger
+
+	result = !returnValIfTrigger
+	return
 }
 
-// We require a late scan (a scan in the eval phase as opposed to the req scan phase) if either left or right side is a variable.
+// We require a late scan (a scan in the eval phase as opposed to the req scan phase) if either left or right side was not known in the scan phase.
 func requiresLateScan(predicate RulePredicate, target Target) bool {
+	// TODO optimization: move this check to somewhere during parsing
+
+	if strings.EqualFold(target.Name, "matched_var") {
+		return true
+	}
+
+	if strings.EqualFold(target.Name, "matched_var_name") {
+		return true
+	}
+
 	if strings.EqualFold(target.Name, "tx") {
 		return true
 	}
 
-	if len(predicate.valMacroMatches) > 0 {
+	if predicate.Val.hasMacros() {
 		return true
 	}
 

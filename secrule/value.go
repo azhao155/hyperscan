@@ -3,7 +3,6 @@ package secrule
 import (
 	"bytes"
 	"strconv"
-	"strings"
 )
 
 func (v Value) expandMacros(env environment) (output Value) {
@@ -12,43 +11,14 @@ func (v Value) expandMacros(env environment) (output Value) {
 	for _, token := range v {
 		// Replace with value from env if macro-token.
 		if mt, ok := token.(MacroToken); ok {
-			if strings.EqualFold(string(mt), "matched_var") {
-				output = append(output, StringToken(env.matchedVar))
+			var ok bool
+			v, ok := env.get(string(mt))
+			if !ok {
 				continue
 			}
 
-			if strings.EqualFold(string(mt), "matched_var_name") {
-				output = append(output, StringToken(env.matchedVarName))
-				continue
-			}
-
-			if strings.EqualFold(string(mt), "request_line") {
-				output = append(output, StringToken(env.requestLine))
-				continue
-			}
-
-			if strings.EqualFold(string(mt), "request_headers.host") {
-				output = append(output, StringToken(env.hostHeader))
-				continue
-			}
-
-			// Tx-variables
-			if len(mt) > 3 && strings.EqualFold(string(mt)[0:3], "tx.") {
-				var ok bool
-				o, ok := env.get(string(mt))
-				if !ok {
-					continue
-				}
-
-				switch o := o.(type) {
-				case *integerObject:
-					output = append(output, IntToken(o.Value))
-				case *stringObject:
-					output = append(output, StringToken(o.ToString()))
-				}
-
-				continue
-			}
+			output = append(output, v...)
+			continue
 		}
 
 		// This was not a macro token, so just keep it as is.
@@ -61,6 +31,30 @@ func (v Value) expandMacros(env environment) (output Value) {
 func (v Value) equal(other Value) bool {
 	// A two-pointer algorithm to compare values.
 	// This is non-trivial, because multiple string tokens on one side could correspond to a single string token on the other side.
+
+	// Handle empty values
+	if len(v) == 0 && len(other) == 0 {
+		// Both sides are just empty values
+		return true
+	} else if len(v) == 0 || len(other) == 0 {
+		// One side is empty. Does the other side just have empty string tokens?
+		nonEmptySide := v
+		if len(v) == 0 {
+			nonEmptySide = other
+		}
+
+		for _, t := range nonEmptySide {
+			if s, ok := t.(StringToken); ok {
+				if len(s) != 0 {
+					return false
+				}
+			} else {
+				return false
+			}
+		}
+
+		return true
+	}
 
 	a := v
 	b := other
@@ -149,6 +143,19 @@ func (v Value) equal(other Value) bool {
 }
 
 func (v Value) bytes() []byte {
+	// Shortcut to avoid allocating a bytes.Buffer if this is just a simple single token.
+	if len(v) == 1 {
+		switch token := v[0].(type) {
+
+		case StringToken:
+			return token
+
+		case MacroToken:
+			return nil // Seems better to omit unexpanded macro-tokens. So we don't do anything in this case.
+
+		}
+	}
+
 	var buf bytes.Buffer
 	for _, token := range v {
 		switch token := token.(type) {
@@ -169,5 +176,30 @@ func (v Value) bytes() []byte {
 }
 
 func (v Value) string() string {
+	// Shortcut to avoid allocating a bytes.Buffer if this is just a simple single token.
+	if len(v) == 1 {
+		if n, ok := v[0].(IntToken); ok {
+			return strconv.Itoa(int(n))
+		}
+	}
+
 	return string(v.bytes())
+}
+
+func (v Value) int() (n int, ok bool) {
+	if len(v) == 1 {
+		if n, ok := v[0].(IntToken); ok {
+			return int(n), ok
+		}
+	}
+	return 0, false
+}
+
+func (v Value) hasMacros() bool {
+	for _, t := range v {
+		if _, ok := t.(MacroToken); ok {
+			return true
+		}
+	}
+	return false
 }

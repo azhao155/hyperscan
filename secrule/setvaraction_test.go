@@ -9,7 +9,7 @@ func TestparseSetVarActionDefaultAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	if sv.variable != "ip.reput_block_flag" {
+	if !sv.variable.equal(Value{StringToken("ip.reput_block_flag")}) {
 		t.Fatalf("Got unexpected variable: %s", sv.variable)
 	}
 
@@ -17,7 +17,7 @@ func TestparseSetVarActionDefaultAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected operator: %d", sv.operator)
 	}
 
-	if sv.value != "1" {
+	if !sv.value.equal(Value{IntToken(1)}) {
 		t.Fatalf("Got unexpected value: %s", sv.value)
 	}
 }
@@ -29,7 +29,7 @@ func TestparseSetVarActionNumericAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	if sv.variable != "ip.reput_block_flag" {
+	if !sv.variable.equal(Value{StringToken("ip.reput_block_flag")}) {
 		t.Fatalf("Got unexpected variable: %s", sv.variable)
 	}
 
@@ -37,7 +37,7 @@ func TestparseSetVarActionNumericAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected operator: %d", sv.operator)
 	}
 
-	if sv.value != "1" {
+	if !sv.value.equal(Value{IntToken(1)}) {
 		t.Fatalf("Got unexpected value: %s", sv.value)
 	}
 
@@ -47,7 +47,7 @@ func TestparseSetVarActionNumericAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	if sv.variable != "tx.php_injection_score" {
+	if !sv.variable.equal(Value{StringToken("tx.php_injection_score")}) {
 		t.Fatalf("Got unexpected variable: %s", sv.variable)
 	}
 
@@ -55,7 +55,7 @@ func TestparseSetVarActionNumericAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected operator: %d", sv.operator)
 	}
 
-	if sv.value != "%{tx.critical_anomaly_score}" {
+	if !sv.value.equal(Value{MacroToken("tx.critical_anomaly_score")}) {
 		t.Fatalf("Got unexpected value: %s", sv.value)
 	}
 }
@@ -67,7 +67,7 @@ func TestparseSetVarActionStringAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	if sv.variable != "tx.sqli_select_statement" {
+	if !sv.variable.equal(Value{StringToken("tx.sqli_select_statement")}) {
 		t.Fatalf("Got unexpected variable: %s", sv.variable)
 	}
 
@@ -75,7 +75,7 @@ func TestparseSetVarActionStringAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected operator: %d", sv.operator)
 	}
 
-	if sv.value != "%{tx.sqli_select_statement} %{matched_var}" {
+	if !sv.value.equal(Value{MacroToken("tx.sqli_select_statement"), MacroToken("matched_var")}) {
 		t.Fatalf("Got unexpected value: %s", sv.value)
 	}
 }
@@ -87,7 +87,7 @@ func TestparseSetVarActionDeletion(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	if sv.variable != "ip.reput_block_flag" {
+	if !sv.variable.equal(Value{StringToken("ip.reput_block_flag")}) {
 		t.Fatalf("Got unexpected variable: %s", sv.variable)
 	}
 
@@ -113,7 +113,7 @@ func TestSetvarActionExecuteAssignment(t *testing.T) {
 		t.Fatalf("Per request state key: ip.reput_block_flag not found")
 	}
 
-	if val.ToString() != "1" {
+	if !val.equal(Value{IntToken(1)}) {
 		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val)
 	}
 }
@@ -126,7 +126,7 @@ func TestSetvarActionExecuteIncrement(t *testing.T) {
 	}
 
 	perReqState := newEnvironment(&ScanResults{})
-	perReqState.set("ip.reput_block_flag", &stringObject{Value: "1"})
+	perReqState.set("ip.reput_block_flag", Value{IntToken(1)})
 
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
@@ -138,12 +138,8 @@ func TestSetvarActionExecuteIncrement(t *testing.T) {
 		t.Fatalf("Per request state key: ip.reput_block_flag not found")
 	}
 
-	if val.ToString() != "2" {
-		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val.ToString())
-	}
-
-	if _, ok := val.(*integerObject); !ok {
-		t.Fatalf("Unexpected setting type")
+	if !val.equal(Value{IntToken(2)}) {
+		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val.string())
 	}
 }
 
@@ -155,8 +151,7 @@ func TestSetvarActionExecuteDecrement(t *testing.T) {
 	}
 
 	perReqState := newEnvironment(&ScanResults{})
-	v := &stringObject{Value: "5"}
-	perReqState.set("ip.reput_block_flag", v)
+	perReqState.set("ip.reput_block_flag", Value{IntToken(5)})
 
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
@@ -167,12 +162,8 @@ func TestSetvarActionExecuteDecrement(t *testing.T) {
 		t.Fatalf("Per request state key: ip.reput_block_flag not found")
 	}
 
-	if val.ToString() != "4" {
-		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val.ToString())
-	}
-
-	if _, ok := val.(*integerObject); !ok {
-		t.Fatalf("Unexpected setting type")
+	if !val.equal(Value{IntToken(4)}) {
+		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val.string())
 	}
 }
 
@@ -184,7 +175,7 @@ func TestSetvarActionExecuteDelete(t *testing.T) {
 	}
 
 	perReqState := newEnvironment(&ScanResults{})
-	perReqState.set("ip.reput_block_flag", &stringObject{Value: "5"})
+	perReqState.set("ip.reput_block_flag", Value{IntToken(5)})
 
 	if err := executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
@@ -204,8 +195,8 @@ func TestSetvarActionExecuteExpandVars(t *testing.T) {
 	}
 
 	perReqState := newEnvironment(&ScanResults{})
-	perReqState.set("tx.anomaly_score", &stringObject{Value: "15"})
-	perReqState.set("tx.critical_anomaly_score", &stringObject{Value: "5"})
+	perReqState.set("tx.anomaly_score", Value{IntToken(15)})
+	perReqState.set("tx.critical_anomaly_score", Value{IntToken(5)})
 
 	if err := executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
@@ -217,7 +208,7 @@ func TestSetvarActionExecuteExpandVars(t *testing.T) {
 
 	}
 
-	if val.ToString() != "20" {
+	if !val.equal(Value{IntToken(20)}) {
 		t.Fatalf("Unexpected per request state key: tx.anomaly_score, value: %s", val)
 	}
 }

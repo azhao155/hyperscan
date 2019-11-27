@@ -44,12 +44,11 @@ type MacroToken string
 
 // RulePredicate that determines whether a rule is triggered.
 type RulePredicate struct {
-	Targets         []Target
-	ExceptTargets   []Target // ExceptTargets are the targets that are exempt/excluded from being matched.
-	Op              Operator
-	Neg             bool
-	Val             string // TODO potential optimization: this could be object (or there could be an IntVal field), so for integers there will be much fewer string to int conversions
-	valMacroMatches [][]string
+	Targets       []Target
+	ExceptTargets []Target // ExceptTargets are the targets that are exempt/excluded from being matched.
+	Op            Operator
+	Neg           bool
+	Val           Value
 }
 
 // Target describes which field of the request we want to be scanning.
@@ -101,12 +100,9 @@ type SkipAfterAction struct {
 
 // SetVarAction is the action that modifies variables in the per-request environment.
 type SetVarAction struct {
-	// TODO potential optimization, variable and value could be stored as a list of objects (especially in case of macros)
-	variable        string
-	operator        setvarActionOperator
-	value           string
-	varMacroMatches [][]string
-	valMacroMatches [][]string
+	variable Value
+	operator setvarActionOperator
+	value    Value
 }
 
 // CaptureAction makes the engine save regex groups to tx.0, tx.1, etc.
@@ -114,8 +110,8 @@ type CaptureAction struct{}
 
 // CtlAction is the action that modifies configuration during run time
 type CtlAction struct {
-	setting         string
-	value           string
+	setting string
+	value   Value
 }
 
 // Operator that the SecRule will use to evaluates the input against the value.

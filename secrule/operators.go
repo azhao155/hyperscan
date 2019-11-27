@@ -2,9 +2,8 @@ package secrule
 
 import (
 	li "azwaf/libinjection"
+	"bytes"
 	"regexp"
-	"strconv"
-	"strings"
 )
 
 var operatorFuncsMap = map[Operator]operatorFunc{
@@ -26,124 +25,144 @@ var operatorFuncsMap = map[Operator]operatorFunc{
 	Rx:           rxOperatorEval,
 }
 
-type operatorFunc func(string, string) (bool, string, error)
+type operatorFunc func(Value, Value) (bool, string, error)
 
 func toOperatorFunc(op Operator) operatorFunc {
 	return operatorFuncsMap[op]
 }
 
-func detectSQLiOperatorEval(target string, value string) (bool, string, error) {
-	found, fingerprint := li.IsSQLi(target)
+func detectSQLiOperatorEval(target Value, _ Value) (bool, string, error) {
+	// TODO let IsSQLi take byte array, for fewer conversions
+	found, fingerprint := li.IsSQLi(target.string())
 	return found, fingerprint, nil
 }
 
-func detectXSSOperatorEval(target string, value string) (bool, string, error) {
-	found := li.IsXSS(target)
+func detectXSSOperatorEval(target Value, _ Value) (bool, string, error) {
+	// TODO let IsXSS take byte array, for fewer conversions
+	found := li.IsXSS(target.string())
 	return found, "", nil
 }
 
-// TODO: optimization: use numeric value
-func equalOperatorEval(target string, value string) (bool, string, error) {
-	return target == value, "", nil
+func equalOperatorEval(target Value, value Value) (bool, string, error) {
+	return target.equal(value), "", nil
 }
 
-func greaterOrEqualOperatorEval(target string, value string) (bool, string, error) {
-	t, err := strconv.Atoi(target)
-	if err != nil {
-		return false, "", err
+func greaterOrEqualOperatorEval(target Value, value Value) (bool, string, error) {
+	// TODO also support this operator for non-int values. I think ModSec 3 falls back to string lengths in that case. See CRS rule 920370.
+
+	targetInt, ok := target.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	v, err := strconv.Atoi(value)
-	if err != nil {
-		return false, "", err
+	valueInt, ok := value.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	return t >= v, "", nil
+	return targetInt >= valueInt, "", nil
 }
 
-func greaterThanOperatorEval(target string, value string) (bool, string, error) {
-	t, err := strconv.Atoi(target)
-	if err != nil {
-		return false, "", err
+func greaterThanOperatorEval(target Value, value Value) (bool, string, error) {
+	// TODO also support this operator for non-int values. I think ModSec 3 falls back to string lengths in that case. See CRS rule 920370.
+
+	targetInt, ok := target.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	v, err := strconv.Atoi(value)
-	if err != nil {
-		return false, "", err
+	valueInt, ok := value.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	return t > v, "", nil
+	return targetInt > valueInt, "", nil
 }
 
-func lessOrEqualOperatorEval(target string, value string) (bool, string, error) {
-	t, err := strconv.Atoi(target)
-	if err != nil {
-		return false, "", err
+func lessOrEqualOperatorEval(target Value, value Value) (bool, string, error) {
+	// TODO also support this operator for non-int values. I think ModSec 3 falls back to string lengths in that case. See CRS rule 920370.
+
+	targetInt, ok := target.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	v, err := strconv.Atoi(value)
-	if err != nil {
-		return false, "", err
+	valueInt, ok := value.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	return t <= v, "", nil
+	return targetInt <= valueInt, "", nil
 }
 
-func lessThanOperatorEval(target string, value string) (bool, string, error) {
-	t, err := strconv.Atoi(target)
-	if err != nil {
-		return false, "", err
+func lessThanOperatorEval(target Value, value Value) (bool, string, error) {
+	// TODO also support this operator for non-int values. I think ModSec 3 falls back to string lengths in that case. See CRS rule 920370.
+
+	targetInt, ok := target.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	v, err := strconv.Atoi(value)
-	if err != nil {
-		return false, "", err
+	valueInt, ok := value.int()
+	if !ok {
+		return false, "", nil
 	}
 
-	return t < v, "", nil
+	return targetInt <= valueInt, "", nil
 }
 
-func beginsWithOperatorEval(target string, value string) (bool, string, error) {
-	return strings.HasPrefix(target, value), "", nil
+func beginsWithOperatorEval(target Value, value Value) (bool, string, error) {
+	return bytes.HasPrefix(target.bytes(), value.bytes()), "", nil
 }
 
-func endsWithOperatorEval(target string, value string) (bool, string, error) {
-	return strings.HasSuffix(target, value), "", nil
+func endsWithOperatorEval(target Value, value Value) (bool, string, error) {
+	return bytes.HasSuffix(target.bytes(), value.bytes()), "", nil
 }
 
-func containsOperatorEval(target string, value string) (bool, string, error) {
-	return strings.Contains(target, value), "", nil
+func containsOperatorEval(target Value, value Value) (bool, string, error) {
+	return bytes.Contains(target.bytes(), value.bytes()), "", nil
 }
 
-func containsWordOperatorEval(target string, value string) (bool, string, error) {
-	return strings.Contains(target, " "+value+" "), "", nil
+func containsWordOperatorEval(target Value, value Value) (bool, string, error) {
+	bb := value.bytes()
+	buf := make([]byte, 0, len(bb)+2)
+	buf = append(buf, ' ')
+	buf = append(buf, bb...)
+	buf = append(buf, ' ')
+	return bytes.Contains(target.bytes(), buf), "", nil
 }
 
-func strEqOperatorEval(target string, value string) (bool, string, error) {
-	return target == value, "", nil
+func strEqOperatorEval(target Value, value Value) (bool, string, error) {
+	return target.equal(value), "", nil
 }
 
-func wordListSearchOperatorEval(target string, value string) (bool, string, error) {
-	words := strings.Split(value, " ")
+func wordListSearchOperatorEval(target Value, value Value) (bool, string, error) {
+	targetBytes := target.bytes()
+
+	words := bytes.Split(value.bytes(), []byte{' '})
 	for _, w := range words {
-		if target == w {
+		// TODO should this be case insensitive? (bytes.EqualFold)
+		if bytes.Equal(targetBytes, w) {
 			return true, "", nil
 		}
 	}
+
 	return false, "", nil
 }
 
 // Note that this operator-function is only used during late scanning, when scanning for or in a variable.
 // Most regex rules are not based on a variable, and can therefore be scanned during request scanning.
-func rxOperatorEval(actual string, expected string) (bool, string, error) {
-	rx, err := regexp.Compile(expected)
+func rxOperatorEval(actual Value, expected Value) (bool, string, error) {
+	rx, err := regexp.Compile(expected.string())
 	if err != nil {
 		return false, "", err
 	}
 
-	captureGroups := rx.FindStringSubmatch(actual)
+	captureGroups := rx.FindSubmatch(actual.bytes())
 	// TODO find a way to return the capture groups up so they can be put in TX.1, etc.
-	triggered := len(captureGroups) > 0
+	if len(captureGroups) > 0 {
+		return true, string(captureGroups[0]), nil
+	}
 
-	return triggered, "", nil
+	return false, "", nil
 }

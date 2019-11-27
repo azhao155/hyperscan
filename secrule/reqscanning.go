@@ -35,10 +35,12 @@ type Match struct {
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
-	matches      map[matchKey]Match
-	targetsCount map[Target]int
-	requestLine  []byte
-	hostHeader   []byte
+	matches         map[matchKey]Match
+	targetsCount    map[Target]int
+	requestLine     []byte
+	requestMethod   []byte
+	requestProtocol []byte
+	hostHeader      []byte
 }
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
@@ -174,7 +176,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 			switch p.ruleItem.Predicate.Op {
 			case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Streq, Strmatch, Within:
 				// The value can have macros that cannot be expanded at this time.
-				if len(p.ruleItem.Predicate.valMacroMatches) > 0 {
+				if p.ruleItem.Predicate.Val.hasMacros() {
 					continue
 				}
 
@@ -281,25 +283,29 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 
 	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
 	// TODO consider passing the raw request line from Nginx if available.
+	protocol := req.Protocol()
 	var reqLine bytes.Buffer
 	reqLine.WriteString(req.Method())
 	reqLine.WriteString(" ")
 	reqLine.WriteString(req.URI())
 	reqLine.WriteString(" ")
-	reqLine.WriteString(req.Protocol())
+	reqLine.WriteString(protocol)
 	err = r.scanField("REQUEST_LINE", "", reqLine.String(), results)
 	if err != nil {
 		return
 	}
 
 	results.requestLine = reqLine.Bytes()
+	results.requestProtocol = []byte(protocol)
 
 	err = r.scanField("REMOTE_ADDR", "", req.RemoteAddr(), results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanField("REQUEST_METHOD", "", req.Method(), results)
+	method := req.Method()
+	results.requestMethod = []byte(method)
+	err = r.scanField("REQUEST_METHOD", "", method, results)
 	if err != nil {
 		return
 	}
@@ -507,10 +513,11 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 }
 
 func getRxExprs(ruleItem *RuleItem) []string {
-	v := regexp.QuoteMeta(ruleItem.Predicate.Val)
+	s := ruleItem.Predicate.Val.string()
+	quoted := regexp.QuoteMeta(s)
 	switch ruleItem.Predicate.Op {
 	case Rx:
-		return []string{ruleItem.Predicate.Val}
+		return []string{s}
 	case Pm, Pmf, PmFromFile:
 		var phrases []string
 		for _, p := range ruleItem.PmPhrases {
@@ -518,18 +525,18 @@ func getRxExprs(ruleItem *RuleItem) []string {
 		}
 		return phrases
 	case BeginsWith:
-		return []string{"^" + v}
+		return []string{"^" + quoted}
 	case EndsWith:
-		return []string{v + "$"}
+		return []string{quoted + "$"}
 	case Contains, Strmatch:
-		return []string{v}
+		return []string{quoted}
 	case ContainsWord:
-		return []string{`\b` + v + `\b`}
+		return []string{`\b` + quoted + `\b`}
 	case Streq:
-		return []string{"^" + v + "$"}
+		return []string{"^" + quoted + "$"}
 	case Within:
 		var words []string
-		var parameterStrings = strings.Split(ruleItem.Predicate.Val, " ")
+		var parameterStrings = strings.Split(s, " ")
 		for _, p := range parameterStrings {
 			words = append(words, "^"+regexp.QuoteMeta(p)+"$")
 		}
@@ -628,6 +635,11 @@ func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (
 // Similar to url.ParseQuery, but does not consider semicolon as a delimiter. ModSecurity also does not consider semicolon a delimiter.
 func parseQuery(query string) (values url.Values, err error) {
 	values = make(url.Values)
+
+	if query == "" {
+		return
+	}
+
 	for _, arg := range strings.Split(query, "&") {
 		var key, val string
 

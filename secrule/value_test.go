@@ -29,6 +29,10 @@ func TestValueEqual(t *testing.T) {
 		{Value{StringToken("aaa"), IntToken(123), StringToken("bbb")}, Value{StringToken("aaa"), IntToken(123), StringToken("bbb")}, true},
 		{Value{StringToken("aaa"), IntToken(123), StringToken("bbb")}, Value{StringToken("aaa"), IntToken(321), StringToken("bbb")}, false},
 		{Value{StringToken("aaa"), IntToken(123), StringToken("bbb")}, Value{StringToken("aaa"), IntToken(123), StringToken("ccc")}, false},
+		{Value{StringToken("aaabbb")}, Value{}, false},
+
+		{Value{StringToken("")}, Value{}, true},
+		{Value{StringToken(""), StringToken("")}, Value{}, true},
 
 		{Value{MacroToken("xxx")}, Value{MacroToken("xxx")}, true},
 		{Value{MacroToken("xxx")}, Value{MacroToken("yyy")}, false},

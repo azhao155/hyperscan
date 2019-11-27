@@ -2,74 +2,54 @@ package secrule
 
 import (
 	"fmt"
-	"strconv"
+	"strings"
 )
 
 func executeSetVarAction(sv *SetVarAction, perRequestEnv environment) (err error) {
-	// Eval variable
-	variable, err := expandMacros(sv.variable, perRequestEnv, sv.varMacroMatches)
-	if err != nil {
-		return
-	}
-
-	// Eval value
-	value, err := expandMacros(sv.value, perRequestEnv, sv.valMacroMatches)
-	if err != nil {
-		return
-	}
+	variableName := strings.ToLower(sv.variable.expandMacros(perRequestEnv).string())
+	value := sv.value.expandMacros(perRequestEnv)
 
 	// Eval operator
 	switch sv.operator {
 	case set:
-		perRequestEnv.set(variable, &stringObject{Value: value})
+		perRequestEnv.set(variableName, value)
 	case increment, decrement:
-		if err = performNumericalOperation(variable, sv.operator, value, perRequestEnv); err != nil {
+		if err = performNumericalOperation(variableName, sv.operator, value, perRequestEnv); err != nil {
 			return
 		}
 	case deleteVar:
-		perRequestEnv.delete(variable)
+		perRequestEnv.delete(variableName)
 	default:
-		err = fmt.Errorf("Unsupported operator:%d for setvar operation", sv.operator)
+		err = fmt.Errorf("unsupported operator %d for setvar operation", sv.operator)
 		return
 	}
 
 	return
 }
 
-func performNumericalOperation(variable string, op setvarActionOperator, value string, perRequestEnv environment) error {
+func performNumericalOperation(variable string, op setvarActionOperator, value Value, perRequestEnv environment) error {
 	curr, ok := perRequestEnv.get(variable)
 	if !ok {
-		return fmt.Errorf("setvar: attempted use of uninitialized per request state variable %s", variable)
+		curr = Value{IntToken(0)}
 	}
 
-	// Convert string setting to int for future numeric operations
-	switch curr.(type) {
-	case *stringObject:
-		currValue, err := strconv.Atoi(curr.ToString())
-		if err != nil {
-			return err
-		}
-		curr = &integerObject{Value: currValue}
-	}
-
-	currInt, ok := curr.(*integerObject)
+	currInt, ok := curr.int()
 	if !ok {
-		return fmt.Errorf("Integer setting not found for key %s", variable)
+		return fmt.Errorf("variable %s was not an integer", variable)
 	}
 
-	// TODO: value could be potentially stored as an integer setting (handle macros, digit only strings)
-	step, err := strconv.Atoi(value)
-	if err != nil {
-		return err
+	valueInt, ok := value.int()
+	if !ok {
+		return fmt.Errorf("value %s was not an integer", value.string())
 	}
 
 	switch op {
 	case increment:
-		currInt.Incr(step)
+		currInt += valueInt
 	case decrement:
-		currInt.Decr(step)
+		currInt -= valueInt
 	}
 
-	perRequestEnv.set(variable, currInt)
+	perRequestEnv.set(variable, Value{IntToken(currInt)})
 	return nil
 }

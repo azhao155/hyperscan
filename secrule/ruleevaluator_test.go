@@ -17,7 +17,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "something"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("something")}},
 					Actions:   []Action{sv, &DenyAction{}}, // The predicate will not be satisfied, so this should not run
 				},
 			},
@@ -26,7 +26,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{sv},
 				},
@@ -64,7 +64,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{sv, &DenyAction{}},
 				},
@@ -99,7 +99,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{&AllowAction{}},
 				},
@@ -109,7 +109,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{&DenyAction{}},
 				},
@@ -140,8 +140,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	p := RulePredicate{Targets: []Target{{Name: "TX", Selector: "ANOMALY_SCORE"}}, Op: Ge, Val: "%{tx.inbound_anomaly_threshold}"}
-	p.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(p.Val, -1)
+	p := RulePredicate{Targets: []Target{{Name: "TX", Selector: "ANOMALY_SCORE"}}, Op: Ge, Val: Value{MacroToken("tx.inbound_anomaly_threshold")}}
 	rules := []Statement{
 		&Rule{
 			ID: 100,
@@ -156,8 +155,8 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	}
 
 	em := newEnvironment(&ScanResults{})
-	em.set("tx.anomaly_score", &integerObject{Value: 10})
-	em.set("tx.inbound_anomaly_threshold", &integerObject{Value: 5})
+	em.set("tx.anomaly_score", Value{IntToken(10)})
+	em.set("tx.inbound_anomaly_threshold", Value{IntToken(5)})
 	re := NewRuleEvaluator()
 
 	tc := make(map[Target]int)
@@ -184,10 +183,10 @@ func TestRuleEvaluatorChain(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -224,10 +223,10 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -263,11 +262,11 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
 				},
 			},
 		},
@@ -303,11 +302,11 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "def"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
 					Actions:   []Action{&sv1},
 				},
 			},
@@ -336,7 +335,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"123"}, v)
+	assert.Equal(Value{IntToken(123)}, v)
 	assert.Equal(403, code)
 	assert.Equal(1, cbCalled)
 }
@@ -351,11 +350,11 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv1},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "shouldNotMatch"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("shouldNotMatch")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -383,7 +382,7 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"123"}, v)
+	assert.Equal(Value{IntToken(123)}, v)
 	assert.Equal(200, code)
 	assert.Equal(0, cbCalled)
 }
@@ -417,7 +416,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"123"}, v)
+	assert.Equal(Value{IntToken(123)}, v)
 	assert.Equal(1, cbCalled)
 }
 
@@ -454,7 +453,7 @@ func TestRuleEvaluatorSetVarString(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"abc"}, v)
+	assert.Equal("abc", v.string())
 	assert.Equal(3, cbCalled)
 }
 
@@ -488,7 +487,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&integerObject{124}, v)
+	assert.Equal(Value{IntToken(124)}, v)
 	assert.Equal(1, cbCalled)
 }
 
@@ -501,7 +500,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -537,7 +536,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -576,7 +575,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 			},
@@ -606,7 +605,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&integerObject{2}, v)
+	assert.Equal(Value{IntToken(2)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -622,11 +621,11 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 			},
@@ -660,7 +659,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&integerObject{4}, v)
+	assert.Equal(Value{IntToken(4)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -677,11 +676,11 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv3},
 				},
 			},
@@ -715,7 +714,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"abbcc"}, v)
+	assert.Equal("abbcc", v.string())
 	assert.Equal(cbCalled, 2)
 }
 
@@ -728,7 +727,7 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}},
 				},
 			},
@@ -762,7 +761,7 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}, &LogAction{}},
 				},
 			},
@@ -796,11 +795,11 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}},
 				},
 			},
@@ -809,11 +808,11 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{},
 				},
 			},
@@ -847,7 +846,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "abc"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
 				},
 			},
 		},
@@ -899,7 +898,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(Value{IntToken(10)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -931,7 +930,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(Value{IntToken(10)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -966,12 +965,12 @@ func TestSkipAfter(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(Value{IntToken(10)}, v)
 
 	assert.True(env.hasKey("tx.othervar"))
 	v, ok = env.get("tx.othervar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(Value{IntToken(10)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -1006,7 +1005,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"20"}, v)
+	assert.Equal(Value{IntToken(20)}, v)
 	assert.Equal(3, cbCalled)
 }
 
@@ -1067,7 +1066,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&stringObject{"10"}, v)
+	assert.Equal(Value{IntToken(10)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -1080,7 +1079,7 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1116,7 +1115,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1151,7 +1150,7 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1193,7 +1192,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&sv2},
 				},
 			},
@@ -1219,7 +1218,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&integerObject{2}, v)
+	assert.Equal(Value{IntToken(2)}, v)
 	assert.Equal(2, cbCalled)
 }
 
@@ -1236,7 +1235,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&sv2},
 				},
 			},
@@ -1261,7 +1260,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 	assert.True(env.hasKey("tx.somevar"))
 	v, ok := env.get("tx.somevar")
 	assert.True(ok)
-	assert.Equal(&integerObject{1}, v)
+	assert.Equal(Value{IntToken(1)}, v)
 	assert.Equal(1, cbCalled)
 }
 
@@ -1274,7 +1273,7 @@ func TestRuleEvaluatorNegateMultiTxTargets(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1312,7 +1311,7 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1348,7 +1347,7 @@ func TestRuleEvaluatorNegateMultiTxTargetsNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1384,7 +1383,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1420,7 +1419,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: "abc", Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1456,7 +1455,7 @@ func TestRuleEvaluatorCountArgsTarget(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "hello", IsCount: true}}, Op: Eq, Val: "2"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "hello", IsCount: true}}, Op: Eq, Val: Value{IntToken(2)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1500,7 +1499,7 @@ func TestRuleEvaluatorCountTxTargetSet(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: "0"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1534,7 +1533,7 @@ func TestRuleEvaluatorCountTxTargetNotSet(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: "0"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1577,7 +1576,7 @@ func TestRuleEvaluatorLateScanTarget(t *testing.T) {
 			ID: 502,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "myvar"}}, Op: Streq, Val: `hello1234`},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "myvar"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1621,11 +1620,11 @@ func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 			ID: 101,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `(hello\d+)worlda`},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`(hello\d+)worlda`)}},
 					Actions:   []Action{&CaptureAction{}, &DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Streq, Val: "hello1234"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
 				},
 			},
 		},
@@ -1670,19 +1669,17 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 	assert := assert.New(t)
 	//	sv1, _ := parseSetVarAction("tx.myvar=h.l.o.2.4")
 	sv1, _ := parseSetVarAction("tx.myvar=hello1234")
-	val := `^%{tx.myvar}$`
-	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(val, -1) // TODO this would not be needed if the val field was a lits of tokens rather than a string
 	rules := []Statement{
 		&ActionStmt{ID: 201, Actions: []Action{&sv1, &NoLogAction{}}},
 		&Rule{
 			ID: 202,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `(hello\d+)worldb`},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`(hello\d+)worldb`)}},
 					Actions:   []Action{&CaptureAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: val, valMacroMatches: valMacroMatches},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar"), StringToken("$")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1725,18 +1722,16 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	val := `^%{tx.2}$`
-	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(val, -1) // TODO this would not be needed if the val field was a lits of tokens rather than a string
 	rules := []Statement{
 		&Rule{
 			ID: 303,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `hello(\d+)world(\d+)c`},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`hello(\d+)world(\d+)c`)}},
 					Actions:   []Action{&CaptureAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: val, valMacroMatches: valMacroMatches},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.2"), StringToken("$")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1792,14 +1787,12 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	val := `^%{tx.2}$`
-	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(val, -1) // TODO this would not be needed if the val field was a lits of tokens rather than a string
 	rules := []Statement{
 		&Rule{
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: `hello(\d+)world(\d+)c`},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`hello(\d+)world(\d+)c`)}},
 					Actions:   []Action{&CaptureAction{}},
 				},
 			},
@@ -1808,7 +1801,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: val, valMacroMatches: valMacroMatches},
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: Value{StringToken(`^%{tx.2}$`)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1873,6 +1866,317 @@ func TestRuleEvaluatorCtlAction(t *testing.T) {
 	assert.True(env.hasKey("forceRequestBodyVariable"))
 	v, ok := env.get("forceRequestBodyVariable")
 	assert.True(ok)
-	assert.Equal(&stringObject{"On"}, v)
+	assert.Equal(Value{StringToken("On")}, v)
 	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
+	// This test should trigger on ?a=helloworld&b=helloworld
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:101,nolog,setvar:tx.myvar=helloworld"
+		SecRule ARGS:a "helloworld" "id:102"
+		SecRule TX:MYVAR "@streq %{matched_var}" "id:103,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=helloworld")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 103,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "MYVAR"}}, Op: Streq, Val: Value{MacroToken("matched_var")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{
+		Data:               []byte("helloworld"),
+		EntireFieldContent: []byte("helloworld"),
+		CaptureGroups: [][]byte{
+			[]byte("helloworld"),
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(2, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
+	// This test should trigger on ?a=helloworld1234
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:101,nolog,setvar:tx.myvar=helloworld"
+		SecRule ARGS:a "helloworld1234" "id:102"
+		SecRule MATCHED_VAR "@rx ^%{tx.myvar}" "id:103,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=helloworld")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld1234")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 103,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{
+		Data:               []byte("helloworld1234"),
+		EntireFieldContent: []byte("helloworld1234"),
+		CaptureGroups: [][]byte{
+			[]byte("helloworld1234"),
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(2, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
+	// This test should trigger on ?a=helloworld1234
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:101,nolog,setvar:tx.myvar=helloworld"
+		SecRule ARGS:a "helloworld1234" "id:102"
+		SecRule MATCHED_VAR "@rx ^%{tx.myvar}" "id:103"
+		SecRule MATCHED_VAR "@rx ^%{tx.myvar}" "id:104,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=helloworld")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld1234")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 103,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 104,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		}}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{
+		Data:               []byte("helloworld1234"),
+		EntireFieldContent: []byte("helloworld1234"),
+		CaptureGroups: [][]byte{
+			[]byte("helloworld1234"),
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(3, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
+	// This test should trigger on ?helloworld1234=something
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:101,nolog,setvar:tx.myvar=ARGS:helloworld"
+		SecRule ARGS "something" "id:102,chain,deny"
+			SecRule MATCHED_VAR_NAME "@rx ^ARGS:helloworld"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=ARGS:helloworld")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("something")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR_NAME"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS"}}] = Match{
+		Data:               []byte("something"),
+		EntireFieldContent: []byte("something"),
+		CaptureGroups: [][]byte{
+			[]byte("something"),
+		},
+		TargetName: []byte("ARGS"),
+		FieldName:  []byte("helloworld1234"),
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
+	// This test should trigger on ?a=x&b=x&c=x
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecRule &ARGS "@gt 0" "id:101,setvar:TX.ARGS_COUNT=%{MATCHED_VAR}"
+		SecRule TX:ARGS_COUNT "@gt 2" "id:102,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 101,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
+					Actions:   []Action{&SetVarAction{variable: Value{StringToken("tx.args_count")}, value: Value{MacroToken("matched_var")}}},
+				},
+			},
+		},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "tx", Selector: "args_count"}}, Op: Gt, Val: Value{IntToken(2)}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = Match{
+		Data:               []byte("3"),
+		EntireFieldContent: []byte("3"),
+		CaptureGroups: [][]byte{
+			[]byte("3"),
+		},
+		TargetName: []byte("ARGS"),
+		FieldName:  []byte("abc"),
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS", IsCount: true}] = 3
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(2, cbCalled)
 }

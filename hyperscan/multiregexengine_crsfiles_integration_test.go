@@ -82,9 +82,18 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 					continue
 				}
 
+				if len(item.Predicate.Val) != 1 {
+					continue
+				}
+
+				tok, ok := item.Predicate.Val[0].(secrule.StringToken)
+				if !ok {
+					continue
+				}
+
 				// Act
 				e, err := f.NewMultiRegexEngine([]waf.MultiRegexEnginePattern{
-					{ID: 1, Expr: item.Predicate.Val},
+					{ID: 1, Expr: string(tok)},
 				})
 
 				if e != nil {

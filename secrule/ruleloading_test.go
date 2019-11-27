@@ -93,7 +93,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "ab+c"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 				},
 			},
 		},
@@ -101,10 +101,10 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "abc+"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc+")}},
 				},
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "xyz"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("xyz")}},
 					Transformations: []Transformation{Lowercase},
 				},
 			},
@@ -113,7 +113,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 			ID: 300,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_URI_RAW"}}, Op: Rx, Val: "a+bc"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_URI_RAW"}}, Op: Rx, Val: Value{StringToken("a+bc")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 				},
 			},
@@ -122,7 +122,7 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 			ID: 400,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "XML", Selector: "/*"}}, Op: Rx, Val: "abc+"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "XML", Selector: "/*"}}, Op: Rx, Val: Value{StringToken("abc+")}},
 				},
 			},
 		}}

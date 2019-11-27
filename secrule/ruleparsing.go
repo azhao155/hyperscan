@@ -153,6 +153,11 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoad
 		}
 	}
 
+	err = checkForUnsupportedFeatures(&statements)
+	if err != nil {
+		return
+	}
+
 	return
 }
 
@@ -174,21 +179,19 @@ func parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLo
 
 	switch ru.Predicate.Op {
 	case Pm:
-		ru.PmPhrases = strings.Split(ru.Predicate.Val, " ")
+		ru.PmPhrases = strings.Split(ru.Predicate.Val.string(), " ")
 	case Pmf, PmFromFile:
 		if pf == nil {
 			err = fmt.Errorf("rules contained @pmf but no loader callback was given")
 			return
 		}
 
-		ru.PmPhrases, err = pf(ru.Predicate.Val)
+		ru.PmPhrases, err = pf(ru.Predicate.Val.string())
 		if err != nil {
 			return
 		}
 	}
 
-	//TODO: Expand macros that are available during initialization
-	ru.Predicate.valMacroMatches = variableMacroRegex.FindAllStringSubmatch(ru.Predicate.Val, -1)
 	_, s = findConsume(argSpaceRegex, s)
 
 	rawActions, s, err := parseRawActions(s)
@@ -372,7 +375,7 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 }
 
 // Parse a SecRule Operator field.
-func parseOperator(s string) (op Operator, val string, neg bool, rest string, err error) {
+func parseOperator(s string) (op Operator, val Value, neg bool, rest string, err error) {
 	op = Rx
 
 	s, rest = nextArg(s)
@@ -395,8 +398,7 @@ func parseOperator(s string) (op Operator, val string, neg bool, rest string, er
 		s = strings.TrimLeft(s, " ")
 	}
 
-	val = s
-
+	val = parseValue(s)
 	return
 }
 
@@ -549,15 +551,10 @@ func parseSetVarAction(parameter string) (sv SetVarAction, err error) {
 		return
 	}
 
-	varMacroMatches := variableMacroRegex.FindAllStringSubmatch(result["variable"], -1)
-	valMacroMatches := variableMacroRegex.FindAllStringSubmatch(result["value"], -1)
-
 	sv = SetVarAction{
-		variable:        result["variable"],
-		operator:        op,
-		value:           result["value"],
-		varMacroMatches: varMacroMatches,
-		valMacroMatches: valMacroMatches,
+		variable: parseValue(result["variable"]),
+		operator: op,
+		value:    parseValue(result["value"]),
 	}
 
 	return
@@ -574,7 +571,7 @@ func parseCtlAction(parameter string) (ctl CtlAction, err error) {
 
 	ctl = CtlAction{
 		setting: result["setting"],
-		value:   result["value"],
+		value:   parseValue(result["value"]),
 	}
 
 	return
@@ -752,4 +749,31 @@ func findConsume(re *regexp.Regexp, s string) (match string, rest string) {
 	match = s[loc[0]:loc[1]]
 	rest = s[loc[1]:]
 	return
+}
+
+func checkForUnsupportedFeatures(statements *[]Statement) error {
+	// Ensure that there are no rules that have scan-phase variables on the left with macros on the right.
+	// We do not support this, because expanded macros are not available at the point in time when we stream scan through requests.
+	for _, s := range *statements {
+		switch s := s.(type) {
+		case *Rule:
+			for _, item := range s.Items {
+				for _, t := range item.Predicate.Targets {
+					if t.IsCount || item.Predicate.Op == Ge || item.Predicate.Op == Gt || item.Predicate.Op == Le || item.Predicate.Op == Lt {
+						continue
+					}
+					switch t.Name {
+					case "ARGS", "ARGS_GET", "ARGS_NAMES", "FILES", "FILES_NAMES", "QUERY_STRING", "REQUEST_BASENAME", "REQUEST_BODY", "REQUEST_COOKIES", "REQUEST_COOKIES_NAMES", "REQUEST_FILENAME", "REQUEST_HEADERS", "REQUEST_HEADERS_NAMES", "REQUEST_URI", "REQUEST_URI_RAW", "XML":
+						if item.Predicate.Val.hasMacros() {
+							return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, t.Name)
+						}
+						// There are a few scan-phase variables that are exempt from this restriction and have workarounds because they are used in CRS:
+						//     "REQUEST_LINE", "REQUEST_METHOD", "REQUEST_PROTOCOL"
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }

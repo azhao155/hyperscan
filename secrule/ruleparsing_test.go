@@ -518,25 +518,25 @@ func TestSecRuleOperators(t *testing.T) {
 	type testcase struct {
 		input string
 		op    Operator
-		val   string
+		val   Value
 		neg   bool
 	}
 	tests := []testcase{
-		{`helloworld`, Rx, `helloworld`, false},
-		{`"hello world"`, Rx, `hello world`, false},
-		{`"hello \"world"`, Rx, `hello "world`, false},
-		{`"hello 'world"`, Rx, `hello 'world`, false},
-		{`'hello world'`, Rx, `hello world`, false},
-		{`'hello "world'`, Rx, `hello "world`, false},
-		{`"@rx hello world"`, Rx, `hello world`, false},
-		{`"@contains helloworld"`, Contains, `helloworld`, false},
-		{`'@contains helloworld'`, Contains, `helloworld`, false},
-		{`'@ipMatchFromFile https://example.com/file.txt'`, IPMatchFromFile, `https://example.com/file.txt`, false},
-		{`'@detectSQLi'`, DetectSQLi, ``, false},
-		{`'@DeTeCtSqLi'`, DetectSQLi, ``, false},
-		{`!helloworld`, Rx, `helloworld`, true},
-		{`"!helloworld"`, Rx, `helloworld`, true},
-		{`"!@rx helloworld"`, Rx, `helloworld`, true},
+		{`helloworld`, Rx, Value{StringToken(`helloworld`)}, false},
+		{`"hello world"`, Rx, Value{StringToken(`hello world`)}, false},
+		{`"hello \"world"`, Rx, Value{StringToken(`hello "world`)}, false},
+		{`"hello 'world"`, Rx, Value{StringToken(`hello 'world`)}, false},
+		{`'hello world'`, Rx, Value{StringToken(`hello world`)}, false},
+		{`'hello "world'`, Rx, Value{StringToken(`hello "world`)}, false},
+		{`"@rx hello world"`, Rx, Value{StringToken(`hello world`)}, false},
+		{`"@contains helloworld"`, Contains, Value{StringToken(`helloworld`)}, false},
+		{`'@contains helloworld'`, Contains, Value{StringToken(`helloworld`)}, false},
+		{`'@ipMatchFromFile https://example.com/file.txt'`, IPMatchFromFile, Value{StringToken(`https://example.com/file.txt`)}, false},
+		{`'@detectSQLi'`, DetectSQLi, Value{}, false},
+		{`'@DeTeCtSqLi'`, DetectSQLi, Value{}, false},
+		{`!helloworld`, Rx, Value{StringToken(`helloworld`)}, true},
+		{`"!helloworld"`, Rx, Value{StringToken(`helloworld`)}, true},
+		{`"!@rx helloworld"`, Rx, Value{StringToken(`helloworld`)}, true},
 	}
 
 	// Act and assert
@@ -571,7 +571,7 @@ func TestSecRuleOperators(t *testing.T) {
 			continue
 		}
 
-		if r.Items[0].Predicate.Val != test.val {
+		if !r.Items[0].Predicate.Val.equal(test.val) {
 			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", r.Items[0].Predicate.Val, test.input)
 			continue
 		}
@@ -609,20 +609,16 @@ func TestSecRuleActions(t *testing.T) {
 		{`"id:'950902',deny,msg:'Hello World Attack'"`, 950902, []Action{&DenyAction{}, &MsgAction{Msg: Value{StringToken("Hello World Attack")}}}},
 		{`"id:950902,setvar:tx.sql_injection_score=+%{tx.critical_anomaly_score}"`, 950902, []Action{
 			&SetVarAction{
-				variable:        "tx.sql_injection_score",
-				operator:        increment,
-				value:           "%{tx.critical_anomaly_score}",
-				varMacroMatches: nil,
-				valMacroMatches: [][]string{{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"}},
+				variable: Value{StringToken("tx.sql_injection_score")},
+				operator: increment,
+				value:    Value{MacroToken("tx.critical_anomaly_score")},
 			},
 		}},
 		{`"id:'950902',setvar:'tx.sql_injection_score=+%{tx.critical_anomaly_score}'"`, 950902, []Action{
 			&SetVarAction{
-				variable:        "tx.sql_injection_score",
-				operator:        increment,
-				value:           "%{tx.critical_anomaly_score}",
-				varMacroMatches: nil,
-				valMacroMatches: [][]string{{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"}},
+				variable: Value{StringToken("tx.sql_injection_score")},
+				operator: increment,
+				value:    Value{MacroToken("tx.critical_anomaly_score")},
 			},
 		}},
 		{`"id:'950902',logdata:'Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}'"`, 950902, []Action{
@@ -746,7 +742,7 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if a.variable != expectedVal.variable {
+			if !a.variable.equal(expectedVal.variable) {
 				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.variable, rawinput)
 				continue
 			}
@@ -756,47 +752,9 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if a.value != expectedVal.value {
+			if !a.value.equal(expectedVal.value) {
 				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
 				continue
-			}
-
-			if len(a.varMacroMatches) != len(expectedVal.varMacroMatches) {
-				fmt.Fprintf(b, "Wrong len(varMacroMatches): %v. Tested input: %v\n", len(a.varMacroMatches), rawinput)
-				continue
-			}
-
-			for i := range a.varMacroMatches {
-				if len(a.varMacroMatches[i]) != len(expectedVal.varMacroMatches[i]) {
-					fmt.Fprintf(b, "Wrong len(a.varMacroMatches[i]): %v. Tested input: %v\n", len(a.varMacroMatches[i]), rawinput)
-					continue
-				}
-
-				for j := range a.varMacroMatches[i] {
-					if a.varMacroMatches[i][j] != expectedVal.varMacroMatches[i][j] {
-						fmt.Fprintf(b, "Wrong a.varMacroMatches[i][j]: %v. Tested input: %v\n", a.varMacroMatches[i][j], rawinput)
-						continue
-					}
-				}
-			}
-
-			if len(a.valMacroMatches) != len(expectedVal.valMacroMatches) {
-				fmt.Fprintf(b, "Wrong len(valMacroMatches): %v. Tested input: %v\n", len(a.valMacroMatches), rawinput)
-				continue
-			}
-
-			for i := range a.valMacroMatches {
-				if len(a.valMacroMatches[i]) != len(expectedVal.valMacroMatches[i]) {
-					fmt.Fprintf(b, "Wrong len(a.valMacroMatches[i]): %v. Tested input: %v\n", len(a.valMacroMatches[i]), rawinput)
-					continue
-				}
-
-				for j := range a.valMacroMatches[i] {
-					if a.valMacroMatches[i][j] != expectedVal.valMacroMatches[i][j] {
-						fmt.Fprintf(b, "Wrong a.valMacroMatches[i][j]: %v. Tested input: %v\n", a.valMacroMatches[i][j], rawinput)
-						continue
-					}
-				}
 			}
 
 		case *LogAction:
@@ -832,7 +790,7 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if a.value != expectedVal.value {
+			if !a.value.equal(expectedVal.value) {
 				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
 				continue
 			}
@@ -922,11 +880,9 @@ func TestSecAction900990(t *testing.T) {
 		&NoLogAction{},
 		&RawAction{`pass`, ``},
 		&SetVarAction{
-			variable:        "tx.crs_setup_version",
-			operator:        set,
-			value:           "300",
-			varMacroMatches: nil,
-			valMacroMatches: nil,
+			variable: Value{StringToken("tx.crs_setup_version")},
+			operator: set,
+			value:    Value{IntToken(300)},
 		},
 	}
 	var b strings.Builder
@@ -1020,8 +976,8 @@ func TestRule942320(t *testing.T) {
 		t.Fatalf("Unexpected neg value: %t", r.Predicate.Neg)
 	}
 
-	expectedVal := `(?i:(?:procedure\s+analyse\s*?\()|(?:;\s*?(declare|open)\s+[\w-]+)|(?:create\s+(procedure|function)\s*?\w+\s*?\(\s*?\)\s*?-)|(?:declare[^\w]+[@#]\s*?\w+)|(exec\s*?\(\s*?@))`
-	if r.Predicate.Val != expectedVal {
+	expectedVal := Value{StringToken(`(?i:(?:procedure\s+analyse\s*?\()|(?:;\s*?(declare|open)\s+[\w-]+)|(?:create\s+(procedure|function)\s*?\w+\s*?\(\s*?\)\s*?-)|(?:declare[^\w]+[@#]\s*?\w+)|(exec\s*?\(\s*?@))`)}
+	if !r.Predicate.Val.equal(expectedVal) {
 		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Predicate.Val, expectedVal)
 	}
 
@@ -1056,33 +1012,25 @@ func TestRule942320(t *testing.T) {
 			MacroToken("matched_var")}},
 		&RawAction{`severity`, `CRITICAL`},
 		&SetVarAction{
-			variable:        "tx.msg",
-			operator:        set,
-			value:           "%{rule.msg}",
-			varMacroMatches: nil,
-			valMacroMatches: [][]string{{"%{rule.msg}", "rule.msg"}},
+			variable: Value{StringToken("tx.msg")},
+			operator: set,
+			value:    Value{MacroToken("rule.msg")},
 		},
 		&SetVarAction{
-			variable:        "tx.sql_injection_score",
-			operator:        increment,
-			value:           "%{tx.critical_anomaly_score}",
-			varMacroMatches: nil,
-			valMacroMatches: [][]string{{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"}},
+			variable: Value{StringToken("tx.sql_injection_score")},
+			operator: increment,
+			value:    Value{MacroToken("tx.critical_anomaly_score")},
 		},
 		&SetVarAction{
-			variable:        "tx.anomaly_score",
-			operator:        increment,
-			value:           "%{tx.critical_anomaly_score}",
-			varMacroMatches: nil,
-			valMacroMatches: [][]string{{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"}},
+			variable: Value{StringToken("tx.anomaly_score")},
+			operator: increment,
+			value:    Value{MacroToken("tx.critical_anomaly_score")},
 		},
 
 		&SetVarAction{
-			variable:        "tx.%{rule.id}-OWASP_CRS/WEB_ATTACK/SQLI-%{matched_var_name}",
-			operator:        set,
-			value:           "%{tx.0}",
-			varMacroMatches: [][]string{{"%{rule.id}", "rule.id"}, {"%{matched_var_name}", "matched_var_name"}},
-			valMacroMatches: [][]string{{"%{tx.0}", "tx.0"}},
+			variable: Value{StringToken("tx."), MacroToken("rule.id"), StringToken("-OWASP_CRS/WEB_ATTACK/SQLI-"), MacroToken("matched_var_name")},
+			operator: set,
+			value:    Value{MacroToken("tx.0")},
 		},
 	}
 
@@ -1159,8 +1107,8 @@ func TestRule901001(t *testing.T) {
 		t.Fatalf("Unexpected neg value: %t", r.Predicate.Neg)
 	}
 
-	expectedVal := `0`
-	if r.Predicate.Val != expectedVal {
+	expectedVal := Value{IntToken(0)}
+	if !r.Predicate.Val.equal(expectedVal) {
 		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Predicate.Val, expectedVal)
 	}
 
@@ -1493,74 +1441,57 @@ func TestParseSetVar(t *testing.T) {
 		{
 			`tx.anomaly_score=123`,
 			SetVarAction{
-				variable:        "tx.anomaly_score",
-				operator:        set,
-				value:           "123",
-				varMacroMatches: nil,
-				valMacroMatches: nil,
+				variable: Value{StringToken("tx.anomaly_score")},
+				operator: set,
+				value:    Value{IntToken(123)},
 			},
 		},
 		{
 			`tx.anomaly_score=+123`,
 			SetVarAction{
-				variable:        "tx.anomaly_score",
-				operator:        increment,
-				value:           "123",
-				varMacroMatches: nil,
-				valMacroMatches: nil,
+				variable: Value{StringToken("tx.anomaly_score")},
+				operator: increment,
+				value:    Value{IntToken(123)},
 			},
 		},
 		{
 			`tx.anomaly_score=-123`,
 			SetVarAction{
-				variable:        "tx.anomaly_score",
-				operator:        decrement,
-				value:           "123",
-				varMacroMatches: nil,
-				valMacroMatches: nil,
+				variable: Value{StringToken("tx.anomaly_score")},
+				operator: decrement,
+				value:    Value{IntToken(123)},
 			},
 		},
 		{
 			`!tx.anomaly_score`,
 			SetVarAction{
-				variable:        "tx.anomaly_score",
-				operator:        deleteVar,
-				value:           "1",
-				varMacroMatches: nil,
-				valMacroMatches: nil,
+				variable: Value{StringToken("tx.anomaly_score")},
+				operator: deleteVar,
+				value:    Value{IntToken(1)},
 			},
 		},
 		{
 			`tx.anomaly_score=+%{tx.critical_anomaly_score}`,
 			SetVarAction{
-				variable:        "tx.anomaly_score",
-				operator:        increment,
-				value:           "%{tx.critical_anomaly_score}",
-				varMacroMatches: nil,
-				valMacroMatches: [][]string{{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"}},
+				variable: Value{StringToken("tx.anomaly_score")},
+				operator: increment,
+				value:    Value{MacroToken("tx.critical_anomaly_score")},
 			},
 		},
 		{
 			`tx.anomaly_score=%{tx.critical_anomaly_score} %{tx.something}`,
 			SetVarAction{
-				variable:        "tx.anomaly_score",
-				operator:        set,
-				value:           "%{tx.critical_anomaly_score} %{tx.something}",
-				varMacroMatches: nil,
-				valMacroMatches: [][]string{
-					{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"},
-					{"%{tx.something}", "tx.something"},
-				},
+				variable: Value{StringToken("tx.anomaly_score")},
+				operator: set,
+				value:    Value{MacroToken("tx.critical_anomaly_score"), StringToken(" "), MacroToken("tx.something")},
 			},
 		},
 		{
 			`%{tx.something}=+%{tx.critical_anomaly_score}`,
 			SetVarAction{
-				variable:        "%{tx.something}",
-				operator:        increment,
-				value:           "%{tx.critical_anomaly_score}",
-				varMacroMatches: [][]string{{"%{tx.something}", "tx.something"}},
-				valMacroMatches: [][]string{{"%{tx.critical_anomaly_score}", "tx.critical_anomaly_score"}},
+				variable: Value{MacroToken("tx.something")},
+				operator: increment,
+				value:    Value{MacroToken("tx.critical_anomaly_score")},
 			},
 		},
 	}
@@ -1614,7 +1545,7 @@ func TestCtlAction(t *testing.T) {
 	expectedActions := []Action{
 		&CtlAction{
 			setting: "forceRequestBodyVariable",
-			value:   "On",
+			value:   Value{StringToken("On")},
 		},
 	}
 

@@ -61,7 +61,7 @@ func TestReqScanner1(t *testing.T) {
 }
 
 func TestGetExprsRx(t *testing.T) {
-	r1 := &RuleItem{Predicate: RulePredicate{Op: Rx, Val: "abc+"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Rx, Val: Value{StringToken("abc+")}}}
 	ee := getRxExprs(r1)
 	if ee == nil {
 		t.Fatalf("Expressions should not be nil")
@@ -78,7 +78,7 @@ func TestGetExprsRx(t *testing.T) {
 
 func TestGetExprsLiteralValueUnicode(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: BeginsWith, Val: "你好"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: BeginsWith, Val: Value{StringToken("你好")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("^你好", ee[0])
@@ -89,7 +89,7 @@ func TestGetExprsLiteralValueUnicode(t *testing.T) {
 
 func TestGetExprsBeginsWith(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: BeginsWith, Val: "^abc"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: BeginsWith, Val: Value{StringToken("^abc")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("^\\^abc", ee[0])
@@ -100,7 +100,7 @@ func TestGetExprsBeginsWith(t *testing.T) {
 
 func TestGetExprsEndsWith(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: EndsWith, Val: "$abc"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: EndsWith, Val: Value{StringToken("$abc")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("\\$abc$", ee[0])
@@ -111,7 +111,7 @@ func TestGetExprsEndsWith(t *testing.T) {
 
 func TestGetExprsContains(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: Contains, Val: "a b.c"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Contains, Val: Value{StringToken("a b.c")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("a b\\.c", ee[0])
@@ -122,7 +122,7 @@ func TestGetExprsContains(t *testing.T) {
 
 func TestGetExprsStrmatch(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: Strmatch, Val: "a b.c"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Strmatch, Val: Value{StringToken("a b.c")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("a b\\.c", ee[0])
@@ -133,7 +133,7 @@ func TestGetExprsStrmatch(t *testing.T) {
 
 func TestGetExprsContainsWord(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: ContainsWord, Val: "a$bc"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: ContainsWord, Val: Value{StringToken("a$bc")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("\\ba\\$bc\\b", ee[0])
@@ -146,7 +146,7 @@ func TestGetExprsContainsWord(t *testing.T) {
 
 func TestGetExprsStreq(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: Streq, Val: "a$bc"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Streq, Val: Value{StringToken("a$bc")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("^a\\$bc$", ee[0])
@@ -157,7 +157,7 @@ func TestGetExprsStreq(t *testing.T) {
 
 func TestGetExprsWithin(t *testing.T) {
 	assert := assert.New(t)
-	r1 := &RuleItem{Predicate: RulePredicate{Op: Within, Val: "abc$ def ghi"}}
+	r1 := &RuleItem{Predicate: RulePredicate{Op: Within, Val: Value{StringToken("abc$ def ghi")}}}
 	ee := getRxExprs(r1)
 	assert.NotNil(ee)
 	assert.Equal("^abc\\$$", ee[0])
@@ -314,7 +314,7 @@ func TestReqScannerSimpleSelectorUrl(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -356,7 +356,7 @@ func TestReqScannerSimpleSelectorBody(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -402,7 +402,7 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_HEADERS", Selector: "My-Header"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_HEADERS", Selector: "My-Header"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -445,7 +445,7 @@ func TestReqScannerFilename(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_FILENAME"}}, Op: Rx, Val: "/p1/a%20bc.php"}, // REQUEST_FILENAME should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_FILENAME"}}, Op: Rx, Val: Value{StringToken("/p1/a%20bc.php")}}, // REQUEST_FILENAME should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -486,7 +486,7 @@ func TestReqScannerFilename2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_FILENAME"}}, Op: Rx, Val: "/"}, // REQUEST_FILENAME should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_FILENAME"}}, Op: Rx, Val: Value{StringToken("/")}}, // REQUEST_FILENAME should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -527,7 +527,7 @@ func TestReqScannerBasename(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_BASENAME"}}, Op: Rx, Val: "a%20bc.php"}, // REQUEST_BASE should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_BASENAME"}}, Op: Rx, Val: Value{StringToken("a%20bc.php")}}, // REQUEST_BASE should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -576,7 +576,7 @@ func TestReqScannerBasenameEmpty(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_BASENAME"}}, Op: Streq, Val: ""},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_BASENAME"}}, Op: Streq, Val: Value{}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -625,7 +625,7 @@ func TestReqScannerRequestLine(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_LINE"}}, Op: Rx, Val: "a%20bc"}, // REQUEST_LINE should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_LINE"}}, Op: Rx, Val: Value{StringToken("a%20bc")}}, // REQUEST_LINE should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -666,7 +666,7 @@ func TestReqCookies(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -703,7 +703,7 @@ func TestReqCookiesSelectors(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "mycookie1"}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "mycookie1"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -744,7 +744,7 @@ func TestReqCookiesRegexSelector(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "S?SESS[a-f0-9]+", IsRegexSelector: true}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "S?SESS[a-f0-9]+", IsRegexSelector: true}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -785,7 +785,7 @@ func TestReqCookiesRegexSelectorMultipleSameTransformations(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: "abc+"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: Value{StringToken("abc+")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -794,7 +794,7 @@ func TestReqCookiesRegexSelectorMultipleSameTransformations(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -840,7 +840,7 @@ func TestReqCookiesRegexSelectorMultipleDifferentTranformations(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: "abc+"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: Value{StringToken("abc+")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -849,7 +849,7 @@ func TestReqCookiesRegexSelectorMultipleDifferentTranformations(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: "ab+c"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES", Selector: "helloworld+", IsRegexSelector: true}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase},
 				},
 			},
@@ -898,7 +898,7 @@ func TestReqCookiesRegexSelectorMultipleTargets(t *testing.T) {
 					Predicate: RulePredicate{Targets: []Target{
 						{Name: "REQUEST_COOKIES", Selector: "helloworld1+", IsRegexSelector: true},
 						{Name: "REQUEST_COOKIES", Selector: "helloworld2+", IsRegexSelector: true},
-					}, Op: Rx, Val: "abc+"},
+					}, Op: Rx, Val: Value{StringToken("abc+")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -982,7 +982,7 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg1"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: Value{StringToken("arg1")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -991,7 +991,7 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg2"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: Value{StringToken("arg2")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -1038,7 +1038,7 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg1"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: Value{StringToken("arg1")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -1047,7 +1047,7 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: "arg2"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS_NAMES"}}, Op: Rx, Val: Value{StringToken("arg2")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -1133,7 +1133,7 @@ func TestReqScannerTolerateInvalidUrlEncoding(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: "a%xxb"},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("a%xxb")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -1169,7 +1169,7 @@ func TestDetectXssOperator(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: DetectXSS, Val: ""},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: DetectXSS, Val: Value{}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -1240,7 +1240,7 @@ func TestValidateURLEncodingOperator(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: ValidateURLEncoding, Val: ""},
+					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: ValidateURLEncoding, Val: Value{}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -1285,7 +1285,7 @@ func TestReqScannerCount(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", IsCount: true}}, Op: Eq, Val: "4"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", IsCount: true}}, Op: Eq, Val: Value{IntToken(4)}},
 				},
 			},
 		},
@@ -1326,7 +1326,7 @@ func TestReqScannerCountWithSelector(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "hello", IsCount: true}}, Op: Eq, Val: "2"},
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "hello", IsCount: true}}, Op: Eq, Val: Value{IntToken(2)}},
 				},
 			},
 		},
