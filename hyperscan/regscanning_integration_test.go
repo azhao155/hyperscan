@@ -42,16 +42,19 @@ func TestReqScannerSimpleRules(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "aaaaaaabc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if string(m[0].Data) != "aaaaaaabc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 0, secrule.Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "abccc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, secrule.Target{Name: "ARGS"})
@@ -95,8 +98,11 @@ func TestReqScannerPmfRule(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "abc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "abc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -135,8 +141,11 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "aBc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "aBc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 

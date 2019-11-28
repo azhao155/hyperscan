@@ -35,8 +35,8 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	}
 	assert := assert.New(t)
 	key := matchKey{200, 0, Target{Name: "ARGS"}}
-	m := make(map[matchKey]Match)
-	m[key] = Match{Data: []byte{}}
+	m := make(map[matchKey][]Match)
+	m[key] = []Match{{Data: []byte{}}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -74,8 +74,8 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 
 	assert := assert.New(t)
 	key := matchKey{100, 0, Target{Name: "ARGS"}}
-	m := make(map[matchKey]Match)
-	m[key] = Match{Data: []byte{}}
+	m := make(map[matchKey][]Match)
+	m[key] = []Match{{Data: []byte{}}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -119,8 +119,8 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 
 	assert := assert.New(t)
 	key := matchKey{100, 0, Target{Name: "ARGS"}}
-	m := make(map[matchKey]Match)
-	m[key] = Match{Data: []byte{}}
+	m := make(map[matchKey][]Match)
+	m[key] = []Match{{Data: []byte{}}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -192,9 +192,9 @@ func TestRuleEvaluatorChain(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
-	m[matchKey{100, 1, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 1, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -232,8 +232,8 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 1, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 1, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -271,8 +271,8 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -312,9 +312,9 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
-	m[matchKey{100, 1, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 1, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -360,8 +360,8 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -395,7 +395,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	rules := []Statement{
 		&ActionStmt{ID: 100, Actions: []Action{&sv}},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -432,7 +432,7 @@ func TestRuleEvaluatorSetVarString(t *testing.T) {
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}},
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -466,7 +466,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	rules := []Statement{
 		&ActionStmt{ID: 100, Actions: []Action{&sv1, &sv2}},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -506,8 +506,8 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -542,8 +542,8 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -581,9 +581,9 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{200, 0, Target{Name: "REQUEST_COOKIES"}}] = Match{}
-	m[matchKey{200, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{200, 0, Target{Name: "REQUEST_COOKIES"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
 	tc[Target{Name: "ARGS"}] = 1
@@ -631,11 +631,11 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{}
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = Match{}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = Match{}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	tc[Target{Name: "ARGS", Selector: "b"}] = 1
@@ -686,11 +686,11 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{}
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = Match{}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = Match{}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	tc[Target{Name: "ARGS", Selector: "b"}] = 1
@@ -733,8 +733,8 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
@@ -767,8 +767,8 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
@@ -818,8 +818,8 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
@@ -851,8 +851,8 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	tc[Target{Name: "REQUEST_COOKIES"}] = 1
@@ -880,7 +880,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 		&ActionStmt{ID: 100, Actions: []Action{&sv1}, Phase: 2},
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -912,7 +912,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 		&ActionStmt{ID: 100, Actions: []Action{&sv1}},           // Phase 2 is default
 		&ActionStmt{ID: 200, Actions: []Action{&sv2}, Phase: 1}, // This will run first, because it's phase 1
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -947,7 +947,7 @@ func TestSkipAfter(t *testing.T) {
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -987,7 +987,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 300, Actions: []Action{&sv3}, Phase: 1},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -1019,7 +1019,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 		&Marker{Label: "heLLo1"},
 		&ActionStmt{ID: 200, Actions: []Action{&sv1}},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -1048,7 +1048,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 		&Marker{Label: "hello1"},
 		&ActionStmt{ID: 200},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -1085,8 +1085,8 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1121,7 +1121,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1156,9 +1156,9 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{}
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "b"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "b"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	tc[Target{Name: "ARGS", Selector: "b"}] = 1
@@ -1198,7 +1198,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	tc[Target{Name: "ARGS", Selector: "b"}] = 1
@@ -1241,7 +1241,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1 // Note ARGS:b not present in this negative test
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1279,9 +1279,9 @@ func TestRuleEvaluatorNegateMultiTxTargets(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = Match{}
-	m[matchKey{100, 0, Target{Name: "TX", Selector: "def"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: "TX", Selector: "def"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "TX", Selector: "abc"}] = 1
 	tc[Target{Name: "TX", Selector: "def"}] = 1
@@ -1317,8 +1317,8 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1 // Note: only ARGS, not ARGS_NAMES in this negative test
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1353,8 +1353,8 @@ func TestRuleEvaluatorNegateMultiTxTargetsNegative(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = Match{}
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = []Match{{}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "TX", Selector: "abc"}] = 1 // Note: only TX:abc, not TX:def in this negative test
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1389,8 +1389,8 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg1"}}] = Match{} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg1"}}] = []Match{{}} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "myarg1"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1425,8 +1425,8 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 			},
 		},
 	}
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg2"}}] = Match{} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg2"}}] = []Match{{}} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "myarg2"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
@@ -1585,7 +1585,7 @@ func TestRuleEvaluatorLateScanTarget(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
@@ -1632,11 +1632,11 @@ func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{{
 		Data:          []byte("hello1234worlda"),
 		CaptureGroups: [][]byte{[]byte("hello1234worlda"), []byte("hello1234")},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -1688,11 +1688,11 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{202, 0, Target{Name: "ARGS"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{202, 0, Target{Name: "ARGS"}}] = []Match{{
 		Data:          []byte("hello1234worldb"),
 		CaptureGroups: [][]byte{[]byte("hello1234worldb"), []byte("hello1234")},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -1740,15 +1740,15 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{303, 0, Target{Name: "ARGS"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{303, 0, Target{Name: "ARGS"}}] = []Match{{
 		Data: []byte("hello1234world1234c"),
 		CaptureGroups: [][]byte{
 			[]byte("hello1234world1234c"),
 			[]byte("1234"),
 			[]byte("1234"),
 		},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -1810,15 +1810,15 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{
 		Data: []byte("hello1234world1234c"),
 		CaptureGroups: [][]byte{
 			[]byte("hello1234world1234c"),
 			[]byte("1234"),
 			[]byte("1234"),
 		},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -1845,7 +1845,7 @@ func TestRuleEvaluatorCtlAction(t *testing.T) {
 	rules := []Statement{
 		&ActionStmt{ID: 100, Actions: []Action{&c1}},
 	}
-	m := make(map[matchKey]Match)
+	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
@@ -1906,14 +1906,14 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{
 		Data:               []byte("helloworld"),
 		EntireFieldContent: []byte("helloworld"),
 		CaptureGroups: [][]byte{
 			[]byte("helloworld"),
 		},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -1967,14 +1967,14 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{
 		Data:               []byte("helloworld1234"),
 		EntireFieldContent: []byte("helloworld1234"),
 		CaptureGroups: [][]byte{
 			[]byte("helloworld1234"),
 		},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -2036,14 +2036,14 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{
 		Data:               []byte("helloworld1234"),
 		EntireFieldContent: []byte("helloworld1234"),
 		CaptureGroups: [][]byte{
 			[]byte("helloworld1234"),
 		},
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", Selector: "a"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -2093,8 +2093,8 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{102, 0, Target{Name: "ARGS"}}] = []Match{{
 		Data:               []byte("something"),
 		EntireFieldContent: []byte("something"),
 		CaptureGroups: [][]byte{
@@ -2102,7 +2102,7 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 		},
 		TargetName: []byte("ARGS"),
 		FieldName:  []byte("helloworld1234"),
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -2154,8 +2154,8 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 
-	m := make(map[matchKey]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = Match{
+	m := make(map[matchKey][]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{{
 		Data:               []byte("3"),
 		EntireFieldContent: []byte("3"),
 		CaptureGroups: [][]byte{
@@ -2163,7 +2163,7 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 		},
 		TargetName: []byte("ARGS"),
 		FieldName:  []byte("abc"),
-	}
+	}}
 	tc := make(map[Target]int)
 	tc[Target{Name: "ARGS", IsCount: true}] = 3
 	sr := &ScanResults{targetsCount: tc, matches: m}
@@ -2179,4 +2179,213 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 	assert.Nil(err)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(2, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarsCollection(t *testing.T) {
+	// This test should trigger on ?a=helloworld9999&b=helloworld1234&a=helloworld1111
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecRule ARGS "helloworld" "id:101,chain,deny"
+		SecRule MATCHED_VARS "world123" ""
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 101,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("helloworld")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VARS"}}, Op: Rx, Val: Value{StringToken("world123")}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey][]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{
+		{
+			Data:               []byte("helloworld"),
+			EntireFieldContent: []byte("helloworld9999"),
+			CaptureGroups: [][]byte{
+				[]byte("helloworld"),
+			},
+		},
+		{
+			Data:               []byte("helloworld"),
+			EntireFieldContent: []byte("helloworld1234"),
+			CaptureGroups: [][]byte{
+				[]byte("helloworld"),
+			},
+		},
+		{
+			Data:               []byte("helloworld"),
+			EntireFieldContent: []byte("helloworld1111"),
+			CaptureGroups: [][]byte{
+				[]byte("helloworld"),
+			},
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 3
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.T) {
+	// This test should trigger on ?x=abc123&y=def
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecRule ARGS "abc" "id:101,chain,deny"
+			SecRule ARGS "def" "chain"
+			SecRule MATCHED_VARS "abc123" ""
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 101,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VARS"}}, Op: Rx, Val: Value{StringToken("abc123")}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey][]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{
+		{
+			Data:               []byte("abc"),
+			EntireFieldContent: []byte("abc123"),
+			CaptureGroups: [][]byte{
+				[]byte("abc"),
+			},
+		},
+	}
+	m[matchKey{101, 1, Target{Name: "ARGS"}}] = []Match{
+		{
+			Data:               []byte("def"),
+			EntireFieldContent: []byte("def"),
+			CaptureGroups: [][]byte{
+				[]byte("def"),
+			},
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 2
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
+	// This test should trigger on ?helloworld9999=abc&helloworld1234=abc&helloworld1111=abc
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecRule ARGS "abc" "id:101,chain,deny"
+		    SecRule MATCHED_VARS_NAMES "world123" ""
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&Rule{
+			ID: 101,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VARS_NAMES"}}, Op: Rx, Val: Value{StringToken("world123")}},
+				},
+			},
+		},
+	}
+	em := newEnvironment(&ScanResults{})
+	re := NewRuleEvaluator()
+
+	m := make(map[matchKey][]Match)
+	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{
+		{
+			FieldName:          []byte("helloworld9999"),
+			Data:               []byte("abc"),
+			EntireFieldContent: []byte("abc"),
+			CaptureGroups: [][]byte{
+				[]byte("abc"),
+			},
+		},
+		{
+			FieldName:          []byte("helloworld1234"),
+			Data:               []byte("abc"),
+			EntireFieldContent: []byte("abc"),
+			CaptureGroups: [][]byte{
+				[]byte("abc"),
+			},
+		},
+		{
+			FieldName:          []byte("helloworld1111"),
+			Data:               []byte("abc"),
+			EntireFieldContent: []byte("abc"),
+			CaptureGroups: [][]byte{
+				[]byte("abc"),
+			},
+		},
+	}
+	tc := make(map[Target]int)
+	tc[Target{Name: "ARGS"}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
 }

@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"net/url"
 	"regexp"
 	"strings"
 )
@@ -35,7 +34,7 @@ type Match struct {
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
-	matches         map[matchKey]Match
+	matches         map[matchKey][]Match
 	targetsCount    map[Target]int
 	requestLine     []byte
 	requestMethod   []byte
@@ -277,7 +276,7 @@ func (s ReqScannerScratchSpace) Close() {
 
 func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
 	results = &ScanResults{
-		matches:      make(map[matchKey]Match),
+		matches:      make(map[matchKey][]Match),
 		targetsCount: make(map[Target]int),
 	}
 
@@ -408,9 +407,9 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 }
 
 // GetResultsFor returns any results for matches that were done during the request scanning.
-func (r *ScanResults) GetResultsFor(ruleID int, ruleItemIdx int, target Target) (m Match, ok bool) {
+func (r *ScanResults) GetResultsFor(ruleID int, ruleItemIdx int, target Target) (mm []Match, ok bool) {
 	// TODO rename this function to just GetResultsFor
-	m, ok = r.matches[matchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
+	mm, ok = r.matches[matchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
 	return
 }
 
@@ -447,30 +446,26 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 
 				// Store the match for fast retrieval in the eval phase
 				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
-				if _, alreadyFound := results.matches[key]; !alreadyFound {
-					results.matches[key] = Match{
-						Data:               m.Data,
-						CaptureGroups:      m.CaptureGroups,
-						EntireFieldContent: []byte(content),
-						TargetName:         []byte(targetName),
-						FieldName:          []byte(fieldName),
-					}
-				}
+				results.matches[key] = append(results.matches[key], Match{
+					Data:               m.Data,
+					CaptureGroups:      m.CaptureGroups,
+					EntireFieldContent: []byte(content),
+					TargetName:         []byte(targetName),
+					FieldName:          []byte(fieldName),
+				})
 			}
 		}
 
 		storeEntireContentAsMatch := func(cr conditionRef) {
 			// Store entire content as match for fast retrieval in the eval phase
 			key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
-			if _, alreadyFound := results.matches[key]; !alreadyFound {
-				results.matches[key] = Match{
-					CaptureGroups:      [][]byte{[]byte(content)},
-					Data:               []byte(content),
-					EntireFieldContent: []byte(content),
-					TargetName:         []byte(targetName),
-					FieldName:          []byte(fieldName),
-				}
-			}
+			results.matches[key] = append(results.matches[key], Match{
+				CaptureGroups:      [][]byte{[]byte(content)},
+				Data:               []byte(content),
+				EntireFieldContent: []byte(content),
+				TargetName:         []byte(targetName),
+				FieldName:          []byte(fieldName),
+			})
 		}
 
 		// Handle conditions that the regex engine could not handle
@@ -489,15 +484,13 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 
 					// Store the match for fast retrieval in the eval phase
 					key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
-					if _, alreadyFound := results.matches[key]; !alreadyFound {
-						results.matches[key] = Match{
-							Data:               []byte([]byte(fingerprint)),
-							CaptureGroups:      [][]byte{[]byte(fingerprint)},
-							EntireFieldContent: []byte(content),
-							TargetName:         []byte(targetName),
-							FieldName:          []byte(fieldName),
-						}
-					}
+					results.matches[key] = append(results.matches[key], Match{
+						Data:               []byte([]byte(fingerprint)),
+						CaptureGroups:      [][]byte{[]byte(fingerprint)},
+						EntireFieldContent: []byte(content),
+						TargetName:         []byte(targetName),
+						FieldName:          []byte(fieldName),
+					})
 				}
 
 			case ValidateURLEncoding:
@@ -589,23 +582,25 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		return
 	}
 
-	var qvals url.Values
+	var qvals []qvalpair
 	qvals, err = parseQuery(queryString)
 	if err != nil {
 		return
 	}
 
-	for k, vv := range qvals {
-		err = r.scanField("ARGS_NAMES", "", k, results)
-		if err != nil {
-			return
-		}
-
-		for _, v := range vv {
-			err = r.scanField("ARGS", k, v, results)
+	scannedKey := make(map[string]bool)
+	for _, qval := range qvals {
+		if !scannedKey[qval.key] {
+			err = r.scanField("ARGS_NAMES", "", qval.key, results)
 			if err != nil {
 				return
 			}
+			scannedKey[qval.key] = true
+		}
+
+		err = r.scanField("ARGS", qval.key, qval.val, results)
+		if err != nil {
+			return
 		}
 	}
 
@@ -632,29 +627,32 @@ func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (
 	return
 }
 
-// Similar to url.ParseQuery, but does not consider semicolon as a delimiter. ModSecurity also does not consider semicolon a delimiter.
-func parseQuery(query string) (values url.Values, err error) {
-	values = make(url.Values)
+type qvalpair struct {
+	key string
+	val string
+}
 
+// Similar to url.ParseQuery, but does not consider semicolon as a delimiter. ModSecurity also does not consider semicolon a delimiter.
+func parseQuery(query string) (values []qvalpair, err error) {
 	if query == "" {
 		return
 	}
 
 	for _, arg := range strings.Split(query, "&") {
-		var key, val string
+		var pair qvalpair
 
 		eqPos := strings.IndexByte(arg, '=')
 		if eqPos != -1 {
-			key = encoding.WeakURLUnescape(arg[:eqPos])
+			pair.key = encoding.WeakURLUnescape(arg[:eqPos])
 
 			if eqPos+1 < len(arg) {
-				val = encoding.WeakURLUnescape(arg[eqPos+1:])
+				pair.val = encoding.WeakURLUnescape(arg[eqPos+1:])
 			}
 		} else {
-			key = encoding.WeakURLUnescape(arg)
+			pair.key = encoding.WeakURLUnescape(arg)
 		}
 
-		values.Add(key, val)
+		values = append(values, pair)
 	}
 
 	return

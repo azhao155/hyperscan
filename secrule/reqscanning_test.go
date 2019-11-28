@@ -42,16 +42,22 @@ func TestReqScanner1(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "aaaaaaabc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "aaaaaaabc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 0, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "abccc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
@@ -221,8 +227,11 @@ func TestReqScannerBodyField(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "abccc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
@@ -471,9 +480,11 @@ func TestReqScannerFilename(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-
-	if string(m.Data) != "/p1/a%20bc.php" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "/p1/a%20bc.php" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -512,9 +523,11 @@ func TestReqScannerFilename2(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-
-	if string(m.Data) != "/" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "/" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -560,9 +573,11 @@ func TestReqScannerBasename(t *testing.T) {
 		if !ok {
 			t.Fatalf("Match not found")
 		}
-
-		if string(m.Data) != "a%20bc.php" {
-			t.Fatalf("Unexpected match data: %s", string(m.Data))
+		if len(m) != 1 {
+			t.Fatalf("Unexpected number of matches: %v", len(m))
+		}
+		if string(m[0].Data) != "a%20bc.php" {
+			t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 		}
 	}
 }
@@ -609,9 +624,11 @@ func TestReqScannerBasenameEmpty(t *testing.T) {
 		if !ok {
 			t.Fatalf("Match not found")
 		}
-
-		if string(m.Data) != "" {
-			t.Fatalf("Unexpected match data: %s", string(m.Data))
+		if len(m) != 1 {
+			t.Fatalf("Unexpected number of matches: %v", len(m))
+		}
+		if string(m[0].Data) != "" {
+			t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 		}
 	}
 }
@@ -651,9 +668,11 @@ func TestReqScannerRequestLine(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-
-	if string(m.Data) != "a%20bc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "a%20bc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -960,16 +979,58 @@ func TestReqScannerMultiArgs(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "abccc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "xyz" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "xyz" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
+	}
+}
+
+func TestReqScannerMultiArgsMultiMatch(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc&arg2=aaaaaaabccc"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetResultsFor(200, 0, Target{Name: "ARGS"})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if len(m) != 2 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
+	}
+	if string(m[1].Data) != "abccc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -1016,16 +1077,22 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "arg1" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "arg1" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 0, Target{Name: "ARGS_NAMES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "arg2" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "arg2" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -1072,16 +1139,22 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "arg1" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "arg1" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 0, Target{Name: "ARGS_NAMES"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "arg2" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "arg2" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -1111,16 +1184,22 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "aaaaaaabc" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "aaaaaaabc" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
 	m, ok = sr.GetResultsFor(200, 1, Target{Name: "ARGS"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
-	if string(m.Data) != "xyz" {
-		t.Fatalf("Unexpected match data: %s", string(m.Data))
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "xyz" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
 
@@ -1198,12 +1277,13 @@ func TestDetectXssOperator(t *testing.T) {
 func TestParseQuery(t *testing.T) {
 	// Arrange
 	query := "abc=def&ghi=jkl=mno&pqr&=stu&hello=world&hello=world2"
-	expected := map[string][]string{
-		"abc":   []string{"def"},
-		"ghi":   []string{"jkl=mno"},
-		"pqr":   []string{""},
-		"":      []string{"stu"},
-		"hello": []string{"world", "world2"},
+	expected := []qvalpair{
+		{"abc", "def"},
+		{"ghi", "jkl=mno"},
+		{"pqr", ""},
+		{"", "stu"},
+		{"hello", "world"},
+		{"hello", "world2"},
 	}
 
 	// Act
@@ -1218,15 +1298,13 @@ func TestParseQuery(t *testing.T) {
 		t.Fatalf("Got unexpected number of values from parseQuery: %v", len(qq))
 	}
 
-	for k, vv := range expected {
-		if len(qq[k]) != len(expected[k]) {
-			t.Fatalf("Got unexpected number of values for key: %v. Expected: %v.", len(qq[k]), len(expected[k]))
+	for i, qval := range expected {
+		if qval.key != expected[i].key {
+			t.Fatalf("Got unexpected key: %v. Expected: %v.", qval.key, expected[i].key)
 		}
 
-		for i := range vv {
-			if qq[k][i] != expected[k][i] {
-				t.Fatalf("Got unexpected value for key %v: %v. Expected: %v.", k, qq[k][i], expected[k][i])
-			}
+		if qval.key != expected[i].key {
+			t.Fatalf("Got unexpected value for key %v: %v. Expected: %v.", qval.key, qval.val, expected[i].val)
 		}
 	}
 }

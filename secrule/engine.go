@@ -125,14 +125,16 @@ func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, field
 
 func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 	if s.logger.Debug() != nil {
-		for key, match := range s.scanResults.matches {
-			s.logger.Debug().
-				Int("ruleID", key.ruleID).
-				Int("ruleItemIdx", key.ruleItemIdx).
-				Str("targetName", key.target.Name).
-				Str("targetSelector", key.target.Selector).
-				Str("matchedData", string(match.Data)).
-				Msg("Request scanning found a match")
+		for key, matches := range s.scanResults.matches {
+			for _, match := range matches {
+				s.logger.Debug().
+					Int("ruleID", key.ruleID).
+					Int("ruleItemIdx", key.ruleItemIdx).
+					Str("targetName", key.target.Name).
+					Str("targetSelector", key.target.Selector).
+					Str("matchedData", string(match.Data)).
+					Msg("Request scanning found a match")
+			}
 		}
 	}
 

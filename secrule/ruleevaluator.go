@@ -158,28 +158,27 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 		case *Rule:
 			stmtID = stmt.ID
 
+			perRequestEnv.resetMatchesCollections()
+
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				anyRuleItemTriggered := false
 				for _, target := range ruleItem.Predicate.Targets {
-					triggered, match, err := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
+					triggered, matches, err := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
 					if err != nil {
 						logger.Warn().Int("ruleID", stmtID).Int("ruleItemIdx", curRuleItemIdx).Err(err).Msg("Error evaluating predicate")
 					}
 
 					if triggered {
-						perRequestEnv.matchedVar = match.EntireFieldContent
-						perRequestEnv.matchedVarName = match.TargetName
+						// Update the environment matched_var, matched_vars, etc., for any rule that may need it during late scanning.
+						perRequestEnv.updateMatches(matches)
 
-						// If there is a field name too, then append it to matchedVarName.
-						if len(match.FieldName) > 0 {
-							perRequestEnv.matchedVarName = make([]byte, 0, len(match.TargetName)+1+len(match.FieldName))
-							perRequestEnv.matchedVarName = append(perRequestEnv.matchedVarName, match.TargetName...)
-							perRequestEnv.matchedVarName = append(perRequestEnv.matchedVarName, ':')
-							perRequestEnv.matchedVarName = append(perRequestEnv.matchedVarName, match.FieldName...)
+						var latestMatch Match
+						if len(matches) > 0 {
+							latestMatch = matches[len(matches)-1]
 						}
 
 						// Some actions are to be run after each rule item.
-						runActions(ruleItem.Actions, match)
+						runActions(ruleItem.Actions, latestMatch)
 
 						// Some actions are only to be run when all rule items triggered.
 						if curRuleItemIdx == len(stmt.Items)-1 {
@@ -246,12 +245,15 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, match Match, err error) {
+func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, matches []Match, err error) {
 	if requiresLateScan(ruleItem.Predicate, target) {
 		// We need to a late scan for this predicate now, because we were not able to do it in the scanning phase.
 		// This is the less common case.
-		triggered, match, err = evalPredicateLateScan(env, ruleItem, target, scanResults, rule, curRuleItemIdx)
-		return
+		triggered, match, err := evalPredicateLateScan(env, ruleItem, target, scanResults, rule, curRuleItemIdx)
+		if err != nil {
+			return false, nil, err
+		}
+		return triggered, []Match{match}, err
 	}
 
 	// If we do not require a late scan, it's because we know the answer to this predicate already.
@@ -272,7 +274,7 @@ func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResult
 	}
 
 	triggered = returnValIfTrigger
-	match = m
+	matches = m
 
 	return
 
@@ -313,7 +315,15 @@ func requiresLateScan(predicate RulePredicate, target Target) bool {
 		return true
 	}
 
+	if strings.EqualFold(target.Name, "matched_vars") {
+		return true
+	}
+
 	if strings.EqualFold(target.Name, "matched_var_name") {
+		return true
+	}
+
+	if strings.EqualFold(target.Name, "matched_vars_names") {
 		return true
 	}
 
