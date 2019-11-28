@@ -75,9 +75,9 @@ func (cim *environment) updateMatches(matches []Match) {
 		cim.matchedVars = append(cim.matchedVars, v)
 
 		// Prepend the target name, so it becomes for example "ARGS:myarg1".
-		newLen := len(m.TargetName) + 1 + len(m.FieldName)
+		newLen := len(TargetNamesStrings[m.TargetName]) + 1 + len(m.FieldName)
 		fullVarName := make([]byte, 0, newLen)
-		fullVarName = append(fullVarName, m.TargetName...)
+		fullVarName = append(fullVarName, TargetNamesStrings[m.TargetName]...)
 		fullVarName = append(fullVarName, ':')
 		fullVarName = append(fullVarName, m.FieldName...)
 		vn := Value{StringToken(fullVarName)}

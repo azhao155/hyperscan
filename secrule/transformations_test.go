@@ -161,15 +161,15 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 	type testcase struct {
 		inputURI             string
 		inputTransformations []Transformation
-		target               string
+		target               TargetName
 		expected             string
 	}
 	tests := []testcase{
-		{`/a.php?arg1=AAAAAAABCCC`, []Transformation{Lowercase}, "ARGS", `aaaaaaabccc`},
-		{`/a.php?arg1=hello%20world`, []Transformation{}, "ARGS", `hello world`}, // ARGS is always already URL-decoded during ARGS parsing.
-		{`/a.php?arg1=hello%20world`, []Transformation{}, "REQUEST_URI_RAW", `/a.php?arg1=hello%20world`},
-		{`/a.php?arg1=hello%20world`, []Transformation{URLDecodeUni}, "REQUEST_URI_RAW", `/a.php?arg1=hello world`},
-		{`/a.php?arg1=AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, "REQUEST_URI_RAW", `/a.php?arg1=aaaaaaa bccc`},
+		{`/a.php?arg1=AAAAAAABCCC`, []Transformation{Lowercase}, TargetArgs, `aaaaaaabccc`},
+		{`/a.php?arg1=hello%20world`, []Transformation{}, TargetArgs, `hello world`}, // ARGS is always already URL-decoded during ARGS parsing.
+		{`/a.php?arg1=hello%20world`, []Transformation{}, TargetRequestURIRaw, `/a.php?arg1=hello%20world`},
+		{`/a.php?arg1=hello%20world`, []Transformation{URLDecodeUni}, TargetRequestURIRaw, `/a.php?arg1=hello world`},
+		{`/a.php?arg1=AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, TargetRequestURIRaw, `/a.php?arg1=aaaaaaa bccc`},
 	}
 
 	var b strings.Builder

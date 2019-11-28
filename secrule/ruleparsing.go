@@ -76,6 +76,97 @@ var operatorsMap = map[string]Operator{
 	"@rbl":                  Rbl,
 }
 
+// TargetNamesFromStr gets TargetName enums from strings. Ensure this is in sync with TargetNamesStrings and the TargetName const iota block.
+var TargetNamesFromStr = map[string]TargetName{
+	"ARGS":                         TargetArgs,
+	"ARGS_COMBINED_SIZE":           TargetArgsCombinedSize,
+	"ARGS_GET":                     TargetArgsGet,
+	"ARGS_GET_NAMES":               TargetArgsGetNames,
+	"ARGS_NAMES":                   TargetArgsNames,
+	"ARGS_POST":                    TargetArgsPost,
+	"DURATION":                     TargetDuration,
+	"FILES":                        TargetFiles,
+	"FILES_COMBINED_SIZE":          TargetFilesCombinedSize,
+	"FILES_NAMES":                  TargetFilesNames,
+	"GEO":                          TargetGeo,
+	"IP":                           TargetIP,
+	"MATCHED_VAR":                  TargetMatchedVar,
+	"MATCHED_VAR_NAME":             TargetMatchedVarName,
+	"MATCHED_VARS":                 TargetMatchedVars,
+	"MATCHED_VARS_NAMES":           TargetMatchedVarsNames,
+	"MULTIPART_STRICT_ERROR":       TargetMultipartStrictError,
+	"MULTIPART_UNMATCHED_BOUNDARY": TargetMultipartUnmatchedBoundary,
+	"QUERY_STRING":                 TargetQueryString,
+	"REMOTE_ADDR":                  TargetRemoteAddr,
+	"REQBODY_ERROR":                TargetReqbodyError,
+	"REQBODY_PROCESSOR":            TargetReqbodyProcessor,
+	"REQUEST_BASENAME":             TargetRequestBasename,
+	"REQUEST_BODY":                 TargetRequestBody,
+	"REQUEST_COOKIES":              TargetRequestCookies,
+	"REQUEST_COOKIES_NAMES":        TargetRequestCookiesNames,
+	"REQUEST_FILENAME":             TargetRequestFilename,
+	"REQUEST_HEADERS":              TargetRequestHeaders,
+	"REQUEST_HEADERS_NAMES":        TargetRequestHeadersNames,
+	"REQUEST_LINE":                 TargetRequestLine,
+	"REQUEST_METHOD":               TargetRequestMethod,
+	"REQUEST_PROTOCOL":             TargetRequestProtocol,
+	"REQUEST_URI":                  TargetRequestURI,
+	"REQUEST_URI_RAW":              TargetRequestURIRaw,
+	"RESOURCE":                     TargetResource,
+	"RESPONSE_BODY":                TargetResponseBody,
+	"RESPONSE_STATUS":              TargetResponseStatus,
+	"TX":                           TargetTx,
+	"UNIQUE_ID":                    TargetUniqueID,
+	"WEBSERVER_ERROR_LOG":          TargetWebserverErrorLog,
+	"XML":                          TargetXML,
+}
+
+// TargetNamesStrings gets strings from the int value of TargetName enums. Ensure this is in sync with TargetNamesFromStr and the TargetName const iota block.
+var TargetNamesStrings = []string{
+	"",
+	"ARGS",
+	"ARGS_COMBINED_SIZE",
+	"ARGS_GET",
+	"ARGS_GET_NAMES",
+	"ARGS_NAMES",
+	"ARGS_POST",
+	"DURATION",
+	"FILES",
+	"FILES_COMBINED_SIZE",
+	"FILES_NAMES",
+	"GEO",
+	"IP",
+	"MATCHED_VAR",
+	"MATCHED_VAR_NAME",
+	"MATCHED_VARS",
+	"MATCHED_VARS_NAMES",
+	"MULTIPART_STRICT_ERROR",
+	"MULTIPART_UNMATCHED_BOUNDARY",
+	"QUERY_STRING",
+	"REMOTE_ADDR",
+	"REQBODY_ERROR",
+	"REQBODY_PROCESSOR",
+	"REQUEST_BASENAME",
+	"REQUEST_BODY",
+	"REQUEST_COOKIES",
+	"REQUEST_COOKIES_NAMES",
+	"REQUEST_FILENAME",
+	"REQUEST_HEADERS",
+	"REQUEST_HEADERS_NAMES",
+	"REQUEST_LINE",
+	"REQUEST_METHOD",
+	"REQUEST_PROTOCOL",
+	"REQUEST_URI",
+	"REQUEST_URI_RAW",
+	"RESOURCE",
+	"RESPONSE_BODY",
+	"RESPONSE_STATUS",
+	"TX",
+	"UNIQUE_ID",
+	"WEBSERVER_ERROR_LOG",
+	"XML",
+}
+
 type ruleParserImpl struct {
 }
 
@@ -323,13 +414,19 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 			targetStr = targetStr[1:]
 		}
 
-		var name, selector string
+		var nameStr, selector string
 		colonIdx := strings.Index(targetStr, ":")
 		if colonIdx != -1 {
-			name = targetStr[:colonIdx]
+			nameStr = targetStr[:colonIdx]
 			selector = targetStr[colonIdx+1:]
 		} else {
-			name = targetStr
+			nameStr = targetStr
+		}
+
+		name, ok := TargetNamesFromStr[strings.ToUpper(nameStr)]
+		if !ok {
+			err = fmt.Errorf("invalid target name: %v", nameStr)
+			return
 		}
 
 		if len(selector) >= 2 && selector[0] == '\'' && selector[len(selector)-1] == '\'' {
@@ -338,7 +435,7 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 		}
 
 		isRegexSelector := false
-		if name != "XML" && len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
+		if name != TargetXML && len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
 			isRegexSelector = true
 			selector = selector[1 : len(selector)-1]
 
@@ -763,9 +860,9 @@ func checkForUnsupportedFeatures(statements *[]Statement) error {
 						continue
 					}
 					switch t.Name {
-					case "ARGS", "ARGS_GET", "ARGS_NAMES", "FILES", "FILES_NAMES", "QUERY_STRING", "REQUEST_BASENAME", "REQUEST_BODY", "REQUEST_COOKIES", "REQUEST_COOKIES_NAMES", "REQUEST_FILENAME", "REQUEST_HEADERS", "REQUEST_HEADERS_NAMES", "REQUEST_URI", "REQUEST_URI_RAW", "XML":
+					case TargetArgs, TargetArgsGet, TargetArgsNames, TargetFiles, TargetFilesNames, TargetQueryString, TargetRequestBasename, TargetRequestBody, TargetRequestCookies, TargetRequestCookiesNames, TargetRequestFilename, TargetRequestHeaders, TargetRequestHeadersNames, TargetRequestURI, TargetRequestURIRaw, TargetXML:
 						if item.Predicate.Val.hasMacros() {
-							return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, t.Name)
+							return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, TargetNamesStrings[t.Name])
 						}
 						// There are a few scan-phase variables that are exempt from this restriction and have workarounds because they are used in CRS:
 						//     "REQUEST_LINE", "REQUEST_METHOD", "REQUEST_PROTOCOL"

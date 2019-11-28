@@ -38,7 +38,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(300, 0, secrule.Target{Name: "REQUEST_URI_RAW"})
+	m, ok := sr.GetResultsFor(300, 0, secrule.Target{Name: secrule.TargetRequestURIRaw})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -46,7 +46,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
-	m, ok = sr.GetResultsFor(200, 0, secrule.Target{Name: "ARGS"})
+	m, ok = sr.GetResultsFor(200, 0, secrule.Target{Name: secrule.TargetArgs})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -57,7 +57,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
-	m, ok = sr.GetResultsFor(200, 1, secrule.Target{Name: "ARGS"})
+	m, ok = sr.GetResultsFor(200, 1, secrule.Target{Name: secrule.TargetArgs})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
@@ -94,7 +94,7 @@ func TestReqScannerPmfRule(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(100, 0, secrule.Target{Name: "REQUEST_URI_RAW"})
+	m, ok := sr.GetResultsFor(100, 0, secrule.Target{Name: secrule.TargetRequestURIRaw})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -137,7 +137,7 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(100, 0, secrule.Target{Name: "REQUEST_URI_RAW"})
+	m, ok := sr.GetResultsFor(100, 0, secrule.Target{Name: secrule.TargetRequestURIRaw})
 	if !ok {
 		t.Fatalf("Match not found")
 	}

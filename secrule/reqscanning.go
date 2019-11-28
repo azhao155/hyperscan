@@ -28,7 +28,7 @@ type Match struct {
 	Data               []byte
 	CaptureGroups      [][]byte
 	EntireFieldContent []byte
-	TargetName         []byte
+	TargetName         TargetName
 	FieldName          []byte
 }
 
@@ -84,7 +84,7 @@ type reqScannerImpl struct {
 	allScanGroups        []*scanGroup
 	scanGroupsForTarget  map[Target][]*scanGroup
 	targetsSimple        map[Target]bool
-	targetsRegexSelector map[string][]*targetsRegexSelectorWithSameTargetName // map key is target name
+	targetsRegexSelector map[TargetName][]*targetsRegexSelectorWithSameTargetName
 }
 
 type reqScannerEvaluationImpl struct {
@@ -102,7 +102,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	var allScanGroups []*scanGroup
 	scanGroupsForTarget := make(map[Target][]*scanGroup)
 	targetsSimple := make(map[Target]bool)
-	targetsRegexSelector := make(map[string][]*targetsRegexSelectorWithSameTargetName) // map key is target name
+	targetsRegexSelector := make(map[TargetName][]*targetsRegexSelectorWithSameTargetName)
 
 	// Construct a inverted view of the rules that maps from targets+selectors, to rule conditions
 	for _, curStmt := range statements {
@@ -212,7 +212,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	return
 }
 
-func (r *reqScannerImpl) getTargets(targetName string, fieldName string) (targets []Target) {
+func (r *reqScannerImpl) getTargets(targetName TargetName, fieldName string) (targets []Target) {
 	// Also get targets that do not specify field names. Example: ARGS vs. ARGS:somefield.
 	if fieldName != "" {
 		targets = append(targets, r.getTargets(targetName, "")...)
@@ -289,7 +289,7 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 	reqLine.WriteString(req.URI())
 	reqLine.WriteString(" ")
 	reqLine.WriteString(protocol)
-	err = r.scanField("REQUEST_LINE", "", reqLine.String(), results)
+	err = r.scanField(TargetRequestLine, "", reqLine.String(), results)
 	if err != nil {
 		return
 	}
@@ -297,14 +297,14 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 	results.requestLine = reqLine.Bytes()
 	results.requestProtocol = []byte(protocol)
 
-	err = r.scanField("REMOTE_ADDR", "", req.RemoteAddr(), results)
+	err = r.scanField(TargetRemoteAddr, "", req.RemoteAddr(), results)
 	if err != nil {
 		return
 	}
 
 	method := req.Method()
 	results.requestMethod = []byte(method)
-	err = r.scanField("REQUEST_METHOD", "", method, results)
+	err = r.scanField(TargetRequestMethod, "", method, results)
 	if err != nil {
 		return
 	}
@@ -314,7 +314,7 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 		return
 	}
 
-	err = r.scanField("REQUEST_PROTOCOL", "", req.Protocol(), results)
+	err = r.scanField(TargetRequestProtocol, "", req.Protocol(), results)
 	if err != nil {
 		return
 	}
@@ -332,13 +332,13 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *Sc
 			r.scanCookies(v, results)
 		}
 
-		err = r.scanField("REQUEST_HEADERS_NAMES", "", k, results)
+		err = r.scanField(TargetRequestHeadersNames, "", k, results)
 		if err != nil {
 			return
 		}
 
 		// TODO selector probably should not be case sensitive
-		err = r.scanField("REQUEST_HEADERS", k, v, results)
+		err = r.scanField(TargetRequestHeaders, k, v, results)
 		if err != nil {
 			return
 		}
@@ -354,46 +354,46 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fi
 	switch contentType {
 
 	case waf.MultipartFormDataContent, waf.URLEncodedContent:
-		err = r.scanField("ARGS_NAMES", "", fieldName, results)
+		err = r.scanField(TargetArgsNames, "", fieldName, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField("ARGS", fieldName, data, results)
+		err = r.scanField(TargetArgs, fieldName, data, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField("ARGS_POST", fieldName, data, results)
+		err = r.scanField(TargetArgsPost, fieldName, data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.MultipartFormDataFileNames:
-		err = r.scanField("FILES_NAMES", "", fieldName, results)
+		err = r.scanField(TargetFilesNames, "", fieldName, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField("FILES", "", data, results)
+		err = r.scanField(TargetFiles, "", data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.JSONContent:
-		err = r.scanField("ARGS", "", data, results)
+		err = r.scanField(TargetArgs, "", data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.XMLContent:
-		err = r.scanField("XML", "/*", data, results)
+		err = r.scanField(TargetXML, "/*", data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.FullRawRequestBody:
-		err = r.scanField("REQUEST_BODY", "", data, results)
+		err = r.scanField(TargetRequestBody, "", data, results)
 		if err != nil {
 			return
 		}
@@ -413,7 +413,7 @@ func (r *ScanResults) GetResultsFor(ruleID int, ruleItemIdx int, target Target) 
 	return
 }
 
-func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string, content string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName string, content string, results *ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
 
@@ -450,7 +450,7 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 					Data:               m.Data,
 					CaptureGroups:      m.CaptureGroups,
 					EntireFieldContent: []byte(content),
-					TargetName:         []byte(targetName),
+					TargetName:         targetName,
 					FieldName:          []byte(fieldName),
 				})
 			}
@@ -463,7 +463,7 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 				CaptureGroups:      [][]byte{[]byte(content)},
 				Data:               []byte(content),
 				EntireFieldContent: []byte(content),
-				TargetName:         []byte(targetName),
+				TargetName:         targetName,
 				FieldName:          []byte(fieldName),
 			})
 		}
@@ -488,7 +488,7 @@ func (r *reqScannerEvaluationImpl) scanField(targetName string, fieldName string
 						Data:               []byte([]byte(fingerprint)),
 						CaptureGroups:      [][]byte{[]byte(fingerprint)},
 						EntireFieldContent: []byte(content),
-						TargetName:         []byte(targetName),
+						TargetName:         targetName,
 						FieldName:          []byte(fieldName),
 					})
 				}
@@ -540,12 +540,12 @@ func getRxExprs(ruleItem *RuleItem) []string {
 }
 
 func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (err error) {
-	err = r.scanField("REQUEST_URI", "", URI, results)
+	err = r.scanField(TargetRequestURI, "", URI, results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanField("REQUEST_URI_RAW", "", URI, results)
+	err = r.scanField(TargetRequestURIRaw, "", URI, results)
 	if err != nil {
 		return
 	}
@@ -561,7 +561,7 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		queryString = URI[n+1:]
 	}
 
-	err = r.scanField("REQUEST_FILENAME", "", reqFilename, results)
+	err = r.scanField(TargetRequestFilename, "", reqFilename, results)
 	if err != nil {
 		return
 	}
@@ -572,12 +572,12 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		reqBasename = reqFilename[n+1:]
 	}
 
-	err = r.scanField("REQUEST_BASENAME", "", reqBasename, results)
+	err = r.scanField(TargetRequestBasename, "", reqBasename, results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanField("QUERY_STRING", "", queryString, results)
+	err = r.scanField(TargetQueryString, "", queryString, results)
 	if err != nil {
 		return
 	}
@@ -591,14 +591,14 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	scannedKey := make(map[string]bool)
 	for _, qval := range qvals {
 		if !scannedKey[qval.key] {
-			err = r.scanField("ARGS_NAMES", "", qval.key, results)
+			err = r.scanField(TargetArgsNames, "", qval.key, results)
 			if err != nil {
 				return
 			}
 			scannedKey[qval.key] = true
 		}
 
-		err = r.scanField("ARGS", qval.key, qval.val, results)
+		err = r.scanField(TargetArgs, qval.key, qval.val, results)
 		if err != nil {
 			return
 		}
@@ -613,12 +613,12 @@ func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (
 	cookies := goReq.Cookies()
 	for _, cookie := range cookies {
 
-		err = r.scanField("REQUEST_COOKIES_NAMES", "", cookie.Name, results)
+		err = r.scanField(TargetRequestCookiesNames, "", cookie.Name, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField("REQUEST_COOKIES", cookie.Name, cookie.Value, results)
+		err = r.scanField(TargetRequestCookies, cookie.Name, cookie.Value, results)
 		if err != nil {
 			return
 		}

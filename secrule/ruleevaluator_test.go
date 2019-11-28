@@ -17,7 +17,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("something")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("something")}},
 					Actions:   []Action{sv, &DenyAction{}}, // The predicate will not be satisfied, so this should not run
 				},
 			},
@@ -26,7 +26,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{sv},
 				},
@@ -34,11 +34,11 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 		},
 	}
 	assert := assert.New(t)
-	key := matchKey{200, 0, Target{Name: "ARGS"}}
+	key := matchKey{200, 0, Target{Name: TargetArgs}}
 	m := make(map[matchKey][]Match)
 	m[key] = []Match{{Data: []byte{}}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -64,7 +64,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{sv, &DenyAction{}},
 				},
@@ -73,11 +73,11 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-	key := matchKey{100, 0, Target{Name: "ARGS"}}
+	key := matchKey{100, 0, Target{Name: TargetArgs}}
 	m := make(map[matchKey][]Match)
 	m[key] = []Match{{Data: []byte{}}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -99,7 +99,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{&AllowAction{}},
 				},
@@ -109,7 +109,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{Lowercase, RemoveWhitespace},
 					Actions:         []Action{&DenyAction{}},
 				},
@@ -118,11 +118,11 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	}
 
 	assert := assert.New(t)
-	key := matchKey{100, 0, Target{Name: "ARGS"}}
+	key := matchKey{100, 0, Target{Name: TargetArgs}}
 	m := make(map[matchKey][]Match)
 	m[key] = []Match{{Data: []byte{}}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -140,7 +140,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	p := RulePredicate{Targets: []Target{{Name: "TX", Selector: "ANOMALY_SCORE"}}, Op: Ge, Val: Value{MacroToken("tx.inbound_anomaly_threshold")}}
+	p := RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "ANOMALY_SCORE"}}, Op: Ge, Val: Value{MacroToken("tx.inbound_anomaly_threshold")}}
 	rules := []Statement{
 		&Rule{
 			ID: 100,
@@ -183,20 +183,20 @@ func TestRuleEvaluatorChain(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("def")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
-	m[matchKey{100, 1, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
+	m[matchKey{100, 1, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -223,19 +223,19 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("def")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 1, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 1, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -262,19 +262,19 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("def")}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -302,21 +302,21 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("def")}},
 					Actions:   []Action{&sv1},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
-	m[matchKey{100, 1, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
+	m[matchKey{100, 1, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
 	assert.False(env.hasKey("tx.somevar"))
@@ -350,20 +350,20 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv1},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("shouldNotMatch")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("shouldNotMatch")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment(sr)
 	assert.False(env.hasKey("tx.somevar"))
@@ -500,16 +500,16 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestCookies}, {Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -536,16 +536,16 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}, {Name: TargetRequestCookies}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -575,18 +575,18 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}, {Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestCookies}, {Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{200, 0, Target{Name: "REQUEST_COOKIES"}}] = []Match{{}}
-	m[matchKey{200, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: TargetRequestCookies}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "REQUEST_COOKIES"}] = 1
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetRequestCookies}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	env := newEnvironment(sr)
@@ -621,26 +621,26 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}, {Name: TargetArgs, Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "c"}, {Name: TargetArgs, Selector: "d"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{}}
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = []Match{{}}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = []Match{{}}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: TargetArgs, Selector: "a"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: TargetArgs, Selector: "b"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: TargetArgs, Selector: "c"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: TargetArgs, Selector: "d"}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
-	tc[Target{Name: "ARGS", Selector: "b"}] = 1
-	tc[Target{Name: "ARGS", Selector: "c"}] = 1
-	tc[Target{Name: "ARGS", Selector: "d"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "b"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "c"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "d"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	env := newEnvironment(sr)
@@ -676,26 +676,26 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}, {Name: TargetArgs, Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv2},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "c"}, {Name: "ARGS", Selector: "d"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "c"}, {Name: TargetArgs, Selector: "d"}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&sv3},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{}}
-	m[matchKey{200, 0, Target{Name: "ARGS", Selector: "b"}}] = []Match{{}}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "c"}}] = []Match{{}}
-	m[matchKey{200, 1, Target{Name: "ARGS", Selector: "d"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: TargetArgs, Selector: "a"}}] = []Match{{}}
+	m[matchKey{200, 0, Target{Name: TargetArgs, Selector: "b"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: TargetArgs, Selector: "c"}}] = []Match{{}}
+	m[matchKey{200, 1, Target{Name: TargetArgs, Selector: "d"}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
-	tc[Target{Name: "ARGS", Selector: "b"}] = 1
-	tc[Target{Name: "ARGS", Selector: "c"}] = 1
-	tc[Target{Name: "ARGS", Selector: "d"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "b"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "c"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "d"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	env := newEnvironment(sr)
@@ -727,17 +727,17 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}, {Name: TargetRequestCookies}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
-	tc[Target{Name: "REQUEST_COOKIES"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
+	tc[Target{Name: TargetRequestCookies}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -761,17 +761,17 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}, {Name: TargetRequestCookies}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}, &LogAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
-	tc[Target{Name: "REQUEST_COOKIES"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
+	tc[Target{Name: TargetRequestCookies}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -795,11 +795,11 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestCookies}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}},
 				},
 			},
@@ -808,21 +808,21 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&NoLogAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestCookies}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
-	tc[Target{Name: "REQUEST_COOKIES"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
+	tc[Target{Name: TargetRequestCookies}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -846,16 +846,16 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}, {Name: TargetRequestCookies}}, Op: Rx, Val: Value{StringToken("abc")}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
-	tc[Target{Name: "REQUEST_COOKIES"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
+	tc[Target{Name: TargetRequestCookies}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1079,16 +1079,16 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1115,7 +1115,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1123,7 +1123,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 	}
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1150,18 +1150,18 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}, {Name: TargetArgs, Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{}}
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "b"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs, Selector: "a"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs, Selector: "b"}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
-	tc[Target{Name: "ARGS", Selector: "b"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "b"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1192,7 +1192,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}, {Name: TargetArgs, Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&sv2},
 				},
 			},
@@ -1200,8 +1200,8 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 	}
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
-	tc[Target{Name: "ARGS", Selector: "b"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "b"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1235,7 +1235,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}, {Name: "ARGS", Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}, {Name: TargetArgs, Selector: "b"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&sv2},
 				},
 			},
@@ -1243,7 +1243,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 	}
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1 // Note ARGS:b not present in this negative test
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1 // Note ARGS:b not present in this negative test
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1273,18 +1273,18 @@ func TestRuleEvaluatorNegateMultiTxTargets(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "abc"}, {Name: TargetTx, Selector: "def"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = []Match{{}}
-	m[matchKey{100, 0, Target{Name: "TX", Selector: "def"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetTx, Selector: "abc"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetTx, Selector: "def"}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "TX", Selector: "abc"}] = 1
-	tc[Target{Name: "TX", Selector: "def"}] = 1
+	tc[Target{Name: TargetTx, Selector: "abc"}] = 1
+	tc[Target{Name: TargetTx, Selector: "def"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1311,16 +1311,16 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1 // Note: only ARGS, not ARGS_NAMES in this negative test
+	tc[Target{Name: TargetArgs}] = 1 // Note: only ARGS, not ARGS_NAMES in this negative test
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1347,16 +1347,16 @@ func TestRuleEvaluatorNegateMultiTxTargetsNegative(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "abc"}, {Name: "TX", Selector: "def"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "abc"}, {Name: TargetTx, Selector: "def"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "TX", Selector: "abc"}}] = []Match{{}}
+	m[matchKey{100, 0, Target{Name: TargetTx, Selector: "abc"}}] = []Match{{}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "TX", Selector: "abc"}] = 1 // Note: only TX:abc, not TX:def in this negative test
+	tc[Target{Name: TargetTx, Selector: "abc"}] = 1 // Note: only TX:abc, not TX:def in this negative test
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1383,16 +1383,16 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "myarg1"}, {Name: TargetArgs, Selector: "myarg2"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg1"}}] = []Match{{}} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
+	m[matchKey{100, 0, Target{Name: TargetArgs, Selector: "myarg1"}}] = []Match{{}} // Note: only ARGS:myarg1, not ARGS:myarg2 in this
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "myarg1"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "myarg1"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1419,16 +1419,16 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "myarg1"}, {Name: "ARGS", Selector: "myarg2"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "myarg1"}, {Name: TargetArgs, Selector: "myarg2"}}, Op: Rx, Val: Value{StringToken("abc")}, Neg: true},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
 		},
 	}
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS", Selector: "myarg2"}}] = []Match{{}} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
+	m[matchKey{100, 0, Target{Name: TargetArgs, Selector: "myarg2"}}] = []Match{{}} // Note: only ARGS:myarg2, not ARGS:myarg1 in this
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "myarg2"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "myarg2"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	re := NewRuleEvaluator()
 	var cbCalled int
@@ -1455,7 +1455,7 @@ func TestRuleEvaluatorCountArgsTarget(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "hello", IsCount: true}}, Op: Eq, Val: Value{IntToken(2)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "hello", IsCount: true}}, Op: Eq, Val: Value{IntToken(2)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1464,10 +1464,10 @@ func TestRuleEvaluatorCountArgsTarget(t *testing.T) {
 	em := newEnvironment(&ScanResults{})
 	re := NewRuleEvaluator()
 	tc1 := make(map[Target]int)
-	tc1[Target{Name: "ARGS", Selector: "hello", IsCount: true}] = 2
+	tc1[Target{Name: TargetArgs, Selector: "hello", IsCount: true}] = 2
 	sr1 := &ScanResults{targetsCount: tc1}
 	tc2 := make(map[Target]int)
-	tc2[Target{Name: "ARGS", Selector: "hello", IsCount: true}] = 1
+	tc2[Target{Name: TargetArgs, Selector: "hello", IsCount: true}] = 1
 	sr2 := &ScanResults{targetsCount: tc2}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -1499,7 +1499,7 @@ func TestRuleEvaluatorCountTxTargetSet(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1533,7 +1533,7 @@ func TestRuleEvaluatorCountTxTargetNotSet(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "critical_anomaly_score", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1576,7 +1576,7 @@ func TestRuleEvaluatorLateScanTarget(t *testing.T) {
 			ID: 502,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "myvar"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "myvar"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1620,11 +1620,11 @@ func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 			ID: 101,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`(hello\d+)worlda`)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken(`(hello\d+)worlda`)}},
 					Actions:   []Action{&CaptureAction{}, &DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
 				},
 			},
 		},
@@ -1633,12 +1633,12 @@ func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{{
+	m[matchKey{101, 0, Target{Name: TargetArgs}}] = []Match{{
 		Data:          []byte("hello1234worlda"),
 		CaptureGroups: [][]byte{[]byte("hello1234worlda"), []byte("hello1234")},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -1675,11 +1675,11 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 			ID: 202,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`(hello\d+)worldb`)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken(`(hello\d+)worldb`)}},
 					Actions:   []Action{&CaptureAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar"), StringToken("$")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar"), StringToken("$")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1689,12 +1689,12 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{202, 0, Target{Name: "ARGS"}}] = []Match{{
+	m[matchKey{202, 0, Target{Name: TargetArgs}}] = []Match{{
 		Data:          []byte("hello1234worldb"),
 		CaptureGroups: [][]byte{[]byte("hello1234worldb"), []byte("hello1234")},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -1727,11 +1727,11 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 			ID: 303,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`hello(\d+)world(\d+)c`)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken(`hello(\d+)world(\d+)c`)}},
 					Actions:   []Action{&CaptureAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.2"), StringToken("$")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.2"), StringToken("$")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1741,7 +1741,7 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{303, 0, Target{Name: "ARGS"}}] = []Match{{
+	m[matchKey{303, 0, Target{Name: TargetArgs}}] = []Match{{
 		Data: []byte("hello1234world1234c"),
 		CaptureGroups: [][]byte{
 			[]byte("hello1234world1234c"),
@@ -1750,7 +1750,7 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 		},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -1792,7 +1792,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken(`hello(\d+)world(\d+)c`)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken(`hello(\d+)world(\d+)c`)}},
 					Actions:   []Action{&CaptureAction{}},
 				},
 			},
@@ -1801,7 +1801,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 			ID: 200,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "1"}}, Op: Rx, Val: Value{StringToken(`^%{tx.2}$`)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken(`^%{tx.2}$`)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1811,7 +1811,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{100, 0, Target{Name: "ARGS"}}] = []Match{{
+	m[matchKey{100, 0, Target{Name: TargetArgs}}] = []Match{{
 		Data: []byte("hello1234world1234c"),
 		CaptureGroups: [][]byte{
 			[]byte("hello1234world1234c"),
@@ -1820,7 +1820,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 		},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -1889,7 +1889,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld")}},
 				},
 			},
 		},
@@ -1897,7 +1897,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 			ID: 103,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "TX", Selector: "MYVAR"}}, Op: Streq, Val: Value{MacroToken("matched_var")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "MYVAR"}}, Op: Streq, Val: Value{MacroToken("matched_var")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1907,7 +1907,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{
+	m[matchKey{102, 0, Target{Name: TargetArgs, Selector: "a"}}] = []Match{{
 		Data:               []byte("helloworld"),
 		EntireFieldContent: []byte("helloworld"),
 		CaptureGroups: [][]byte{
@@ -1915,7 +1915,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 		},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -1950,7 +1950,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld1234")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld1234")}},
 				},
 			},
 		},
@@ -1958,7 +1958,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 			ID: 103,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1968,7 +1968,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{
+	m[matchKey{102, 0, Target{Name: TargetArgs, Selector: "a"}}] = []Match{{
 		Data:               []byte("helloworld1234"),
 		EntireFieldContent: []byte("helloworld1234"),
 		CaptureGroups: [][]byte{
@@ -1976,7 +1976,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 		},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -2012,7 +2012,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld1234")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, Selector: "a"}}, Op: Rx, Val: Value{StringToken("helloworld1234")}},
 				},
 			},
 		},
@@ -2020,7 +2020,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 			ID: 103,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
 				},
 			},
 		},
@@ -2028,7 +2028,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 			ID: 104,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2037,7 +2037,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS", Selector: "a"}}] = []Match{{
+	m[matchKey{102, 0, Target{Name: TargetArgs, Selector: "a"}}] = []Match{{
 		Data:               []byte("helloworld1234"),
 		EntireFieldContent: []byte("helloworld1234"),
 		CaptureGroups: [][]byte{
@@ -2045,7 +2045,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 		},
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", Selector: "a"}] = 1
+	tc[Target{Name: TargetArgs, Selector: "a"}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -2080,11 +2080,11 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("something")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("something")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VAR_NAME"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVarName}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2094,17 +2094,17 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{102, 0, Target{Name: "ARGS"}}] = []Match{{
+	m[matchKey{102, 0, Target{Name: TargetArgs}}] = []Match{{
 		Data:               []byte("something"),
 		EntireFieldContent: []byte("something"),
 		CaptureGroups: [][]byte{
 			[]byte("something"),
 		},
-		TargetName: []byte("ARGS"),
+		TargetName: TargetArgs,
 		FieldName:  []byte("helloworld1234"),
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -2136,7 +2136,7 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 			ID: 101,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS", IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
 					Actions:   []Action{&SetVarAction{variable: Value{StringToken("tx.args_count")}, value: Value{MacroToken("matched_var")}}},
 				},
 			},
@@ -2145,7 +2145,7 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "tx", Selector: "args_count"}}, Op: Gt, Val: Value{IntToken(2)}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "args_count"}}, Op: Gt, Val: Value{IntToken(2)}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2155,17 +2155,17 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{{
+	m[matchKey{101, 0, Target{Name: TargetArgs}}] = []Match{{
 		Data:               []byte("3"),
 		EntireFieldContent: []byte("3"),
 		CaptureGroups: [][]byte{
 			[]byte("3"),
 		},
-		TargetName: []byte("ARGS"),
+		TargetName: TargetArgs,
 		FieldName:  []byte("abc"),
 	}}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS", IsCount: true}] = 3
+	tc[Target{Name: TargetArgs, IsCount: true}] = 3
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -2197,11 +2197,11 @@ func TestRuleEvaluatorMatchedVarsCollection(t *testing.T) {
 			ID: 101,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("helloworld")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("helloworld")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VARS"}}, Op: Rx, Val: Value{StringToken("world123")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVars}}, Op: Rx, Val: Value{StringToken("world123")}},
 				},
 			},
 		},
@@ -2210,7 +2210,7 @@ func TestRuleEvaluatorMatchedVarsCollection(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{
+	m[matchKey{101, 0, Target{Name: TargetArgs}}] = []Match{
 		{
 			Data:               []byte("helloworld"),
 			EntireFieldContent: []byte("helloworld9999"),
@@ -2234,7 +2234,7 @@ func TestRuleEvaluatorMatchedVarsCollection(t *testing.T) {
 		},
 	}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 3
+	tc[Target{Name: TargetArgs}] = 3
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -2267,14 +2267,14 @@ func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.
 			ID: 101,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("def")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("def")}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VARS"}}, Op: Rx, Val: Value{StringToken("abc123")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVars}}, Op: Rx, Val: Value{StringToken("abc123")}},
 				},
 			},
 		},
@@ -2283,7 +2283,7 @@ func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{
+	m[matchKey{101, 0, Target{Name: TargetArgs}}] = []Match{
 		{
 			Data:               []byte("abc"),
 			EntireFieldContent: []byte("abc123"),
@@ -2292,7 +2292,7 @@ func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.
 			},
 		},
 	}
-	m[matchKey{101, 1, Target{Name: "ARGS"}}] = []Match{
+	m[matchKey{101, 1, Target{Name: TargetArgs}}] = []Match{
 		{
 			Data:               []byte("def"),
 			EntireFieldContent: []byte("def"),
@@ -2302,7 +2302,7 @@ func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.
 		},
 	}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 2
+	tc[Target{Name: TargetArgs}] = 2
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
@@ -2334,11 +2334,11 @@ func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
 			ID: 101,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "ARGS"}}, Op: Rx, Val: Value{StringToken("abc")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: "MATCHED_VARS_NAMES"}}, Op: Rx, Val: Value{StringToken("world123")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVarsNames}}, Op: Rx, Val: Value{StringToken("world123")}},
 				},
 			},
 		},
@@ -2347,7 +2347,7 @@ func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
 	re := NewRuleEvaluator()
 
 	m := make(map[matchKey][]Match)
-	m[matchKey{101, 0, Target{Name: "ARGS"}}] = []Match{
+	m[matchKey{101, 0, Target{Name: TargetArgs}}] = []Match{
 		{
 			FieldName:          []byte("helloworld9999"),
 			Data:               []byte("abc"),
@@ -2374,7 +2374,7 @@ func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
 		},
 	}
 	tc := make(map[Target]int)
-	tc[Target{Name: "ARGS"}] = 1
+	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{targetsCount: tc, matches: m}
 	var cbCalled int
 	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {

@@ -286,9 +286,9 @@ func evalPredicateLateScan(env environment, ruleItem RuleItem, target Target, sc
 
 	returnValIfTrigger := !ruleItem.Predicate.Neg
 
-	isTxTarget := strings.EqualFold(target.Name, "tx")
+	isTxTarget := target.Name == TargetTx
 	// TODO support regex selectors for tx variable names
-	isTxTargetPresent := isTxTarget && env.hasKey(strings.ToLower(target.Name+"."+target.Selector))
+	isTxTargetPresent := isTxTarget && env.hasKey(strings.ToLower(TargetNamesStrings[target.Name]+"."+target.Selector))
 
 	if isTxTarget && !isTxTargetPresent && !target.IsCount {
 		// This is a tx variable that is not set
@@ -309,33 +309,16 @@ func evalPredicateLateScan(env environment, ruleItem RuleItem, target Target, sc
 
 // We require a late scan (a scan in the eval phase as opposed to the req scan phase) if either left or right side was not known in the scan phase.
 func requiresLateScan(predicate RulePredicate, target Target) bool {
-	// TODO optimization: move this check to somewhere during parsing
-
-	if strings.EqualFold(target.Name, "matched_var") {
-		return true
-	}
-
-	if strings.EqualFold(target.Name, "matched_vars") {
-		return true
-	}
-
-	if strings.EqualFold(target.Name, "matched_var_name") {
-		return true
-	}
-
-	if strings.EqualFold(target.Name, "matched_vars_names") {
-		return true
-	}
-
-	if strings.EqualFold(target.Name, "tx") {
-		return true
-	}
-
-	if predicate.Val.hasMacros() {
+	switch target.Name {
+	case TargetMatchedVar, TargetMatchedVars, TargetMatchedVarName, TargetMatchedVarsNames, TargetTx:
 		return true
 	}
 
 	if target.IsCount {
+		return true
+	}
+
+	if predicate.Val.hasMacros() {
 		return true
 	}
 

@@ -130,7 +130,7 @@ func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 				s.logger.Debug().
 					Int("ruleID", key.ruleID).
 					Int("ruleItemIdx", key.ruleItemIdx).
-					Str("targetName", key.target.Name).
+					Str("targetName", TargetNamesStrings[key.target.Name]).
 					Str("targetSelector", key.target.Selector).
 					Str("matchedData", string(match.Data)).
 					Msg("Request scanning found a match")
@@ -163,7 +163,7 @@ func usesRequestBodyTarget(statements []Statement) bool {
 		case *Rule:
 			for _, ruleItem := range stmt.Items {
 				for _, target := range ruleItem.Predicate.Targets {
-					if target.Name == "REQUEST_BODY" {
+					if target.Name == TargetRequestBody {
 						return true
 					}
 				}

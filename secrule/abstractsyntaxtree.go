@@ -53,11 +53,62 @@ type RulePredicate struct {
 
 // Target describes which field of the request we want to be scanning.
 type Target struct {
-	Name            string // Example value: ARGS
-	Selector        string // Example value: streetAddress
-	IsRegexSelector bool   // Example of target where this is true: ARGS:/hel*o/
-	IsCount         bool   // Example of target where this is true, meaning number of args: &ARGS
+	Name            TargetName // Example value: TargetArgs if SecRule said ARGS
+	Selector        string     // Example value: streetAddress
+	IsRegexSelector bool       // Example of target where this is true: ARGS:/hel*o/
+	IsCount         bool       // Example of target where this is true, meaning number of args: &ARGS
 }
+
+// TargetName describes in which part of the request or environment we are to scan.
+type TargetName int
+
+// Targets that SecRules can use.
+// Ensure this is in sync with TargetNamesFromStr and TargetNamesStrings.
+const (
+	_ TargetName = iota
+	TargetArgs
+	TargetArgsCombinedSize
+	TargetArgsGet
+	TargetArgsGetNames
+	TargetArgsNames
+	TargetArgsPost
+	TargetDuration
+	TargetFiles
+	TargetFilesCombinedSize
+	TargetFilesNames
+	TargetGeo
+	TargetIP
+	TargetMatchedVar
+	TargetMatchedVarName
+	TargetMatchedVars
+	TargetMatchedVarsNames
+	TargetMultipartStrictError
+	TargetMultipartUnmatchedBoundary
+	TargetQueryString
+	TargetRemoteAddr
+	TargetReqbodyError
+	TargetReqbodyProcessor
+	TargetRequestBasename
+	TargetRequestBody
+	TargetRequestCookies
+	TargetRequestCookiesNames
+	TargetRequestFilename
+	TargetRequestHeaders
+	TargetRequestHeadersNames
+	TargetRequestLine
+	TargetRequestMethod
+	TargetRequestProtocol
+	TargetRequestURI
+	TargetRequestURIRaw
+	TargetResource
+	TargetResponseBody
+	TargetResponseStatus
+	TargetTx
+	TargetUniqueID
+	TargetWebserverErrorLog
+	TargetXML
+	_lastTarget
+)
 
 // Action is any of the items in the actions-block of a SecRule or SecAction.
 type Action interface{}

@@ -326,44 +326,44 @@ func TestSecRuleTargets(t *testing.T) {
 		expected []Target
 	}
 	tests := []testcase{
-		{`ARGS|ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{`ARGS,ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{`ARGS:/helloworld/`, []Target{{Name: "ARGS", Selector: "helloworld", IsRegexSelector: true}}},
-		{`ARGS|ARGS:/helloworld/|ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "ARGS", Selector: "helloworld", IsRegexSelector: true}, {Name: "ARGS_NAMES"}}},
-		{`ARGS,ARGS:/helloworld/,ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "ARGS", Selector: "helloworld", IsRegexSelector: true}, {Name: "ARGS_NAMES"}}},
-		{`ARGS|REQUEST_COOKIES:/S?SESS[a-f0-9]+/|ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "REQUEST_COOKIES", Selector: "S?SESS[a-f0-9]+", IsRegexSelector: true}, {Name: "ARGS_NAMES"}}},
-		{`REQUEST_HEADERS:X.Filename`, []Target{{Name: "REQUEST_HEADERS", Selector: "X.Filename"}}},
-		{`"ARGS|ARGS_NAMES"`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{`"ARGS,ARGS_NAMES"`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{`"ARGS:'helloworld'"`, []Target{{Name: "ARGS", Selector: "helloworld"}}},
-		{`"ARGS:'hello world'"`, []Target{{Name: "ARGS", Selector: "hello world"}}},
-		{`"ARGS:'hello \"world'"`, []Target{{Name: "ARGS", Selector: `hello "world`}}},
-		{`"ARGS:'hello \\'world'"`, []Target{{Name: "ARGS", Selector: `hello 'world`}}},
-		{`"ARGS:'/helloworld/'"`, []Target{{Name: "ARGS", Selector: `helloworld`, IsRegexSelector: true}}},
-		{`"ARGS|ARGS:'helloworld'|ARGS_NAMES"`, []Target{{Name: "ARGS"}, {Name: "ARGS", Selector: "helloworld"}, {Name: "ARGS_NAMES"}}},
-		{`"ARGS,ARGS:'helloworld',ARGS_NAMES"`, []Target{{Name: "ARGS"}, {Name: "ARGS", Selector: "helloworld"}, {Name: "ARGS_NAMES"}}},
-		{`"REQUEST_HEADERS:X.Filename"`, []Target{{Name: "REQUEST_HEADERS", Selector: "X.Filename"}}},
-		{`'ARGS|ARGS_NAMES'`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{`'ARGS:\'helloworld\''`, []Target{{Name: "ARGS", Selector: "helloworld"}}},
-		{`'ARGS:\'hello world\''`, []Target{{Name: "ARGS", Selector: "hello world"}}},
-		{`'ARGS:\'hello "world\''`, []Target{{Name: "ARGS", Selector: `hello "world`}}},
-		{`'ARGS:\'hello \\\'world\''`, []Target{{Name: "ARGS", Selector: `hello 'world`}}},
-		{`'ARGS|ARGS:\'helloworld\'|ARGS_NAMES'`, []Target{{Name: "ARGS"}, {Name: "ARGS", Selector: "helloworld"}, {Name: "ARGS_NAMES"}}},
-		{`XML:/abc|ARGS`, []Target{{Name: "XML", Selector: "/abc"}, {Name: "ARGS"}}},
-		{`XML:/abc,ARGS`, []Target{{Name: "XML", Selector: "/abc"}, {Name: "ARGS"}}},
-		{`XML:/*|ARGS`, []Target{{Name: "XML", Selector: "/*"}, {Name: "ARGS"}}},
-		{`XML:/*,ARGS`, []Target{{Name: "XML", Selector: "/*"}, {Name: "ARGS"}}},
-		{`XML://`, []Target{{Name: "XML", Selector: "//"}}},
-		{`XML:/abc/`, []Target{{Name: "XML", Selector: "/abc/"}}},
-		{`'REQUEST_HEADERS:X.Filename'`, []Target{{Name: "REQUEST_HEADERS", Selector: "X.Filename"}}},
-		{`ARGS:list[select]|ARGS_NAMES`, []Target{{Name: "ARGS", Selector: "list[select]"}, {Name: "ARGS_NAMES"}}},
-		{`ARGS:'list[select]'|ARGS_NAMES`, []Target{{Name: "ARGS", Selector: "list[select]"}, {Name: "ARGS_NAMES"}}},
-		{`ARGS:/abc[0-9]/|ARGS_NAMES`, []Target{{Name: "ARGS", Selector: "abc[0-9]", IsRegexSelector: true}, {Name: "ARGS_NAMES"}}},
-		{`"ARGS| ARGS_NAMES"`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{"\"ARGS| \\\nARGS_NAMES\"", []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}},
-		{`ARGS:/ab|cd/|ARGS_NAMES`, []Target{{Name: "ARGS", Selector: "ab|cd", IsRegexSelector: true}, {Name: "ARGS_NAMES"}}},
-		{`ARGS:'/ab|cd/'|ARGS_NAMES`, []Target{{Name: "ARGS", Selector: "ab|cd", IsRegexSelector: true}, {Name: "ARGS_NAMES"}}},
-		{`ARGS:/ab/|ARGS:/cd/`, []Target{{Name: "ARGS", Selector: "ab", IsRegexSelector: true}, {Name: "ARGS", Selector: "cd", IsRegexSelector: true}}},
+		{`ARGS|ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{`ARGS,ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{`ARGS:/helloworld/`, []Target{{Name: TargetArgs, Selector: "helloworld", IsRegexSelector: true}}},
+		{`ARGS|ARGS:/helloworld/|ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetArgs, Selector: "helloworld", IsRegexSelector: true}, {Name: TargetArgsNames}}},
+		{`ARGS,ARGS:/helloworld/,ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetArgs, Selector: "helloworld", IsRegexSelector: true}, {Name: TargetArgsNames}}},
+		{`ARGS|REQUEST_COOKIES:/S?SESS[a-f0-9]+/|ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetRequestCookies, Selector: "S?SESS[a-f0-9]+", IsRegexSelector: true}, {Name: TargetArgsNames}}},
+		{`REQUEST_HEADERS:X.Filename`, []Target{{Name: TargetRequestHeaders, Selector: "X.Filename"}}},
+		{`"ARGS|ARGS_NAMES"`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{`"ARGS,ARGS_NAMES"`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{`"ARGS:'helloworld'"`, []Target{{Name: TargetArgs, Selector: "helloworld"}}},
+		{`"ARGS:'hello world'"`, []Target{{Name: TargetArgs, Selector: "hello world"}}},
+		{`"ARGS:'hello \"world'"`, []Target{{Name: TargetArgs, Selector: `hello "world`}}},
+		{`"ARGS:'hello \\'world'"`, []Target{{Name: TargetArgs, Selector: `hello 'world`}}},
+		{`"ARGS:'/helloworld/'"`, []Target{{Name: TargetArgs, Selector: `helloworld`, IsRegexSelector: true}}},
+		{`"ARGS|ARGS:'helloworld'|ARGS_NAMES"`, []Target{{Name: TargetArgs}, {Name: TargetArgs, Selector: "helloworld"}, {Name: TargetArgsNames}}},
+		{`"ARGS,ARGS:'helloworld',ARGS_NAMES"`, []Target{{Name: TargetArgs}, {Name: TargetArgs, Selector: "helloworld"}, {Name: TargetArgsNames}}},
+		{`"REQUEST_HEADERS:X.Filename"`, []Target{{Name: TargetRequestHeaders, Selector: "X.Filename"}}},
+		{`'ARGS|ARGS_NAMES'`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{`'ARGS:\'helloworld\''`, []Target{{Name: TargetArgs, Selector: "helloworld"}}},
+		{`'ARGS:\'hello world\''`, []Target{{Name: TargetArgs, Selector: "hello world"}}},
+		{`'ARGS:\'hello "world\''`, []Target{{Name: TargetArgs, Selector: `hello "world`}}},
+		{`'ARGS:\'hello \\\'world\''`, []Target{{Name: TargetArgs, Selector: `hello 'world`}}},
+		{`'ARGS|ARGS:\'helloworld\'|ARGS_NAMES'`, []Target{{Name: TargetArgs}, {Name: TargetArgs, Selector: "helloworld"}, {Name: TargetArgsNames}}},
+		{`XML:/abc|ARGS`, []Target{{Name: TargetXML, Selector: "/abc"}, {Name: TargetArgs}}},
+		{`XML:/abc,ARGS`, []Target{{Name: TargetXML, Selector: "/abc"}, {Name: TargetArgs}}},
+		{`XML:/*|ARGS`, []Target{{Name: TargetXML, Selector: "/*"}, {Name: TargetArgs}}},
+		{`XML:/*,ARGS`, []Target{{Name: TargetXML, Selector: "/*"}, {Name: TargetArgs}}},
+		{`XML://`, []Target{{Name: TargetXML, Selector: "//"}}},
+		{`XML:/abc/`, []Target{{Name: TargetXML, Selector: "/abc/"}}},
+		{`'REQUEST_HEADERS:X.Filename'`, []Target{{Name: TargetRequestHeaders, Selector: "X.Filename"}}},
+		{`ARGS:list[select]|ARGS_NAMES`, []Target{{Name: TargetArgs, Selector: "list[select]"}, {Name: TargetArgsNames}}},
+		{`ARGS:'list[select]'|ARGS_NAMES`, []Target{{Name: TargetArgs, Selector: "list[select]"}, {Name: TargetArgsNames}}},
+		{`ARGS:/abc[0-9]/|ARGS_NAMES`, []Target{{Name: TargetArgs, Selector: "abc[0-9]", IsRegexSelector: true}, {Name: TargetArgsNames}}},
+		{`"ARGS| ARGS_NAMES"`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{"\"ARGS| \\\nARGS_NAMES\"", []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}},
+		{`ARGS:/ab|cd/|ARGS_NAMES`, []Target{{Name: TargetArgs, Selector: "ab|cd", IsRegexSelector: true}, {Name: TargetArgsNames}}},
+		{`ARGS:'/ab|cd/'|ARGS_NAMES`, []Target{{Name: TargetArgs, Selector: "ab|cd", IsRegexSelector: true}, {Name: TargetArgsNames}}},
+		{`ARGS:/ab/|ARGS:/cd/`, []Target{{Name: TargetArgs, Selector: "ab", IsRegexSelector: true}, {Name: TargetArgs, Selector: "cd", IsRegexSelector: true}}},
 	}
 
 	// Act and assert
@@ -420,11 +420,11 @@ func TestSecRuleTargetExclusions(t *testing.T) {
 		expectedExceptTargets []Target
 	}
 	tests := []testcase{
-		{`ARGS|!ARGS:aaa`, []Target{{Name: `ARGS`}}, []Target{{Name: "ARGS", Selector: "aaa"}}},
-		{`!ARGS:aaa|ARGS`, []Target{{Name: `ARGS`}}, []Target{{Name: "ARGS", Selector: "aaa"}}},
-		{`ARGS|!ARGS:aaa|ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, []Target{{Name: "ARGS", Selector: "aaa"}}},
-		{`ARGS|!ARGS:/aaa./`, []Target{{Name: "ARGS"}}, []Target{{Name: "ARGS", Selector: "aaa.", IsRegexSelector: true}}},
-		{`ARGS|!ARGS:/aaa./|ARGS_NAMES`, []Target{{Name: "ARGS"}, {Name: "ARGS_NAMES"}}, []Target{{Name: "ARGS", Selector: "aaa.", IsRegexSelector: true}}},
+		{`ARGS|!ARGS:aaa`, []Target{{Name: TargetArgs}}, []Target{{Name: TargetArgs, Selector: "aaa"}}},
+		{`!ARGS:aaa|ARGS`, []Target{{Name: TargetArgs}}, []Target{{Name: TargetArgs, Selector: "aaa"}}},
+		{`ARGS|!ARGS:aaa|ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}, []Target{{Name: TargetArgs, Selector: "aaa"}}},
+		{`ARGS|!ARGS:/aaa./`, []Target{{Name: TargetArgs}}, []Target{{Name: TargetArgs, Selector: "aaa.", IsRegexSelector: true}}},
+		{`ARGS|!ARGS:/aaa./|ARGS_NAMES`, []Target{{Name: TargetArgs}, {Name: TargetArgsNames}}, []Target{{Name: TargetArgs, Selector: "aaa.", IsRegexSelector: true}}},
 	}
 
 	// Act and assert
@@ -948,7 +948,7 @@ func TestRule942320(t *testing.T) {
 
 	r := rc.Items[0]
 
-	expectedTargets := []Target{{Name: `REQUEST_COOKIES`}, {Name: `REQUEST_COOKIES_NAMES`}, {Name: `ARGS_NAMES`}, {Name: `ARGS`}, {Name: `XML`, Selector: "/*"}}
+	expectedTargets := []Target{{Name: TargetRequestCookies}, {Name: TargetRequestCookiesNames}, {Name: TargetArgsNames}, {Name: TargetArgs}, {Name: TargetXML, Selector: "/*"}}
 	if len(r.Predicate.Targets) != len(expectedTargets) {
 		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Predicate.Targets), len(expectedTargets))
 	}
@@ -958,7 +958,7 @@ func TestRule942320(t *testing.T) {
 		}
 	}
 
-	expectedExceptTargets := []Target{{Name: `REQUEST_COOKIES`, Selector: "__utm", IsRegexSelector: true}}
+	expectedExceptTargets := []Target{{Name: TargetRequestCookies, Selector: "__utm", IsRegexSelector: true}}
 	if len(r.Predicate.ExceptTargets) != len(expectedExceptTargets) {
 		t.Fatalf("Unexpected except-targets count. Actual: %d. Expected: %d.", len(r.Predicate.ExceptTargets), len(expectedExceptTargets))
 	}
@@ -1089,7 +1089,7 @@ func TestRule901001(t *testing.T) {
 
 	r := rc.Items[0]
 
-	expectedTargets := []Target{{Name: "TX", Selector: "crs_setup_version", IsCount: true}}
+	expectedTargets := []Target{{Name: TargetTx, Selector: "crs_setup_version", IsCount: true}}
 	if len(r.Predicate.Targets) != len(expectedTargets) {
 		t.Fatalf("Unexpected targets count. Actual: %d. Expected: %d.", len(r.Predicate.Targets), len(expectedTargets))
 	}
@@ -1608,5 +1608,26 @@ func TestParseValue(t *testing.T) {
 
 	if b.Len() > 0 {
 		t.Fatalf("\n%s", b.String())
+	}
+}
+
+func TestTargetNamesStructsInSync(t *testing.T) {
+	if len(TargetNamesFromStr) != len(TargetNamesStrings)-1 {
+		t.Fatalf("len(TargetNamesFromStr) != len(targetNamesToStr)")
+	}
+
+	if int(_lastTarget) != len(TargetNamesStrings) {
+		t.Fatalf("int(_lastTarget) != len(TargetNamesStrings)")
+	}
+
+	for i, v := range TargetNamesStrings {
+		if i != int(TargetNamesFromStr[v]) {
+			t.Fatalf("TargetNamesStrings in wrong order")
+		}
+	}
+	for k, v := range TargetNamesFromStr {
+		if k != TargetNamesStrings[v] {
+			t.Fatalf("TargetNamesFromStr does not match TargetNamesStrings")
+		}
 	}
 }

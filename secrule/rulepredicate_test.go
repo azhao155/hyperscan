@@ -9,7 +9,7 @@ import (
 func TestVarCounting(t *testing.T) {
 	assert := assert.New(t)
 
-	target := Target{Name: "TX", Selector: "1", IsCount: true}
+	target := Target{Name: TargetTx, Selector: "1", IsCount: true}
 	rp := RulePredicate{
 		Targets: []Target{target},
 		Op:      Gt,
@@ -32,7 +32,7 @@ func TestVarGt(t *testing.T) {
 	// Arrange
 	assert := assert.New(t)
 
-	target := Target{Name: "TX", Selector: "somevar"}
+	target := Target{Name: TargetTx, Selector: "somevar"}
 	rp := RulePredicate{
 		Targets: []Target{target},
 		Op:      Gt,

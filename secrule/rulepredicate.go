@@ -14,18 +14,18 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 	expectedVal := rp.Val.expandMacros(perRequestEnv)
 
 	var actualVal Value
-	if strings.EqualFold(target.Name, "tx") {
+	if target.Name == TargetTx {
 		if target.IsCount {
 			// Variable counting
 			actualVal = Value{IntToken(0)}
 			if target.Selector != "" {
-				key := strings.ToLower(target.Name + "." + target.Selector)
+				key := strings.ToLower("tx." + target.Selector)
 				if perRequestEnv.hasKey(key) {
 					actualVal = Value{IntToken(1)}
 				}
 			}
 		} else {
-			key := strings.ToLower(target.Name + "." + target.Selector)
+			key := strings.ToLower("tx." + target.Selector)
 
 			varObj, ok := perRequestEnv.get(key)
 			if !ok {
@@ -36,13 +36,13 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 		}
 	} else if target.IsCount {
 		actualVal = Value{IntToken(scanResults.targetsCount[target])}
-	} else if strings.EqualFold(target.Name, "matched_var") {
+	} else if target.Name == TargetMatchedVar {
 		actualVal = perRequestEnv.matchedVar
-	} else if strings.EqualFold(target.Name, "matched_vars") {
+	} else if target.Name == TargetMatchedVars {
 		return rp.evalCollection(target, expectedVal, perRequestEnv.matchedVars, opFunc)
-	} else if strings.EqualFold(target.Name, "matched_var_name") {
+	} else if target.Name == TargetMatchedVarName {
 		actualVal = perRequestEnv.matchedVarName
-	} else if strings.EqualFold(target.Name, "matched_vars_names") {
+	} else if target.Name == TargetMatchedVarsNames {
 		return rp.evalCollection(target, expectedVal, perRequestEnv.matchedVarNames, opFunc)
 	}
 
@@ -74,13 +74,13 @@ func (rp *RulePredicate) evalCollection(target Target, expectedVal Value, values
 	return false, Match{}, nil
 }
 
-func simpleMatchFromString(data string, entireField []byte, targetName string) Match {
+func simpleMatchFromString(data string, entireField []byte, targetName TargetName) Match {
 	// TODO can this be done with fewer conversions?
 	o := []byte(data)
 	return Match{
 		Data:               o,
 		CaptureGroups:      [][]byte{o}, // TODO in the @rx case, this isn't currently actually the capture groups...
 		EntireFieldContent: entireField,
-		TargetName:         []byte(targetName),
+		TargetName:         targetName,
 	}
 }
