@@ -595,10 +595,21 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 			if err != nil {
 				return
 			}
+
+			err = r.scanField(TargetArgsGetNames, "", qval.key, results)
+			if err != nil {
+				return
+			}
+
 			scannedKey[qval.key] = true
 		}
 
 		err = r.scanField(TargetArgs, qval.key, qval.val, results)
+		if err != nil {
+			return
+		}
+
+		err = r.scanField(TargetArgsGet, qval.key, qval.val, results)
 		if err != nil {
 			return
 		}
