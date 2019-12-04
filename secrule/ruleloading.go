@@ -126,30 +126,6 @@ func filterUnsupportedRules(stmts []Statement) (filteredStmts []Statement) {
 			if rule.ID == 942330 {
 				continue
 			}
-
-			// Skip this rule until we add full support numerical operations
-			// TODO add full support numerical operations
-			if rule.ID == 920130 {
-				continue
-			}
-
-			// Skip this rule until we add full support numerical operations
-			// TODO add full support numerical operations
-			if rule.ID == 920140 {
-				continue
-			}
-
-			// Skip this rule until we add support for target REQUEST_PROTOCOL
-			// TODO add support for target REQUEST_PROTOCOL
-			if rule.ID == 920430 {
-				continue
-			}
-
-			// Skip this rule until we add support for target REQUEST_METHOD
-			// TODO add support for target REQUEST_METHOD
-			if rule.ID == 911100 {
-				continue
-			}
 		}
 
 		filteredStmts = append(filteredStmts, r)

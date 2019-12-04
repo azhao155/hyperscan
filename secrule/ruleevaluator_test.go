@@ -2389,3 +2389,159 @@ func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
 	assert.Equal(waf.Block, decision)
 	assert.Equal(1, cbCalled)
 }
+
+func TestRuleEvaluatorLateScanRequestLineRightSide(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=helloworld")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestLine}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: TargetRequestLine}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	sr.requestLine = []byte("GET /a%20bc.php?arg1=helloworld HTTP/1.1")
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+	em := newEnvironment(sr)
+	re := NewRuleEvaluator()
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanRequestMethodRightSide(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=HELLOWORLDMETHOD")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestMethod}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: TargetRequestLine}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	sr.requestMethod = []byte("HELLOWORLDMETHOD")
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+	em := newEnvironment(sr)
+	re := NewRuleEvaluator()
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanRequestProtocolRightSide(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=HTTP/1.1")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestProtocol}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: TargetRequestLine}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	sr.requestProtocol = []byte("HTTP/1.1")
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+	em := newEnvironment(sr)
+	re := NewRuleEvaluator()
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanHostHeaderRightSide(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.myvar=example.com")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "host"}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: TargetRequestLine}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	sr.hostHeader = []byte("example.com")
+	var cbCalled int
+	cb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
+		cbCalled++
+	}
+	em := newEnvironment(sr)
+	re := NewRuleEvaluator()
+
+	// Act
+	decision, _, err := re.Process(logger, em, rules, sr, cb)
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}

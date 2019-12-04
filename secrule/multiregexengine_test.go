@@ -36,6 +36,9 @@ func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
 						{"arg2", "arg2", []byte("arg2")},
 						{"a%xxb", "a%xxb", []byte("a%xxb")},
 						{"^$", "", []byte("")},
+						{"^GET$", "GET", []byte("GET")},
+						{"HTTP", "HTTP/1.1", []byte("HTTP")},
+						{"^example\\.com$", "example.com", []byte("example.com")},
 					}
 
 					r := []waf.MultiRegexEngineMatch{}

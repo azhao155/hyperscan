@@ -44,6 +44,14 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 		actualVal = perRequestEnv.matchedVarName
 	} else if target.Name == TargetMatchedVarsNames {
 		return rp.evalCollection(target, expectedVal, perRequestEnv.matchedVarNames, opFunc)
+	} else if target.Name == TargetRequestLine {
+		actualVal = perRequestEnv.requestLine
+	} else if target.Name == TargetRequestMethod {
+		actualVal = perRequestEnv.requestMethod
+	} else if target.Name == TargetRequestProtocol {
+		actualVal = perRequestEnv.requestProtocol
+	} else if target.Name == TargetRequestHeaders && strings.EqualFold(target.Selector, "host") {
+		actualVal = perRequestEnv.hostHeader
 	}
 
 	result, output, err := opFunc(actualVal, expectedVal)

@@ -2,6 +2,7 @@ package secrule
 
 import (
 	"azwaf/waf"
+	"bytes"
 	"io"
 	"regexp"
 	"testing"
@@ -673,6 +674,155 @@ func TestReqScannerRequestLine(t *testing.T) {
 	}
 	if string(m[0].Data) != "a%20bc" {
 		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
+	}
+
+	// Special case for REQUEST_LINE
+	if !bytes.Equal(sr.requestLine, []byte("GET /a%20bc.php?arg1=something HTTP/1.1")) {
+		t.Fatalf("Unexpected ScanResults.requestLine: %s", sr.requestLine)
+	}
+}
+
+func TestReqScannerRequestMethod(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestMethod}}, Op: Streq, Val: Value{StringToken("GET")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestMethod})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "GET" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
+	}
+
+	// Special case for REQUEST_METHOD
+	if !bytes.Equal(sr.requestMethod, []byte("GET")) {
+		t.Fatalf("Unexpected ScanResults.requestMethod: %s", sr.requestMethod)
+	}
+}
+
+func TestReqScannerRequestProtocol(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestProtocol}}, Op: Rx, Val: Value{StringToken("HTTP")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/"}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestProtocol})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "HTTP" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
+	}
+
+	// Special case for REQUEST_PROTOCOL
+	if !bytes.Equal(sr.requestProtocol, []byte("HTTP/1.1")) {
+		t.Fatalf("Unexpected ScanResults.requestProtocol: %s", sr.requestMethod)
+	}
+}
+
+func TestReqScannerHostHeader(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "Host"}}, Op: Streq, Val: Value{StringToken("example.com")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/", headers: []waf.HeaderPair{&mockHeaderPair{k: "Host", v: "example.com"}}}
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	sr, err2 := rse.ScanHeaders(req)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	m, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders, Selector: "Host"})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+	if len(m) != 1 {
+		t.Fatalf("Unexpected number of matches: %v", len(m))
+	}
+	if string(m[0].Data) != "example.com" {
+		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
+	}
+
+	// Special case for REQUEST_HEADERS:Host
+	if !bytes.Equal(sr.hostHeader, []byte("example.com")) {
+		t.Fatalf("Unexpected ScanResults.hostHeader: %s", sr.requestMethod)
 	}
 }
 
