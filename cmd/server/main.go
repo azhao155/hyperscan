@@ -59,8 +59,8 @@ func parseLengthLimitsArgOrDefault(logger zerolog.Logger, limitsArg string) (len
 
 	if limitsArg != "" {
 		nn := strings.Split(limitsArg, ",")
-		if len(nn) != 3 {
-			logger.Fatal().Msg("The limits arg must contain exactly 3 comma separated integer values")
+		if len(nn) != 4 {
+			logger.Fatal().Msg("The limits arg must contain exactly 4 comma separated integer values")
 		}
 
 		n, err := strconv.Atoi(nn[0])
@@ -80,6 +80,12 @@ func parseLengthLimitsArgOrDefault(logger zerolog.Logger, limitsArg string) (len
 			logger.Fatal().Err(err).Msg("Error while parsing limits arg 3")
 		}
 		lengthLimits.MaxLengthTotal = n
+
+		n, err = strconv.Atoi(nn[3])
+		if err != nil {
+			logger.Fatal().Err(err).Msg("Error while parsing limits arg 4")
+		}
+		lengthLimits.MaxLengthTotalFullRawRequestBody = n
 	}
 
 	return
