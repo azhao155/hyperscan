@@ -24,42 +24,71 @@ func NewRuleEvaluator() RuleEvaluator {
 }
 
 func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
-	// Evaluate each phase, but stop if there was a disruptive action.
-	for phase := 1; phase <= 4; phase++ {
+
+	// Evaluate each of secrule-lang's five phases, but stop if there was a disruptive action.
+	for phase := 1; phase <= 5; phase++ {
 		logger.Debug().Int("phase", phase).Msg("Starting rule evaluation phase")
+
+		p := phaseEvaluation{
+			logger:        logger,
+			phase:         phase,
+			perRequestEnv: perRequestEnv,
+			statements:    statements,
+			scanResults:   scanResults,
+			triggeredCb:   triggeredCb,
+		}
+
+		if phase == 5 {
+			// Phase 5 is special, because it cannot perform any disruptive actions.
+			p.processPhase()
+			continue
+		}
+
 		var phaseDisruptive = false
-		decision, statusCode, phaseDisruptive = r.processPhase(logger, phase, perRequestEnv, statements, scanResults, triggeredCb)
+		decision, statusCode, phaseDisruptive = p.processPhase()
 		if phaseDisruptive {
 			break
 		}
 	}
 
-	// Phase 5 is special, because it cannot perform any disruptive actions.
-	logger.Debug().Int("phase", 5).Msg("Starting rule evaluation phase")
-	r.processPhase(logger, 5, perRequestEnv, statements, scanResults, triggeredCb)
-
 	return
 }
 
-func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, phaseDisruptive bool) {
-	var skipAfter string
+type phaseEvaluation struct {
+	phase               int
+	logger              zerolog.Logger
+	perRequestEnv       environment
+	statements          []Statement
+	scanResults         *ScanResults
+	triggeredCb         RuleEvaluatorTriggeredCb
+	cleanUpCapturedVars func()
+	skipAfter           string
+	stmtID              int
+	shouldLog           bool
+	msg                 Value
+	logData             Value
+	decision            waf.Decision
+	statusCode          int
+	phaseDisruptive     bool
+}
 
-	var cleanUpCapturedVars func()
+func (p *phaseEvaluation) processPhase() (decision waf.Decision, statusCode int, phaseDisruptive bool) {
+	p.decision = waf.Pass
+	p.statusCode = 200
+	p.phaseDisruptive = false
+
 	defer func() {
-		if cleanUpCapturedVars != nil {
-			cleanUpCapturedVars()
+		if p.cleanUpCapturedVars != nil {
+			p.cleanUpCapturedVars()
 		}
 	}()
 
-	decision = waf.Pass
-	statusCode = 200
-	phaseDisruptive = false
-	for _, stmt := range statements {
+	for _, stmt := range p.statements {
 		// If we are currently looking for a skipAfter marker, then keep skipping until we find it.
-		if skipAfter != "" {
+		if p.skipAfter != "" {
 			if m, ok := stmt.(*Marker); ok {
-				if m.Label == skipAfter {
-					skipAfter = ""
+				if m.Label == p.skipAfter {
+					p.skipAfter = ""
 				}
 			}
 
@@ -67,110 +96,32 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 		}
 
 		// Are we in the right phase for this statement?
-		if checkPhaseShouldContinue(phase, stmt) {
+		if checkPhaseShouldContinue(p.phase, stmt) {
 			continue
 		}
 
-		var stmtID int
-		shouldLog := true
-		var msg, logData Value
-
-		// This runs the actions that need to run after each rule item had a target that triggered
-		runActions := func(actions []Action, match Match) {
-			// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
-
-			for _, action := range actions {
-				switch action := action.(type) {
-
-				case *SetVarAction:
-					err := executeSetVarAction(action, perRequestEnv)
-					if err != nil {
-						logger.Warn().Int("ruleID", stmtID).Err(err).Msg("Error executing setVar action")
-					}
-
-				case *NoLogAction:
-					shouldLog = false
-
-				case *LogAction:
-					shouldLog = true
-
-				case *CaptureAction:
-					txVarCount := len(match.CaptureGroups)
-					if txVarCount > 10 {
-						txVarCount = 10
-					}
-
-					for i := 0; i < txVarCount; i++ {
-						var t Token = StringToken(match.CaptureGroups[i])
-						if n, err := strconv.Atoi(string(match.CaptureGroups[i])); err == nil {
-							t = IntToken(n)
-						}
-
-						perRequestEnv.set("tx."+strconv.Itoa(i), Value{t})
-					}
-
-					cleanUpCapturedVars = func() {
-						// Clean up tx.1, tx.2, etc., if they were set
-						for i := 0; i < txVarCount; i++ {
-							perRequestEnv.delete("tx." + strconv.Itoa(i))
-						}
-						cleanUpCapturedVars = nil
-					}
-
-				case *CtlAction:
-					perRequestEnv.set(action.setting, action.value.expandMacros(perRequestEnv))
-				}
-			}
-		}
-
-		// This runs the actions that need to run after all rule items have triggered
-		runActionsAfterAllRuleItemsTriggered := func(actions []Action) {
-			logger.Debug().Int("ruleID", stmtID).Msg("Rule triggered")
-
-			// Some actions are to be run after all rule items in the chain triggered.
-			for _, action := range actions {
-				switch action := action.(type) {
-
-				case *SkipAfterAction:
-					skipAfter = action.Label
-					logger.Debug().Str("label", skipAfter).Msg("Skipping to marker")
-
-				case *MsgAction:
-					msg = action.Msg
-
-				case *LogDataAction:
-					logData = action.LogData
-
-				case *AllowAction:
-					phaseDisruptive = true
-					decision = waf.Allow
-
-				case *DenyAction:
-					phaseDisruptive = true
-					decision = waf.Block
-					statusCode = 403
-
-				}
-			}
-		}
+		p.shouldLog = true
+		p.stmtID = 0
+		p.msg = nil
+		p.logData = nil
 
 		switch stmt := stmt.(type) {
 		case *Rule:
-			stmtID = stmt.ID
+			p.stmtID = stmt.ID
 
-			perRequestEnv.resetMatchesCollections()
+			p.perRequestEnv.resetMatchesCollections()
 
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				anyRuleItemTriggered := false
 				for _, target := range ruleItem.Predicate.Targets {
-					triggered, matches, err := evalPredicate(perRequestEnv, ruleItem, target, scanResults, stmt, curRuleItemIdx)
+					triggered, matches, err := evalPredicate(p.perRequestEnv, ruleItem, target, p.scanResults, stmt, curRuleItemIdx)
 					if err != nil {
-						logger.Warn().Int("ruleID", stmtID).Int("ruleItemIdx", curRuleItemIdx).Err(err).Msg("Error evaluating predicate")
+						p.logger.Warn().Int("ruleID", p.stmtID).Int("ruleItemIdx", curRuleItemIdx).Err(err).Msg("Error evaluating predicate")
 					}
 
 					if triggered {
 						// Update the environment matched_var, matched_vars, etc., for any rule that may need it during late scanning.
-						perRequestEnv.updateMatches(matches)
+						p.perRequestEnv.updateMatches(matches)
 
 						var latestMatch Match
 						if len(matches) > 0 {
@@ -178,20 +129,20 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 						}
 
 						// Some actions are to be run after each rule item.
-						runActions(ruleItem.Actions, latestMatch)
+						p.runActions(ruleItem.Actions, latestMatch)
 
 						// Some actions are only to be run when all rule items triggered.
 						if curRuleItemIdx == len(stmt.Items)-1 {
 							for _, r := range stmt.Items {
-								runActionsAfterAllRuleItemsTriggered(r.Actions)
+								p.runActionsAfterAllRuleItemsTriggered(r.Actions)
 							}
 
-							if shouldLog {
-								triggeredCb(stmt, phaseDisruptive, msg.expandMacros(perRequestEnv).string(), logData.expandMacros(perRequestEnv).string())
+							if p.shouldLog {
+								p.triggeredCb(stmt, p.phaseDisruptive, p.msg.expandMacros(p.perRequestEnv).string(), p.logData.expandMacros(p.perRequestEnv).string())
 							}
 
-							if phaseDisruptive {
-								return
+							if p.phaseDisruptive {
+								return p.decision, p.statusCode, p.phaseDisruptive
 							}
 						}
 
@@ -205,25 +156,104 @@ func (r *ruleEvaluatorImpl) processPhase(logger zerolog.Logger, phase int, perRe
 			}
 
 		case *ActionStmt:
-			stmtID = stmt.ID
-			runActions(stmt.Actions, Match{})
-			runActionsAfterAllRuleItemsTriggered(stmt.Actions)
+			p.stmtID = stmt.ID
+			p.runActions(stmt.Actions, Match{})
+			p.runActionsAfterAllRuleItemsTriggered(stmt.Actions)
 
-			if shouldLog {
-				triggeredCb(stmt, phaseDisruptive, msg.expandMacros(perRequestEnv).string(), logData.expandMacros(perRequestEnv).string())
+			if p.shouldLog {
+				p.triggeredCb(stmt, p.phaseDisruptive, p.msg.expandMacros(p.perRequestEnv).string(), p.logData.expandMacros(p.perRequestEnv).string())
 			}
 
-			if phaseDisruptive {
-				return
+			if p.phaseDisruptive {
+				return p.decision, p.statusCode, p.phaseDisruptive
 			}
 		}
 
-		if cleanUpCapturedVars != nil {
-			cleanUpCapturedVars()
+		if p.cleanUpCapturedVars != nil {
+			p.cleanUpCapturedVars()
 		}
 	}
 
-	return
+	return p.decision, p.statusCode, p.phaseDisruptive
+}
+
+// This runs the actions that need to run after each rule item had a target that triggered
+func (p *phaseEvaluation) runActions(actions []Action, match Match) {
+	// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
+
+	for _, action := range actions {
+		switch action := action.(type) {
+
+		case *SetVarAction:
+			err := executeSetVarAction(action, p.perRequestEnv)
+			if err != nil {
+				p.logger.Warn().Int("ruleID", p.stmtID).Err(err).Msg("Error executing setVar action")
+			}
+
+		case *NoLogAction:
+			p.shouldLog = false
+
+		case *LogAction:
+			p.shouldLog = true
+
+		case *CaptureAction:
+			txVarCount := len(match.CaptureGroups)
+			if txVarCount > 10 {
+				txVarCount = 10
+			}
+
+			for i := 0; i < txVarCount; i++ {
+				var t Token = StringToken(match.CaptureGroups[i])
+				if n, err := strconv.Atoi(string(match.CaptureGroups[i])); err == nil {
+					t = IntToken(n)
+				}
+
+				p.perRequestEnv.set("tx."+strconv.Itoa(i), Value{t})
+			}
+
+			p.cleanUpCapturedVars = func() {
+				// Clean up tx.1, tx.2, etc., if they were set
+				for i := 0; i < txVarCount; i++ {
+					p.perRequestEnv.delete("tx." + strconv.Itoa(i))
+				}
+				p.cleanUpCapturedVars = nil
+			}
+
+		case *CtlAction:
+			p.perRequestEnv.set(action.setting, action.value.expandMacros(p.perRequestEnv))
+		}
+	}
+}
+
+// This runs the actions that need to run after all rule items have triggered
+func (p *phaseEvaluation) runActionsAfterAllRuleItemsTriggered(actions []Action) {
+	p.logger.Debug().Int("ruleID", p.stmtID).Msg("Rule triggered")
+
+	// Some actions are to be run after all rule items in the chain triggered.
+	for _, action := range actions {
+		switch action := action.(type) {
+
+		case *SkipAfterAction:
+			p.skipAfter = action.Label
+			p.logger.Debug().Str("label", p.skipAfter).Msg("Skipping to marker")
+
+		case *MsgAction:
+			p.msg = action.Msg
+
+		case *LogDataAction:
+			p.logData = action.LogData
+
+		case *AllowAction:
+			p.phaseDisruptive = true
+			p.decision = waf.Allow
+
+		case *DenyAction:
+			p.phaseDisruptive = true
+			p.decision = waf.Block
+			p.statusCode = 403
+
+		}
+	}
 }
 
 func checkPhaseShouldContinue(phase int, stmt Statement) bool {
