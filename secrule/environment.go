@@ -17,13 +17,9 @@ type environment struct {
 	// TODO support other collections besides TX
 }
 
-func newEnvironment(scanResults *ScanResults) environment {
-	return environment{
-		txVars:          make(map[string]Value),
-		requestLine:     Value{StringToken(scanResults.requestLine)},
-		requestMethod:   Value{StringToken(scanResults.requestMethod)},
-		requestProtocol: Value{StringToken(scanResults.requestProtocol)},
-		hostHeader:      Value{StringToken(scanResults.hostHeader)},
+func newEnvironment() *environment {
+	return &environment{
+		txVars: make(map[string]Value),
 	}
 }
 

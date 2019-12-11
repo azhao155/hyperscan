@@ -77,7 +77,7 @@ func TestWafServerEvalRequest(t *testing.T) {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.ScanBodyField: %v", msrev.scanBodyFieldCalled)
 	}
 
-	if msrev.evalRulesCalled != 1 {
+	if msrev.evalRulesCalled != 5 {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.EvalRules: %v", msrev.evalRulesCalled)
 	}
 
@@ -290,7 +290,7 @@ func (m *mockSecRuleEvaluation) ScanBodyField(contentType ContentType, fieldName
 	m.scanBodyFieldCalled++
 	return
 }
-func (m *mockSecRuleEvaluation) EvalRules() Decision {
+func (m *mockSecRuleEvaluation) EvalRules(phase int) Decision {
 	m.evalRulesCalled++
 	return m.decision
 }
@@ -387,7 +387,7 @@ func (r *mockResultsLogger) BodyParseError(err error) {
 	r.bodyParseErrorCalled++
 }
 
-func (r *mockResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID RuleSetID) {
+func (r *mockResultsLogger) SecRuleTriggered(ruleID int, decision Decision, msg string, logData string, ruleSetID RuleSetID) {
 }
 
 func (r *mockResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []ResultsLoggerCustomRulesMatchedConditions) {

@@ -103,7 +103,7 @@ func TestSetvarActionExecuteAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	perReqState := newEnvironment(&ScanResults{})
+	perReqState := newEnvironment()
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
 	}
@@ -125,7 +125,7 @@ func TestSetvarActionExecuteIncrement(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	perReqState := newEnvironment(&ScanResults{})
+	perReqState := newEnvironment()
 	perReqState.set("ip.reput_block_flag", Value{IntToken(1)})
 
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
@@ -150,7 +150,7 @@ func TestSetvarActionExecuteDecrement(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	perReqState := newEnvironment(&ScanResults{})
+	perReqState := newEnvironment()
 	perReqState.set("ip.reput_block_flag", Value{IntToken(5)})
 
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
@@ -174,7 +174,7 @@ func TestSetvarActionExecuteDelete(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	perReqState := newEnvironment(&ScanResults{})
+	perReqState := newEnvironment()
 	perReqState.set("ip.reput_block_flag", Value{IntToken(5)})
 
 	if err := executeSetVarAction(&sv, perReqState); err != nil {
@@ -194,7 +194,7 @@ func TestSetvarActionExecuteExpandVars(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	perReqState := newEnvironment(&ScanResults{})
+	perReqState := newEnvironment()
 	perReqState.set("tx.anomaly_score", Value{IntToken(15)})
 	perReqState.set("tx.critical_anomaly_score", Value{IntToken(5)})
 

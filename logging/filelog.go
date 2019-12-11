@@ -163,11 +163,25 @@ var secRuleSetInfos = map[waf.RuleSetID]secRuleSetInfo{
 }
 
 // SecRuleTriggered is to be called when a SecRule was triggered.
-func (l *filelogResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID waf.RuleSetID) {
+func (l *filelogResultsLogger) SecRuleTriggered(ruleID int, decision waf.Decision, msg string, logData string, ruleSetID waf.RuleSetID) {
 	rsi := secRuleSetInfos[ruleSetID]
 
-	if action == "Blocked" && l.isDetectionMode {
-		action = "Detected"
+	var action string
+	switch decision {
+	case waf.Pass:
+		action = "Matched"
+	case waf.Block:
+		if l.isDetectionMode {
+			action = "Detected"
+		} else {
+			action = "Blocked"
+		}
+	case waf.Allow:
+		if l.isDetectionMode {
+			action = "Detected"
+		} else {
+			action = "Allowed"
+		}
 	}
 
 	lg := &customerFirewallLogEntry{

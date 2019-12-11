@@ -19,7 +19,7 @@ func TestSecRuleTriggered(t *testing.T) {
 	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 
 	// Act
-	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+	logger.SecRuleTriggered(11, waf.Pass, "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
 	if fileSystem.openCalledMap[Path+FileName] != 1 {
@@ -65,7 +65,7 @@ func TestSecRuleTriggeredBlocked(t *testing.T) {
 	logger, fileSystem, _ := arrangeTestResultsLogger(t, false)
 
 	// Act
-	logger.SecRuleTriggered(11, "Blocked", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+	logger.SecRuleTriggered(11, waf.Block, "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
 	logLine := fileSystem.Get(Path + FileName)
@@ -108,7 +108,7 @@ func TestLogFileReopen(t *testing.T) {
 
 	// Act
 	reopenFileCh <- true
-	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+	logger.SecRuleTriggered(11, waf.Pass, "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
 	if fileSystem.openCalledMap[Path+FileName] != 2 {
@@ -154,7 +154,7 @@ func TestSecRuleDetectionModeTriggered(t *testing.T) {
 	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 
 	// Act
-	logger.SecRuleTriggered(11, "Matched", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+	logger.SecRuleTriggered(11, waf.Pass, "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
 	logLine := fileSystem.Get(Path + FileName)
@@ -196,7 +196,7 @@ func TestSecRuleDetectionModeBlocked(t *testing.T) {
 	logger, fileSystem, _ := arrangeTestResultsLogger(t, true)
 
 	// Act
-	logger.SecRuleTriggered(11, "Blocked", "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
+	logger.SecRuleTriggered(11, waf.Block, "abc", "bce", waf.RuleSetID("OWASP CRS 3.0"))
 
 	// Assert
 	logLine := fileSystem.Get(Path + FileName)

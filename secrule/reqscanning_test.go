@@ -16,12 +16,13 @@ func TestReqScanner1(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -199,12 +200,13 @@ func TestReqScannerBodyField(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 	err3 := rse.ScanBodyField(waf.URLEncodedContent, "arg1", "aaaaaaabccc", sr)
 
 	// Assert
@@ -247,12 +249,13 @@ func TestReqScannerBodyFieldXML(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 	err3 := rse.ScanBodyField(waf.XMLContent, "", "aaaaaaabccc", sr)
 
 	// Assert
@@ -284,12 +287,13 @@ func TestReqScannerBodyFieldJSON(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 	err3 := rse.ScanBodyField(waf.JSONContent, "", "aaaaaaabccc", sr)
 
 	// Assert
@@ -331,12 +335,13 @@ func TestReqScannerSimpleSelectorUrl(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php?myarg=aaaaaaabccc"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -373,12 +378,13 @@ func TestReqScannerSimpleSelectorBody(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 	err3 := rse.ScanBodyField(waf.URLEncodedContent, "myarg", "aaaaaaabccc", sr)
 
 	// Assert
@@ -420,12 +426,13 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
 	req.headers = append(req.headers, &mockHeaderPair{k: "My-Header", v: "aaaaaaabccc"})
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -462,12 +469,13 @@ func TestReqScannerFilename(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/p1/a%20bc.php?arg1=something"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -505,12 +513,13 @@ func TestReqScannerFilename2(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -556,11 +565,13 @@ func TestReqScannerBasename(t *testing.T) {
 	}
 
 	for _, req := range reqs {
+		sr := NewScanResults()
+
 		// Act
 		rs, err1 := rsf.NewReqScanner(rules)
 		s, _ := rs.NewScratchSpace()
 		rse := rs.NewReqScannerEvaluation(s)
-		sr, err2 := rse.ScanHeaders(req)
+		err2 := rse.ScanHeaders(req, sr)
 
 		// Assert
 		if err1 != nil {
@@ -607,11 +618,13 @@ func TestReqScannerBasenameEmpty(t *testing.T) {
 	}
 
 	for _, req := range reqs {
+		sr := NewScanResults()
+
 		// Act
 		rs, err1 := rsf.NewReqScanner(rules)
 		s, _ := rs.NewScratchSpace()
 		rse := rs.NewReqScannerEvaluation(s)
-		sr, err2 := rse.ScanHeaders(req)
+		err2 := rse.ScanHeaders(req, sr)
 
 		// Assert
 		if err1 != nil {
@@ -650,12 +663,13 @@ func TestReqScannerRequestLine(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/a%20bc.php?arg1=something"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -698,12 +712,13 @@ func TestReqScannerRequestMethod(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -746,12 +761,13 @@ func TestReqScannerRequestProtocol(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -799,7 +815,8 @@ func TestReqScannerHostHeader(t *testing.T) {
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	sr := NewScanResults()
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -843,12 +860,13 @@ func TestReqCookies(t *testing.T) {
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
 	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1=aaaaaaabccc"})
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -885,7 +903,8 @@ func TestReqCookiesSelectors(t *testing.T) {
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	sr := NewScanResults()
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -921,12 +940,13 @@ func TestReqCookiesRegexSelector(t *testing.T) {
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
 	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "zzzSSESS1a2bzzz=aaaaaaabccc"})
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -971,12 +991,13 @@ func TestReqCookiesRegexSelectorMultipleSameTransformations(t *testing.T) {
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
 	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "helloworldddddddd=aaaaaaabccc"})
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1026,12 +1047,13 @@ func TestReqCookiesRegexSelectorMultipleDifferentTranformations(t *testing.T) {
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php"}
 	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "helloworldddddddd=aaaaaaabccc"})
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1080,7 +1102,8 @@ func TestReqCookiesRegexSelectorMultipleTargets(t *testing.T) {
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	sr := NewScanResults()
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1110,12 +1133,13 @@ func TestReqScannerMultiArgs(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc&arg2=xxyzz"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1159,7 +1183,8 @@ func TestReqScannerMultiArgsMultiMatch(t *testing.T) {
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	sr := NewScanResults()
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1208,12 +1233,13 @@ func TestReqScannerMultiArgsNoVals(t *testing.T) {
 			},
 		}}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=&arg2="}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1270,12 +1296,13 @@ func TestReqScannerMultiArgsNoVals2(t *testing.T) {
 			},
 		}}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1&arg2"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1315,12 +1342,13 @@ func TestReqScannerMultiArgsSemicolonDelimiterNegative(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc;something=xxyzz"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1369,12 +1397,13 @@ func TestReqScannerTolerateInvalidUrlEncoding(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=a%xxb"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1409,7 +1438,8 @@ func TestDetectXssOperator(t *testing.T) {
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	sr := NewScanResults()
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -1476,13 +1506,15 @@ func TestValidateURLEncodingOperator(t *testing.T) {
 	}
 	req1 := &mockWafHTTPRequest{uri: "/?a=x%21x"}
 	req2 := &mockWafHTTPRequest{uri: "/?a=x%ggx"}
+	sr1 := NewScanResults()
+	sr2 := NewScanResults()
 
 	// Act
 	rs, errReqScan := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr1, err1 := rse.ScanHeaders(req1)
-	sr2, err2 := rse.ScanHeaders(req2)
+	err1 := rse.ScanHeaders(req1, sr1)
+	err2 := rse.ScanHeaders(req2, sr2)
 
 	// Assert
 	if errReqScan != nil {
@@ -1520,12 +1552,13 @@ func TestReqScannerCount(t *testing.T) {
 	}
 
 	req := &mockWafHTTPRequest{uri: "/hello.php?hello=a&hello=b&world=c"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 	err3 := rse.ScanBodyField(waf.URLEncodedContent, "bodyarg1", "d", sr)
 
 	// Assert
@@ -1560,12 +1593,13 @@ func TestReqScannerCountWithSelector(t *testing.T) {
 		},
 	}
 	req := &mockWafHTTPRequest{uri: "/hello.php?hello=a&hello=b"}
+	sr := NewScanResults()
 
 	// Act
 	rs, err1 := rsf.NewReqScanner(rules)
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err2 := rse.ScanHeaders(req)
+	err2 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {

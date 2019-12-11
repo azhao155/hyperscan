@@ -16,7 +16,7 @@ type mockResultsLogger struct {
 	ruleMatched map[int]bool
 }
 
-func (l *mockResultsLogger) SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID waf.RuleSetID) {
+func (l *mockResultsLogger) SecRuleTriggered(ruleID int, decision waf.Decision, msg string, logData string, ruleSetID waf.RuleSetID) {
 	l.ruleMatched[ruleID] = true
 	return
 }

@@ -17,7 +17,7 @@ type SecRuleEngine interface {
 type SecRuleEvaluation interface {
 	ScanHeaders() error
 	ScanBodyField(contentType ContentType, fieldName string, data string) error
-	EvalRules() (wafDecision Decision)
+	EvalRules(phase int) (wafDecision Decision)
 	Close()
 }
 
@@ -26,5 +26,5 @@ type RuleSetID string
 
 // SecRuleResultsLogger is where the SecRule engine writes the high level customer facing results.
 type SecRuleResultsLogger interface {
-	SecRuleTriggered(ruleID int, action string, msg string, logData string, ruleSetID RuleSetID)
+	SecRuleTriggered(ruleID int, decision Decision, msg string, logData string, ruleSetID RuleSetID)
 }

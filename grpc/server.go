@@ -28,7 +28,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
+	ref := secrule.NewRuleEvaluatorFactory()
 
 	// Initialize a WAF server, either via config manager, or standalone just with a SecRule engine
 	var wafServer waf.Server
@@ -41,7 +41,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 			logger.Fatal().Err(err).Msg("Error while loading rules")
 		}
 
-		sre, err := secrule.NewEngine(stmts, rsf, re, "") // TODO some sensible ruleSetID?
+		sre, err := secrule.NewEngine(stmts, rsf, ref, "") // TODO some sensible ruleSetID?
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 		}
@@ -61,7 +61,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 		geoDB := geodb.NewGeoDB(logger, gfs)
 		cref := customrule.NewEngineFactory(mref, geoDB)
 		rl := secrule.NewCrsRuleLoader(p, rlfs)
-		sref := secrule.NewEngineFactory(logger, rl, rsf, re)
+		sref := secrule.NewEngineFactory(logger, rl, rsf, ref)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
 		wafServer, err = waf.NewServer(logger, cm, c, rlf, sref, rbp, cref, ire, geoDB)

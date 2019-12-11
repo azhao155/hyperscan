@@ -10,54 +10,16 @@ import (
 
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
-	Process(logger zerolog.Logger, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error)
+	ProcessPhase(phase int) (decision waf.Decision)
 }
 
 // RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
-type RuleEvaluatorTriggeredCb = func(stmt Statement, isDisruptive bool, msg string, logData string)
+type RuleEvaluatorTriggeredCb = func(stmt Statement, decision waf.Decision, msg string, logData string)
 
-type ruleEvaluatorImpl struct{}
-
-// NewRuleEvaluator creates a new rule evaluator
-func NewRuleEvaluator() RuleEvaluator {
-	return &ruleEvaluatorImpl{}
-}
-
-func (r *ruleEvaluatorImpl) Process(logger zerolog.Logger, perRequestEnv environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) (decision waf.Decision, statusCode int, err error) {
-
-	// Evaluate each of secrule-lang's five phases, but stop if there was a disruptive action.
-	for phase := 1; phase <= 5; phase++ {
-		logger.Debug().Int("phase", phase).Msg("Starting rule evaluation phase")
-
-		p := phaseEvaluation{
-			logger:        logger,
-			phase:         phase,
-			perRequestEnv: perRequestEnv,
-			statements:    statements,
-			scanResults:   scanResults,
-			triggeredCb:   triggeredCb,
-		}
-
-		if phase == 5 {
-			// Phase 5 is special, because it cannot perform any disruptive actions.
-			p.processPhase()
-			continue
-		}
-
-		var phaseDisruptive = false
-		decision, statusCode, phaseDisruptive = p.processPhase()
-		if phaseDisruptive {
-			break
-		}
-	}
-
-	return
-}
-
-type phaseEvaluation struct {
+type ruleEvaluatorImpl struct {
 	phase               int
 	logger              zerolog.Logger
-	perRequestEnv       environment
+	perRequestEnv       *environment
 	statements          []Statement
 	scanResults         *ScanResults
 	triggeredCb         RuleEvaluatorTriggeredCb
@@ -68,27 +30,26 @@ type phaseEvaluation struct {
 	msg                 Value
 	logData             Value
 	decision            waf.Decision
-	statusCode          int
-	phaseDisruptive     bool
 }
 
-func (p *phaseEvaluation) processPhase() (decision waf.Decision, statusCode int, phaseDisruptive bool) {
-	p.decision = waf.Pass
-	p.statusCode = 200
-	p.phaseDisruptive = false
+func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
+	re.phase = phase
+	re.decision = waf.Pass
+	re.cleanUpCapturedVars = nil
+	re.skipAfter = ""
 
 	defer func() {
-		if p.cleanUpCapturedVars != nil {
-			p.cleanUpCapturedVars()
+		if re.cleanUpCapturedVars != nil {
+			re.cleanUpCapturedVars()
 		}
 	}()
 
-	for _, stmt := range p.statements {
+	for _, stmt := range re.statements {
 		// If we are currently looking for a skipAfter marker, then keep skipping until we find it.
-		if p.skipAfter != "" {
+		if re.skipAfter != "" {
 			if m, ok := stmt.(*Marker); ok {
-				if m.Label == p.skipAfter {
-					p.skipAfter = ""
+				if m.Label == re.skipAfter {
+					re.skipAfter = ""
 				}
 			}
 
@@ -96,32 +57,32 @@ func (p *phaseEvaluation) processPhase() (decision waf.Decision, statusCode int,
 		}
 
 		// Are we in the right phase for this statement?
-		if checkPhaseShouldContinue(p.phase, stmt) {
+		if checkPhaseShouldContinue(re.phase, stmt) {
 			continue
 		}
 
-		p.shouldLog = true
-		p.stmtID = 0
-		p.msg = nil
-		p.logData = nil
+		re.shouldLog = true
+		re.stmtID = 0
+		re.msg = nil
+		re.logData = nil
 
 		switch stmt := stmt.(type) {
 		case *Rule:
-			p.stmtID = stmt.ID
+			re.stmtID = stmt.ID
 
-			p.perRequestEnv.resetMatchesCollections()
+			re.perRequestEnv.resetMatchesCollections()
 
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				anyRuleItemTriggered := false
 				for _, target := range ruleItem.Predicate.Targets {
-					triggered, matches, err := evalPredicate(p.perRequestEnv, ruleItem, target, p.scanResults, stmt, curRuleItemIdx)
+					triggered, matches, err := evalPredicate(re.perRequestEnv, ruleItem, target, re.scanResults, stmt, curRuleItemIdx)
 					if err != nil {
-						p.logger.Warn().Int("ruleID", p.stmtID).Int("ruleItemIdx", curRuleItemIdx).Err(err).Msg("Error evaluating predicate")
+						re.logger.Warn().Int("ruleID", re.stmtID).Int("ruleItemIdx", curRuleItemIdx).Err(err).Msg("Error evaluating predicate")
 					}
 
 					if triggered {
 						// Update the environment matched_var, matched_vars, etc., for any rule that may need it during late scanning.
-						p.perRequestEnv.updateMatches(matches)
+						re.perRequestEnv.updateMatches(matches)
 
 						var latestMatch Match
 						if len(matches) > 0 {
@@ -129,20 +90,24 @@ func (p *phaseEvaluation) processPhase() (decision waf.Decision, statusCode int,
 						}
 
 						// Some actions are to be run after each rule item.
-						p.runActions(ruleItem.Actions, latestMatch)
+						re.runActions(ruleItem.Actions, latestMatch)
 
 						// Some actions are only to be run when all rule items triggered.
 						if curRuleItemIdx == len(stmt.Items)-1 {
 							for _, r := range stmt.Items {
-								p.runActionsAfterAllRuleItemsTriggered(r.Actions)
+								re.runActionsAfterAllRuleItemsTriggered(r.Actions)
 							}
 
-							if p.shouldLog {
-								p.triggeredCb(stmt, p.phaseDisruptive, p.msg.expandMacros(p.perRequestEnv).string(), p.logData.expandMacros(p.perRequestEnv).string())
+							if phase == 5 && re.decision != waf.Pass {
+								re.decision = waf.Pass
 							}
 
-							if p.phaseDisruptive {
-								return p.decision, p.statusCode, p.phaseDisruptive
+							if re.shouldLog {
+								re.triggeredCb(stmt, re.decision, re.msg.expandMacros(re.perRequestEnv).string(), re.logData.expandMacros(re.perRequestEnv).string())
+							}
+
+							if re.decision != waf.Pass {
+								return re.decision
 							}
 						}
 
@@ -156,45 +121,49 @@ func (p *phaseEvaluation) processPhase() (decision waf.Decision, statusCode int,
 			}
 
 		case *ActionStmt:
-			p.stmtID = stmt.ID
-			p.runActions(stmt.Actions, Match{})
-			p.runActionsAfterAllRuleItemsTriggered(stmt.Actions)
+			re.stmtID = stmt.ID
+			re.runActions(stmt.Actions, Match{})
+			re.runActionsAfterAllRuleItemsTriggered(stmt.Actions)
 
-			if p.shouldLog {
-				p.triggeredCb(stmt, p.phaseDisruptive, p.msg.expandMacros(p.perRequestEnv).string(), p.logData.expandMacros(p.perRequestEnv).string())
+			if phase == 5 && re.decision != waf.Pass {
+				re.decision = waf.Pass
 			}
 
-			if p.phaseDisruptive {
-				return p.decision, p.statusCode, p.phaseDisruptive
+			if re.shouldLog {
+				re.triggeredCb(stmt, re.decision, re.msg.expandMacros(re.perRequestEnv).string(), re.logData.expandMacros(re.perRequestEnv).string())
+			}
+
+			if re.decision != waf.Pass {
+				return re.decision
 			}
 		}
 
-		if p.cleanUpCapturedVars != nil {
-			p.cleanUpCapturedVars()
+		if re.cleanUpCapturedVars != nil {
+			re.cleanUpCapturedVars()
 		}
 	}
 
-	return p.decision, p.statusCode, p.phaseDisruptive
+	return re.decision
 }
 
 // This runs the actions that need to run after each rule item had a target that triggered
-func (p *phaseEvaluation) runActions(actions []Action, match Match) {
+func (re *ruleEvaluatorImpl) runActions(actions []Action, match Match) {
 	// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
 	for _, action := range actions {
 		switch action := action.(type) {
 
 		case *SetVarAction:
-			err := executeSetVarAction(action, p.perRequestEnv)
+			err := executeSetVarAction(action, re.perRequestEnv)
 			if err != nil {
-				p.logger.Warn().Int("ruleID", p.stmtID).Err(err).Msg("Error executing setVar action")
+				re.logger.Warn().Int("ruleID", re.stmtID).Err(err).Msg("Error executing setVar action")
 			}
 
 		case *NoLogAction:
-			p.shouldLog = false
+			re.shouldLog = false
 
 		case *LogAction:
-			p.shouldLog = true
+			re.shouldLog = true
 
 		case *CaptureAction:
 			txVarCount := len(match.CaptureGroups)
@@ -208,49 +177,46 @@ func (p *phaseEvaluation) runActions(actions []Action, match Match) {
 					t = IntToken(n)
 				}
 
-				p.perRequestEnv.set("tx."+strconv.Itoa(i), Value{t})
+				re.perRequestEnv.set("tx."+strconv.Itoa(i), Value{t})
 			}
 
-			p.cleanUpCapturedVars = func() {
+			re.cleanUpCapturedVars = func() {
 				// Clean up tx.1, tx.2, etc., if they were set
 				for i := 0; i < txVarCount; i++ {
-					p.perRequestEnv.delete("tx." + strconv.Itoa(i))
+					re.perRequestEnv.delete("tx." + strconv.Itoa(i))
 				}
-				p.cleanUpCapturedVars = nil
+				re.cleanUpCapturedVars = nil
 			}
 
 		case *CtlAction:
-			p.perRequestEnv.set(action.setting, action.value.expandMacros(p.perRequestEnv))
+			re.perRequestEnv.set(action.setting, action.value.expandMacros(re.perRequestEnv))
 		}
 	}
 }
 
 // This runs the actions that need to run after all rule items have triggered
-func (p *phaseEvaluation) runActionsAfterAllRuleItemsTriggered(actions []Action) {
-	p.logger.Debug().Int("ruleID", p.stmtID).Msg("Rule triggered")
+func (re *ruleEvaluatorImpl) runActionsAfterAllRuleItemsTriggered(actions []Action) {
+	re.logger.Debug().Int("ruleID", re.stmtID).Msg("Rule triggered")
 
 	// Some actions are to be run after all rule items in the chain triggered.
 	for _, action := range actions {
 		switch action := action.(type) {
 
 		case *SkipAfterAction:
-			p.skipAfter = action.Label
-			p.logger.Debug().Str("label", p.skipAfter).Msg("Skipping to marker")
+			re.skipAfter = action.Label
+			re.logger.Debug().Str("label", re.skipAfter).Msg("Skipping to marker")
 
 		case *MsgAction:
-			p.msg = action.Msg
+			re.msg = action.Msg
 
 		case *LogDataAction:
-			p.logData = action.LogData
+			re.logData = action.LogData
 
 		case *AllowAction:
-			p.phaseDisruptive = true
-			p.decision = waf.Allow
+			re.decision = waf.Allow
 
 		case *DenyAction:
-			p.phaseDisruptive = true
-			p.decision = waf.Block
-			p.statusCode = 403
+			re.decision = waf.Block
 
 		}
 	}
@@ -275,7 +241,7 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, matches []Match, err error) {
+func evalPredicate(env *environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, matches []Match, err error) {
 	if requiresLateScan(ruleItem.Predicate, target) {
 		// We need to a late scan for this predicate now, because we were not able to do it in the scanning phase.
 		// This is the less common case.
@@ -310,7 +276,7 @@ func evalPredicate(env environment, ruleItem RuleItem, target Target, scanResult
 
 }
 
-func evalPredicateLateScan(env environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (result bool, match Match, err error) {
+func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (result bool, match Match, err error) {
 	// A predicate that requires late scanning means that it could not be scanned in the request scanning phase, and therefore must be scanned now.
 	// This is because either left or right side was a variable we could not yet know the value of in the request scanning phase.
 

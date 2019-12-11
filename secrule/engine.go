@@ -10,13 +10,13 @@ type engineImpl struct {
 	statements             []Statement
 	reqScanner             ReqScanner
 	scratchSpaceNext       chan *ReqScannerScratchSpace
-	ruleEvaluator          RuleEvaluator
+	ruleEvaluatorFactory   RuleEvaluatorFactory
 	usesFullRawRequestBody bool
 	ruleSetID              waf.RuleSetID
 }
 
 // NewEngine creates a SecRule engine from statements
-func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
+func NewEngine(statements []Statement, rsf ReqScannerFactory, ref RuleEvaluatorFactory, ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
 	reqScanner, err := rsf.NewReqScanner(statements)
 	if err != nil {
 		return
@@ -35,7 +35,7 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, re RuleEvaluator, 
 	engine = &engineImpl{
 		statements:             statements,
 		reqScanner:             reqScanner,
-		ruleEvaluator:          re,
+		ruleEvaluatorFactory:   ref,
 		scratchSpaceNext:       scratchSpaceNext,
 		usesFullRawRequestBody: usesFullRawRequestBody,
 		ruleSetID:              ruleSetID,
@@ -50,19 +50,16 @@ type secRuleEvaluationImpl struct {
 	engine               *engineImpl
 	request              waf.HTTPRequest
 	scanResults          *ScanResults
-	ruleTriggeredCb      func(stmt Statement, isDisruptive bool, msg string, logData string)
+	ruleTriggeredCb      func(stmt Statement, decision waf.Decision, msg string, logData string)
 	reqScannerEvaluation ReqScannerEvaluation
 	scratchSpaceNext     chan *ReqScannerScratchSpace
 	scratchSpace         *ReqScannerScratchSpace
+	ruleEvaluator        RuleEvaluator
+	env                  *environment
 }
 
 func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecRuleResultsLogger, req waf.HTTPRequest) waf.SecRuleEvaluation {
-	ruleTriggeredCb := func(stmt Statement, isDisruptive bool, msg string, logData string) {
-		action := "Matched"
-		if isDisruptive {
-			action = "Blocked"
-		}
-
+	ruleTriggeredCb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		var ruleID int
 		switch stmt := stmt.(type) {
 		case *Rule:
@@ -79,9 +76,9 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 			logData = logData[:512-3] + "..."
 		}
 
-		logger.Info().Int("ruleID", ruleID).Str("action", action).Str("msg", msg).Str("logData", logData).Msg("SecRule triggered")
+		logger.Info().Int("ruleID", ruleID).Int("decision", int(decision)).Str("msg", msg).Str("logData", logData).Msg("SecRule triggered")
 
-		resultsLogger.SecRuleTriggered(ruleID, action, msg, logData, s.ruleSetID)
+		resultsLogger.SecRuleTriggered(ruleID, decision, msg, logData, s.ruleSetID)
 	}
 
 	// Reuse a scratch space, or create a new one if there are none available
@@ -98,15 +95,24 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 
 	reqScannerEvaluation := s.reqScanner.NewReqScannerEvaluation(scratchSpace)
 
+	env := newEnvironment()
+
+	scanResults := NewScanResults()
+
+	ruleEvaluator := s.ruleEvaluatorFactory.NewRuleEvaluator(logger, env, s.statements, scanResults, ruleTriggeredCb)
+
 	return &secRuleEvaluationImpl{
 		request:              req,
 		resultsLogger:        resultsLogger,
 		logger:               logger,
 		engine:               s,
+		scanResults:          scanResults,
 		ruleTriggeredCb:      ruleTriggeredCb,
 		reqScannerEvaluation: reqScannerEvaluation,
 		scratchSpaceNext:     s.scratchSpaceNext,
 		scratchSpace:         scratchSpace,
+		ruleEvaluator:        ruleEvaluator,
+		env:                  env,
 	}
 }
 
@@ -115,7 +121,16 @@ func (s *engineImpl) UsesFullRawRequestBody() bool {
 }
 
 func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
-	s.scanResults, err = s.reqScannerEvaluation.ScanHeaders(s.request)
+	err = s.reqScannerEvaluation.ScanHeaders(s.request, s.scanResults)
+	if err != nil {
+		return
+	}
+
+	s.env.requestLine = Value{StringToken(s.scanResults.requestLine)}
+	s.env.requestMethod = Value{StringToken(s.scanResults.requestMethod)}
+	s.env.requestProtocol = Value{StringToken(s.scanResults.requestProtocol)}
+	s.env.hostHeader = Value{StringToken(s.scanResults.hostHeader)}
+
 	return
 }
 
@@ -123,7 +138,7 @@ func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, field
 	return s.reqScannerEvaluation.ScanBodyField(contentType, fieldName, data, s.scanResults)
 }
 
-func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
+func (s *secRuleEvaluationImpl) EvalRules(phase int) (wafDecision waf.Decision) {
 	if s.logger.Debug() != nil {
 		for key, matches := range s.scanResults.matches {
 			for _, match := range matches {
@@ -138,17 +153,9 @@ func (s *secRuleEvaluationImpl) EvalRules() (wafDecision waf.Decision) {
 		}
 	}
 
-	perRequestEnv := newEnvironment(s.scanResults)
+	wafDecision = s.ruleEvaluator.ProcessPhase(phase)
+	s.logger.Debug().Int("wafDecision", int(wafDecision)).Msg("SecRule engine rule evaluation decision")
 
-	wafDecision, statusCode, err := s.engine.ruleEvaluator.Process(s.logger, perRequestEnv, s.engine.statements, s.scanResults, s.ruleTriggeredCb)
-	if err != nil {
-		s.logger.Debug().Err(err).Msg("SecRule engine got rule evaluation error")
-		return
-	}
-
-	s.logger.Debug().Int("wafDecision", int(wafDecision)).Int("statusCode", statusCode).Msg("SecRule engine rule evaluation decision")
-
-	// TODO return status code
 	return
 }
 

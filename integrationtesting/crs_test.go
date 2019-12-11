@@ -77,9 +77,9 @@ func TestCrsRules(t *testing.T) {
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
+	ref := secrule.NewRuleEvaluatorFactory()
 	resLog := newMockResultsLogger()
-	ef := secrule.NewEngineFactory(logger, rl, rsf, re)
+	ef := secrule.NewEngineFactory(logger, rl, rsf, ref)
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 
 	var total, pass, fail, skip int
@@ -127,6 +127,7 @@ func TestCrsRules(t *testing.T) {
 				// Act
 				ev := e.NewEvaluation(logger, resLog, req)
 				ev.ScanHeaders()
+				ev.EvalRules(1)
 
 				fieldCb := func(contentType waf.ContentType, fieldName string, data string) error {
 					return ev.ScanBodyField(contentType, fieldName, data)
@@ -137,8 +138,9 @@ func TestCrsRules(t *testing.T) {
 					// TODO some tests expect 400 in this case
 				}
 
-				ev.EvalRules()
-				//TODO: Add status code check
+				for phase := 2; phase <= 5; phase++ {
+					ev.EvalRules(phase)
+				}
 			}
 
 			ruleid := strings.Split(tc.TestTitle, "-")[0]

@@ -85,7 +85,7 @@ func getInstance(secruleconf string) waf.Server {
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
+	ref := secrule.NewRuleEvaluatorFactory()
 
 	srl := secrule.NewStandaloneRuleLoader(p, rlfs, secruleconf)
 	stmts, err := srl.Rules()
@@ -93,7 +93,7 @@ func getInstance(secruleconf string) waf.Server {
 		logger.Fatal().Err(err).Msg("Error while loading rules")
 	}
 
-	sre, err := secrule.NewEngine(stmts, rsf, re, "")
+	sre, err := secrule.NewEngine(stmts, rsf, ref, "")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 	}

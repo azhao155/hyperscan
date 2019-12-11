@@ -180,9 +180,10 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 		rs, err1 := rsf.NewReqScanner(rules)
 		s, _ := rs.NewScratchSpace()
 		rse := rs.NewReqScannerEvaluation(s)
+		sr := NewScanResults()
 
 		// Act
-		_, err2 := rse.ScanHeaders(req)
+		err2 := rse.ScanHeaders(req, sr)
 
 		// Assert
 		if err1 != nil {

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func executeSetVarAction(sv *SetVarAction, perRequestEnv environment) (err error) {
+func executeSetVarAction(sv *SetVarAction, perRequestEnv *environment) (err error) {
 	variableName := strings.ToLower(sv.variable.expandMacros(perRequestEnv).string())
 	value := sv.value.expandMacros(perRequestEnv)
 
@@ -27,7 +27,7 @@ func executeSetVarAction(sv *SetVarAction, perRequestEnv environment) (err error
 	return
 }
 
-func performNumericalOperation(variable string, op setvarActionOperator, value Value, perRequestEnv environment) error {
+func performNumericalOperation(variable string, op setvarActionOperator, value Value, perRequestEnv *environment) error {
 	curr, ok := perRequestEnv.get(variable)
 	if !ok {
 		curr = Value{IntToken(0)}

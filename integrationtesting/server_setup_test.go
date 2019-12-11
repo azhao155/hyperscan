@@ -22,10 +22,10 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
+	ref := secrule.NewRuleEvaluatorFactory()
 	reslog := newMockResultsLogger()
 	rlf := &mockResultsLoggerFactory{mockResultsLogger: reslog}
-	ef := secrule.NewEngineFactory(logger, rl, rsf, re)
+	ef := secrule.NewEngineFactory(logger, rl, rsf, ref)
 	e, err := ef.NewEngine(&mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -59,8 +59,8 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := secrule.NewReqScannerFactory(mref)
-	re := secrule.NewRuleEvaluator()
-	sref := secrule.NewEngineFactory(logger, rl, rsf, re)
+	ref := secrule.NewRuleEvaluatorFactory()
+	sref := secrule.NewEngineFactory(logger, rl, rsf, ref)
 
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 

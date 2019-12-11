@@ -25,7 +25,8 @@ func TestReqScannerSimpleRules(t *testing.T) {
 	rs, err1 := rf.NewReqScanner(rules)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err3 := rse.ScanHeaders(req)
+	sr := secrule.NewScanResults()
+	err3 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -81,7 +82,8 @@ func TestReqScannerPmfRule(t *testing.T) {
 	rs, err1 := rf.NewReqScanner(rules)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err3 := rse.ScanHeaders(req)
+	sr := secrule.NewScanResults()
+	err3 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {
@@ -124,7 +126,8 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 	rs, err1 := rf.NewReqScanner(rules)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr, err3 := rse.ScanHeaders(req)
+	sr := secrule.NewScanResults()
+	err3 := rse.ScanHeaders(req, sr)
 
 	// Assert
 	if err1 != nil {

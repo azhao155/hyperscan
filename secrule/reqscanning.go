@@ -19,7 +19,7 @@ type ReqScanner interface {
 
 // ReqScannerEvaluation is a session of the ReqScanner.
 type ReqScannerEvaluation interface {
-	ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error)
+	ScanHeaders(req waf.HTTPRequest, results *ScanResults) (err error)
 	ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) error
 }
 
@@ -40,6 +40,14 @@ type ScanResults struct {
 	requestMethod   []byte
 	requestProtocol []byte
 	hostHeader      []byte
+}
+
+// NewScanResults creates a ScanResults struct.
+func NewScanResults() *ScanResults {
+	return &ScanResults{
+		matches:      make(map[matchKey][]Match),
+		targetsCount: make(map[Target]int),
+	}
 }
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
@@ -274,12 +282,7 @@ func (s ReqScannerScratchSpace) Close() {
 	}
 }
 
-func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest) (results *ScanResults, err error) {
-	results = &ScanResults{
-		matches:      make(map[matchKey][]Match),
-		targetsCount: make(map[Target]int),
-	}
-
+func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *ScanResults) (err error) {
 	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
 	// TODO consider passing the raw request line from Nginx if available.
 	protocol := req.Protocol()

@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perRequestEnv environment) (result bool, match Match, err error) {
+func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perRequestEnv *environment) (result bool, match Match, err error) {
 	opFunc := toOperatorFunc(rp.Op)
 	if opFunc == nil {
 		return false, Match{}, fmt.Errorf("unsupported operator: %v", rp.Op)
