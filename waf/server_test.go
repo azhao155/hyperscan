@@ -297,6 +297,9 @@ func (m *mockSecRuleEvaluation) EvalRules(phase int) Decision {
 func (m *mockSecRuleEvaluation) Close() {
 	m.closeCalled++
 }
+func (m *mockSecRuleEvaluation) IsForceRequestBodyScanning() bool {
+	return false
+}
 
 type mockSecRuleEngine struct {
 	newEvaluationCalled int

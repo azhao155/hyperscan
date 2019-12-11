@@ -18,6 +18,7 @@ type SecRuleEvaluation interface {
 	ScanHeaders() error
 	ScanBodyField(contentType ContentType, fieldName string, data string) error
 	EvalRules(phase int) (wafDecision Decision)
+	IsForceRequestBodyScanning() bool
 	Close()
 }
 

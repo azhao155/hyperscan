@@ -91,3 +91,7 @@ func (r *mockRuleEvaluator) ProcessPhase(phase int) (decision waf.Decision) {
 	decision = waf.Pass
 	return
 }
+
+func (r *mockRuleEvaluator) IsForceRequestBodyScanning() bool {
+	return false
+}

@@ -161,9 +161,27 @@ type CaptureAction struct{}
 
 // CtlAction is the action that modifies configuration during run time
 type CtlAction struct {
-	setting string
+	setting CtlActionSetting
 	value   Value
 }
+
+// CtlActionSetting that the CtlAction will set.
+type CtlActionSetting int
+
+// CtlActionSetting that CtlActions can use.
+const (
+	_ CtlActionSetting = iota
+	AuditEngine
+	AuditLogParts
+	ForceRequestBodyVariable
+	RequestBodyAccess
+	RequestBodyProcessor
+	RuleEngine
+	RuleRemoveByID
+	RuleRemoveByTag
+	RuleRemoveTargetByID
+	RuleRemoveTargetByTag
+)
 
 // Operator that the SecRule will use to evaluates the input against the value.
 type Operator int

@@ -1817,36 +1817,82 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 	assert.Equal(1, cbCalled)
 }
 
-func TestRuleEvaluatorCtlAction(t *testing.T) {
+func TestRuleEvaluatorCtlActionForceRequestBodyScanning(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	c1, _ := parseCtlAction("forceRequestBodyVariable=On")
 	rules := []Statement{
-		&ActionStmt{ID: 100, Actions: []Action{&c1}},
+		&ActionStmt{ID: 100, Actions: []Action{&CtlAction{setting: ForceRequestBodyVariable, value: Value{StringToken("On")}}}},
 	}
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
-	assert.False(env.hasKey("forceRequestBodyVariable"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("forceRequestBodyVariable"))
-	v, ok := env.get("forceRequestBodyVariable")
-	assert.True(ok)
-	assert.Equal(Value{StringToken("On")}, v)
 	assert.Equal(1, cbCalled)
+	assert.Equal(true, re.IsForceRequestBodyScanning())
+}
+
+func TestRuleEvaluatorCtlActionForceRequestBodyScanningNegative1(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{&CtlAction{setting: ForceRequestBodyVariable, value: Value{StringToken("Off")}}}},
+	}
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{matches: m, targetsCount: tc}
+	ref := NewRuleEvaluatorFactory()
+	var cbCalled int
+	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
+		cbCalled++
+	}
+	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+
+	// Act
+	decision := re.ProcessPhase(2)
+
+	// Assert
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(1, cbCalled)
+	assert.Equal(false, re.IsForceRequestBodyScanning())
+}
+
+func TestRuleEvaluatorCtlActionForceRequestBodyScanningNegative2(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	rules := []Statement{
+		&ActionStmt{ID: 100, Actions: []Action{MsgAction{Msg: Value{StringToken("hello")}}}},
+	}
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{matches: m, targetsCount: tc}
+	ref := NewRuleEvaluatorFactory()
+	var cbCalled int
+	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
+		cbCalled++
+	}
+	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+
+	// Act
+	decision := re.ProcessPhase(2)
+
+	// Assert
+	assert.Equal(waf.Pass, decision)
+	assert.Equal(1, cbCalled)
+	assert.Equal(false, re.IsForceRequestBodyScanning())
 }
 
 func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {

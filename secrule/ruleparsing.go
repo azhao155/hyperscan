@@ -76,6 +76,19 @@ var operatorsMap = map[string]Operator{
 	"@rbl":                  Rbl,
 }
 
+var ctlActionSettingsMap = map[string]CtlActionSetting{
+	"auditengine":              AuditEngine,
+	"auditlogparts":            AuditLogParts,
+	"forcerequestbodyvariable": ForceRequestBodyVariable,
+	"requestbodyaccess":        RequestBodyAccess,
+	"requestbodyprocessor":     RequestBodyProcessor,
+	"ruleengine":               RuleEngine,
+	"ruleremovebyid":           RuleRemoveByID,
+	"ruleremovebytag":          RuleRemoveByTag,
+	"ruleremovetargetbyid":     RuleRemoveTargetByID,
+	"ruleremovetargetbytag":    RuleRemoveTargetByTag,
+}
+
 // TargetNamesFromStr gets TargetName enums from strings. Ensure this is in sync with TargetNamesStrings and the TargetName const iota block.
 var TargetNamesFromStr = map[string]TargetName{
 	"ARGS":                         TargetArgs,
@@ -666,8 +679,14 @@ func parseCtlAction(parameter string) (ctl CtlAction, err error) {
 
 	result := findStringSubmatchMap(ctlParameterRegex, parameter)
 
+	setting, ok := ctlActionSettingsMap[strings.ToLower(result["setting"])]
+	if !ok {
+		err = fmt.Errorf("unsupported setting %s for ctl operation", result["setting"])
+		return
+	}
+
 	ctl = CtlAction{
-		setting: result["setting"],
+		setting: setting,
 		value:   parseValue(result["value"]),
 	}
 

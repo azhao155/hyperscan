@@ -1544,7 +1544,7 @@ func TestCtlAction(t *testing.T) {
 	r := rc.Items[0]
 	expectedActions := []Action{
 		&CtlAction{
-			setting: "forceRequestBodyVariable",
+			setting: ForceRequestBodyVariable,
 			value:   Value{StringToken("On")},
 		},
 	}

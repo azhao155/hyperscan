@@ -181,8 +181,22 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	usesFullRawRequestBodyCb := func(contentType ContentType) bool {
-		// Only the SecRule engine may need the raw request body, and only when content type is application/x-www-form-urlencoded.
-		return engines.sre != nil && engines.sre.UsesFullRawRequestBody() && contentType == URLEncodedContent
+		// Only the SecRule engine may need the raw request body
+		if engines.sre == nil {
+			return false
+		}
+
+		// The secrule engine needs the full raw request body if it has statements that uses it, and content type is application/x-www-form-urlencoded.
+		if engines.sre.UsesFullRawRequestBody() && contentType == URLEncodedContent {
+			return true
+		}
+
+		// Alternatively a rule could have run a control action to force the REQUEST_BODY variable to be set.
+		if secRuleEvaluation.IsForceRequestBodyScanning() {
+			return true
+		}
+
+		return false
 	}
 
 	err = s.requestBodyParser.Parse(logger, req, bodyFieldCb, usesFullRawRequestBodyCb)

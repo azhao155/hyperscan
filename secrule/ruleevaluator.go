@@ -11,25 +11,27 @@ import (
 // RuleEvaluator processes the incoming request against all parsed rules
 type RuleEvaluator interface {
 	ProcessPhase(phase int) (decision waf.Decision)
+	IsForceRequestBodyScanning() bool
 }
 
 // RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
 type RuleEvaluatorTriggeredCb = func(stmt Statement, decision waf.Decision, msg string, logData string)
 
 type ruleEvaluatorImpl struct {
-	phase               int
-	logger              zerolog.Logger
-	perRequestEnv       *environment
-	statements          []Statement
-	scanResults         *ScanResults
-	triggeredCb         RuleEvaluatorTriggeredCb
-	cleanUpCapturedVars func()
-	skipAfter           string
-	stmtID              int
-	shouldLog           bool
-	msg                 Value
-	logData             Value
-	decision            waf.Decision
+	phase                    int
+	logger                   zerolog.Logger
+	perRequestEnv            *environment
+	statements               []Statement
+	scanResults              *ScanResults
+	triggeredCb              RuleEvaluatorTriggeredCb
+	cleanUpCapturedVars      func()
+	skipAfter                string
+	stmtID                   int
+	shouldLog                bool
+	msg                      Value
+	logData                  Value
+	decision                 waf.Decision
+	forceRequestBodyScanning bool
 }
 
 func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
@@ -146,6 +148,10 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 	return re.decision
 }
 
+func (re *ruleEvaluatorImpl) IsForceRequestBodyScanning() bool {
+	return re.forceRequestBodyScanning
+}
+
 // This runs the actions that need to run after each rule item had a target that triggered
 func (re *ruleEvaluatorImpl) runActions(actions []Action, match Match) {
 	// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
@@ -189,7 +195,14 @@ func (re *ruleEvaluatorImpl) runActions(actions []Action, match Match) {
 			}
 
 		case *CtlAction:
-			re.perRequestEnv.set(action.setting, action.value.expandMacros(re.perRequestEnv))
+			switch action.setting {
+			case ForceRequestBodyVariable:
+				if strings.EqualFold(action.value.expandMacros(re.perRequestEnv).string(), "on") {
+					re.forceRequestBodyScanning = true
+				}
+			default:
+				re.logger.Warn().Int("action.setting", int(action.setting)).Msg("Unsupported ctlAction")
+			}
 		}
 	}
 }
@@ -217,6 +230,8 @@ func (re *ruleEvaluatorImpl) runActionsAfterAllRuleItemsTriggered(actions []Acti
 
 		case *DenyAction:
 			re.decision = waf.Block
+
+		case *CtlAction:
 
 		}
 	}

@@ -159,6 +159,10 @@ func (s *secRuleEvaluationImpl) EvalRules(phase int) (wafDecision waf.Decision) 
 	return
 }
 
+func (s *secRuleEvaluationImpl) IsForceRequestBodyScanning() bool {
+	return s.ruleEvaluator.IsForceRequestBodyScanning()
+}
+
 // Release resources.
 func (s *secRuleEvaluationImpl) Close() {
 	s.scratchSpaceNext <- s.scratchSpace
