@@ -26,6 +26,7 @@ type TestCase struct {
 	// Expected Output
 	MatchExpected  bool
 	ExpectedRuleID int
+	Skip           bool
 }
 
 // YAML parsing requires exporting of struct fields
@@ -174,6 +175,13 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 				}
 			}
 		}
+
+		if enabled, ok := file.Meta["enabled"]; ok {
+			if strings.EqualFold("false", strings.TrimSpace(enabled)) {
+				tc.Skip = true
+			}
+		}
+
 		testCases = append(testCases, tc)
 	}
 

@@ -120,7 +120,7 @@ func TestCrsRules(t *testing.T) {
 		for _, tc := range tt {
 			total++
 
-			if testsToSkip[tc.TestTitle] {
+			if testsToSkip[tc.TestTitle] || tc.Skip {
 				t.Logf("--- SKIP: %v", tc.TestTitle)
 				skip++
 				continue
