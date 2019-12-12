@@ -137,12 +137,13 @@ func strEqOperatorEval(target Value, value Value) (bool, string, error) {
 }
 
 func wordListSearchOperatorEval(target Value, value Value) (bool, string, error) {
-	targetBytes := target.bytes()
+	targetBytes := bytes.ToLower(target.bytes())
 
+	// TODO consider optimizing. Consider Hyperscan or a custom DFA to scan all in O(n) time (the scan-phase version of this already uses Hyperscan).
 	words := bytes.Split(value.bytes(), []byte{' '})
 	for _, w := range words {
-		// TODO should this be case insensitive? (bytes.EqualFold)
-		if bytes.Equal(targetBytes, w) {
+		w = bytes.ToLower(w)
+		if bytes.Contains(targetBytes, w) {
 			return true, "", nil
 		}
 	}
