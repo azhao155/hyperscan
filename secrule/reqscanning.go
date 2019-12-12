@@ -89,10 +89,11 @@ type scanGroup struct {
 }
 
 type reqScannerImpl struct {
-	allScanGroups        []*scanGroup
-	scanGroupsForTarget  map[Target][]*scanGroup
-	targetsSimple        map[Target]bool
-	targetsRegexSelector map[TargetName][]*targetsRegexSelectorWithSameTargetName
+	allScanGroups                       []*scanGroup
+	scanGroupsForTarget                 map[Target][]*scanGroup
+	targetsSimple                       map[Target]bool
+	targetsRegexSelector                map[TargetName][]*targetsRegexSelectorWithSameTargetName
+	exceptTargetsRegexSelectorsCompiled map[string]*regexp.Regexp
 }
 
 type reqScannerEvaluationImpl struct {
@@ -111,6 +112,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	scanGroupsForTarget := make(map[Target][]*scanGroup)
 	targetsSimple := make(map[Target]bool)
 	targetsRegexSelector := make(map[TargetName][]*targetsRegexSelectorWithSameTargetName)
+	exceptTargetsRegexSelectorsCompiled := make(map[string]*regexp.Regexp)
 
 	// Construct a inverted view of the rules that maps from targets+selectors, to rule conditions
 	for _, curStmt := range statements {
@@ -168,6 +170,16 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 				p := conditionRef{curRule, curRuleItem, curRuleItemIdx, target}
 				curScanGroup.conditions = append(curScanGroup.conditions, p)
 			}
+
+			// If there are any regex except-targets in this predicate, then pre-compile them.
+			for _, exceptTarget := range curRuleItem.Predicate.ExceptTargets {
+				if exceptTarget.IsRegexSelector {
+					exceptTargetsRegexSelectorsCompiled[exceptTarget.Selector], err = regexp.Compile(exceptTarget.Selector)
+					if err != nil {
+						return
+					}
+				}
+			}
 		}
 	}
 
@@ -211,10 +223,11 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	}
 
 	r = &reqScannerImpl{
-		allScanGroups:        allScanGroups,
-		scanGroupsForTarget:  scanGroupsForTarget,
-		targetsSimple:        targetsSimple,
-		targetsRegexSelector: targetsRegexSelector,
+		allScanGroups:                       allScanGroups,
+		scanGroupsForTarget:                 scanGroupsForTarget,
+		targetsSimple:                       targetsSimple,
+		targetsRegexSelector:                targetsRegexSelector,
+		exceptTargetsRegexSelectorsCompiled: exceptTargetsRegexSelectorsCompiled,
 	}
 
 	return
@@ -248,6 +261,27 @@ func (r *reqScannerImpl) getTargets(targetName TargetName, fieldName string) (ta
 	}
 
 	return
+}
+
+func (r *reqScannerImpl) matchesExceptTargets(targetName TargetName, fieldName string, exceptTargets []Target) bool {
+	for _, et := range exceptTargets {
+		// Is this exceptTarget a simple target?
+		if !et.IsRegexSelector {
+			if targetName == et.Name && strings.EqualFold(fieldName, et.Selector) {
+				return true
+			}
+			continue
+		}
+
+		// Are we looking for a target with regex selector that this field name matches?
+		if et.IsRegexSelector {
+			if r.exceptTargetsRegexSelectorsCompiled[et.Selector].MatchString(fieldName) {
+				return true
+			}
+		}
+	}
+
+	return false
 }
 
 func (r *reqScannerImpl) NewReqScannerEvaluation(scratchSpace *ReqScannerScratchSpace) ReqScannerEvaluation {
@@ -449,6 +483,10 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 			for _, m := range matches {
 				p := sg.backRefs[m.ID]
 
+				if r.reqScanner.matchesExceptTargets(targetName, fieldName, p.ruleItem.Predicate.ExceptTargets) {
+					continue
+				}
+
 				// Store the match for fast retrieval in the eval phase
 				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
 				results.matches[key] = append(results.matches[key], Match{
@@ -475,6 +513,10 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 
 		// Handle conditions that the regex engine could not handle
 		for _, cr := range sg.conditions {
+			if r.reqScanner.matchesExceptTargets(targetName, fieldName, cr.ruleItem.Predicate.ExceptTargets) {
+				continue
+			}
+
 			switch cr.ruleItem.Predicate.Op {
 
 			case DetectXSS:
