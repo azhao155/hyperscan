@@ -2,7 +2,6 @@ package waf
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"mime"
 	"strconv"
@@ -109,11 +108,8 @@ func getLengthAndTypeFromHeaders(req HTTPRequest) (contentLength int, reqBodyTyp
 		v := h.Value()
 
 		if strings.EqualFold("content-length", k) {
-			contentLength, err = strconv.Atoi(v)
-			if err != nil {
-				err = fmt.Errorf("failed to parse Content-Length header")
-				return
-			}
+			// Ignore error at this point to let CRS rule 920160 do its work.
+			contentLength, _ = strconv.Atoi(v)
 		}
 
 		if strings.EqualFold("content-type", k) {
