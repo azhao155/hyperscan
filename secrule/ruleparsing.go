@@ -458,6 +458,9 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 				err = fmt.Errorf("invalid regex target selector: %v", err)
 				return
 			}
+		} else {
+			// Store non-regex selectors in lower case for easier case insensitive lookup.
+			selector = strings.ToLower(selector)
 		}
 
 		target := Target{

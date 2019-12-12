@@ -165,7 +165,7 @@ func loadPhraseFile(fullPath string) (phrases []string, err error) {
 	raw := strings.Split(s, "\n")
 	for _, p := range raw {
 		if p != "" && !strings.HasPrefix(p, "#") {
-			phrases = append(phrases, p)
+			phrases = append(phrases, strings.TrimSpace(p))
 		}
 	}
 	return

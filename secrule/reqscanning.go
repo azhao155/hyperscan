@@ -226,14 +226,16 @@ func (r *reqScannerImpl) getTargets(targetName TargetName, fieldName string) (ta
 		targets = append(targets, r.getTargets(targetName, "")...)
 	}
 
+	fieldNameLower := strings.ToLower(fieldName)
+
 	// Are we looking for this simple target?
-	t := Target{Name: targetName, Selector: fieldName}
+	t := Target{Name: targetName, Selector: fieldNameLower}
 	if r.targetsSimple[t] {
 		targets = append(targets, t)
 	}
 
 	// Are we looking for this simple count target?
-	t = Target{Name: targetName, Selector: fieldName, IsCount: true}
+	t = Target{Name: targetName, Selector: fieldNameLower, IsCount: true}
 	if r.targetsSimple[t] {
 		targets = append(targets, t)
 	}

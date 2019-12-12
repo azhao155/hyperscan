@@ -418,7 +418,7 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "My-Header"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "my-header"}}, Op: Rx, Val: Value{StringToken("ab+c")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -447,7 +447,7 @@ func TestReqScannerSimpleSelectorHeader(t *testing.T) {
 		t.Fatalf("Unexpected match found")
 	}
 
-	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders, Selector: "My-Header"})
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders, Selector: "my-header"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -803,7 +803,7 @@ func TestReqScannerHostHeader(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "Host"}}, Op: Streq, Val: Value{StringToken("example.com")}},
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "host"}}, Op: Streq, Val: Value{StringToken("example.com")}},
 					Transformations: []Transformation{},
 				},
 			},
@@ -826,7 +826,7 @@ func TestReqScannerHostHeader(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders, Selector: "Host"})
+	m, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders, Selector: "host"})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
