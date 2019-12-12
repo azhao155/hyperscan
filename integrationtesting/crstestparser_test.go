@@ -116,6 +116,10 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 			body := getBody(input.Data)
 			req := &mockWafHTTPRequest{uri: "http://localhost" + input.URI, method: input.Method, body: body}
 
+			if req.method == "" {
+				req.method = "GET"
+			}
+
 			hasHost := false
 			hasContentType := false
 			hasContentLength := false
