@@ -124,6 +124,14 @@ func (v Value) equal(other Value) bool {
 				bPos++
 			}
 
+		case ValidateByteRangeToken:
+			tb, ok := b[bPos].(ValidateByteRangeToken)
+			if !ok || ta != tb {
+				return false
+			}
+			aPos++
+			bPos++
+
 		default:
 			// If this happens, there is a serious programming error.
 			panic("unsupported type")

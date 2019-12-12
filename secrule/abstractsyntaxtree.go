@@ -42,6 +42,11 @@ type IntToken int
 // MacroToken is an element in a Value-string that is a macro (variable). Macros can be expanded to concrete values, given an environment.
 type MacroToken string
 
+// ValidateByteRangeToken is an element in a Value-string that represents the allowed bytes for a @validateByteRange operator.
+type ValidateByteRangeToken struct {
+	allowedBytes [256]bool
+}
+
 // RulePredicate that determines whether a rule is triggered.
 type RulePredicate struct {
 	Targets       []Target

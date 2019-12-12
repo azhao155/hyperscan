@@ -1615,6 +1615,57 @@ func TestReqScannerCountWithSelector(t *testing.T) {
 	}
 }
 
+func TestValidateByteRangeOperator(t *testing.T) {
+	// Arrange
+	var vbrt ValidateByteRangeToken
+	for i := 97; i <= 122; i++ { // lower case letters
+		vbrt.allowedBytes[i] = true
+	}
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: ValidateByteRange, Val: Value{vbrt}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req1 := &mockWafHTTPRequest{uri: "/?a=abcxyz"}
+	req2 := &mockWafHTTPRequest{uri: "/?a=abcABCxyz"}
+	sr1 := NewScanResults()
+	sr2 := NewScanResults()
+
+	// Act
+	rs, errReqScan := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err1 := rse.ScanHeaders(req1, sr1)
+	err2 := rse.ScanHeaders(req2, sr2)
+
+	// Assert
+	if errReqScan != nil {
+		t.Fatalf("Got unexpected error: %s", errReqScan)
+	}
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr1.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Unexpected match found")
+	}
+	_, ok = sr2.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader

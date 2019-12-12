@@ -499,10 +499,21 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 				}
 
 			case ValidateURLEncoding:
-				if !encoding.IsValidURLEncoding(content) {
+				if !encoding.IsValidURLEncoding(contentTransformed) {
 					storeEntireContentAsMatch(cr)
 				}
 
+			case ValidateByteRange:
+				// It is safe to assume there is just one element in Val due to validation in the parser.
+				vbrt := cr.ruleItem.Predicate.Val[0].(ValidateByteRangeToken)
+
+				// ValidateByteRangeToken.allowedBytes is a fixed [256]bool, where the index represents a byte value.
+				for i := 0; i < len(contentTransformed); i++ {
+					if !vbrt.allowedBytes[contentTransformed[i]] {
+						storeEntireContentAsMatch(cr)
+						break
+					}
+				}
 			}
 		}
 	}

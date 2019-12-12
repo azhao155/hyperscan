@@ -512,6 +512,20 @@ func parseOperator(s string) (op Operator, val Value, neg bool, rest string, err
 	}
 
 	val = parseValue(s)
+
+	// Special case for @validateByteRange
+	if op == ValidateByteRange {
+		if val.hasMacros() {
+			err = fmt.Errorf("macros in @validateByteRange not supported")
+			return
+		}
+
+		val, err = parseValidateByteRangeVal(val.string())
+		if err != nil {
+			return
+		}
+	}
+
 	return
 }
 
@@ -854,6 +868,53 @@ func parseValue(s string) (e Value) {
 	// The value is a string literal.
 	e = append(e, StringToken(s))
 
+	return
+}
+
+// Special for @validateByteRange is that the val will be stored as a Value{ValidateByteRangeToken{...}}.
+func parseValidateByteRangeVal(s string) (val Value, err error) {
+	parts := strings.Split(s, ",")
+	var t ValidateByteRangeToken
+	for _, part := range parts {
+		r := strings.Split(part, "-")
+		n := len(r)
+
+		if n != 1 && n != 2 {
+			err = fmt.Errorf("invalid @validateByteRange format")
+			return
+		}
+
+		var from int
+		if n == 1 || n == 2 {
+			from, err = strconv.Atoi(r[0])
+			if err != nil || from < 0 {
+				err = fmt.Errorf("failed to parse number in @validateByteRange: %v", err)
+				return
+			}
+		}
+
+		if n == 1 {
+			t.allowedBytes[from] = true
+		} else if n == 2 {
+			var to int
+			to, err = strconv.Atoi(r[1])
+			if err != nil || to > 255 {
+				err = fmt.Errorf("failed to parse number in @validateByteRange: %v", err)
+				return
+			}
+
+			if from >= to {
+				err = fmt.Errorf("invalid range in @validateByteRange")
+				return
+			}
+
+			for i := from; i <= to; i++ {
+				t.allowedBytes[i] = true
+			}
+		}
+	}
+
+	val = Value{t}
 	return
 }
 

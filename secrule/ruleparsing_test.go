@@ -514,29 +514,50 @@ func TestSecRuleTargetErrors(t *testing.T) {
 
 func TestSecRuleOperators(t *testing.T) {
 	// Arrange
+	var vbrt1, vbrt2, vbrt3, vbrt4 ValidateByteRangeToken
+	vbrt1.allowedBytes[50] = true
+	vbrt2.allowedBytes[50] = true
+	vbrt2.allowedBytes[100] = true
+	for i := 50; i <= 100; i++ {
+		vbrt3.allowedBytes[i] = true
+	}
+	for i := 5; i <= 10; i++ {
+		vbrt4.allowedBytes[i] = true
+	}
+	for i := 50; i <= 100; i++ {
+		vbrt4.allowedBytes[i] = true
+	}
 	p := NewRuleParser()
 	type testcase struct {
 		input string
 		op    Operator
 		val   Value
 		neg   bool
+		err   string
 	}
 	tests := []testcase{
-		{`helloworld`, Rx, Value{StringToken(`helloworld`)}, false},
-		{`"hello world"`, Rx, Value{StringToken(`hello world`)}, false},
-		{`"hello \"world"`, Rx, Value{StringToken(`hello "world`)}, false},
-		{`"hello 'world"`, Rx, Value{StringToken(`hello 'world`)}, false},
-		{`'hello world'`, Rx, Value{StringToken(`hello world`)}, false},
-		{`'hello "world'`, Rx, Value{StringToken(`hello "world`)}, false},
-		{`"@rx hello world"`, Rx, Value{StringToken(`hello world`)}, false},
-		{`"@contains helloworld"`, Contains, Value{StringToken(`helloworld`)}, false},
-		{`'@contains helloworld'`, Contains, Value{StringToken(`helloworld`)}, false},
-		{`'@ipMatchFromFile https://example.com/file.txt'`, IPMatchFromFile, Value{StringToken(`https://example.com/file.txt`)}, false},
-		{`'@detectSQLi'`, DetectSQLi, Value{}, false},
-		{`'@DeTeCtSqLi'`, DetectSQLi, Value{}, false},
-		{`!helloworld`, Rx, Value{StringToken(`helloworld`)}, true},
-		{`"!helloworld"`, Rx, Value{StringToken(`helloworld`)}, true},
-		{`"!@rx helloworld"`, Rx, Value{StringToken(`helloworld`)}, true},
+		{`helloworld`, Rx, Value{StringToken(`helloworld`)}, false, ""},
+		{`"hello world"`, Rx, Value{StringToken(`hello world`)}, false, ""},
+		{`"hello \"world"`, Rx, Value{StringToken(`hello "world`)}, false, ""},
+		{`"hello 'world"`, Rx, Value{StringToken(`hello 'world`)}, false, ""},
+		{`'hello world'`, Rx, Value{StringToken(`hello world`)}, false, ""},
+		{`'hello "world'`, Rx, Value{StringToken(`hello "world`)}, false, ""},
+		{`"@rx hello world"`, Rx, Value{StringToken(`hello world`)}, false, ""},
+		{`"@contains helloworld"`, Contains, Value{StringToken(`helloworld`)}, false, ""},
+		{`'@contains helloworld'`, Contains, Value{StringToken(`helloworld`)}, false, ""},
+		{`'@ipMatchFromFile https://example.com/file.txt'`, IPMatchFromFile, Value{StringToken(`https://example.com/file.txt`)}, false, ""},
+		{`'@detectSQLi'`, DetectSQLi, Value{}, false, ""},
+		{`'@DeTeCtSqLi'`, DetectSQLi, Value{}, false, ""},
+		{`!helloworld`, Rx, Value{StringToken(`helloworld`)}, true, ""},
+		{`"!helloworld"`, Rx, Value{StringToken(`helloworld`)}, true, ""},
+		{`"!@rx helloworld"`, Rx, Value{StringToken(`helloworld`)}, true, ""},
+		{`"@validateByteRange 50"`, ValidateByteRange, Value{vbrt1}, false, ""},
+		{`"!@validateByteRange 50"`, ValidateByteRange, Value{vbrt1}, true, ""},
+		{`"@validateByteRange 50,100"`, ValidateByteRange, Value{vbrt2}, false, ""},
+		{`"@validateByteRange 50-100"`, ValidateByteRange, Value{vbrt3}, false, ""},
+		{`"@validateByteRange 50-100,5-10"`, ValidateByteRange, Value{vbrt4}, false, ""},
+		{`"@validateByteRange 10-5"`, ValidateByteRange, Value{}, false, "parse error in SecRule on line 1: invalid range in @validateByteRange"},
+		{`"@validateByteRange 5,10-5"`, ValidateByteRange, Value{}, false, "parse error in SecRule on line 1: invalid range in @validateByteRange"},
 	}
 
 	// Act and assert
@@ -544,8 +565,15 @@ func TestSecRuleOperators(t *testing.T) {
 	for _, test := range tests {
 		rr, err := p.Parse("SecRule ARGS "+test.input+` "id:'950902'"`, nil, nil)
 
+		if test.err != "" && err == nil {
+			fmt.Fprintf(&b, "Expected an error but did not get any. Tested input: %s\n", test.input)
+			continue
+		}
+
 		if err != nil {
-			fmt.Fprintf(&b, "Got unexpected error: %s. Tested input: %s\n", err, test.input)
+			if err.Error() != test.err {
+				fmt.Fprintf(&b, "Got unexpected error: \"%s\". Tested input: %s\n", err, test.input)
+			}
 			continue
 		}
 
@@ -572,7 +600,7 @@ func TestSecRuleOperators(t *testing.T) {
 		}
 
 		if !r.Items[0].Predicate.Val.equal(test.val) {
-			fmt.Fprintf(&b, "Wrong value: %s. Tested input: %s\n", r.Items[0].Predicate.Val, test.input)
+			fmt.Fprintf(&b, "Wrong value: %v. Expected: %v. Tested input: %s\n", r.Items[0].Predicate.Val, test.val, test.input)
 			continue
 		}
 
