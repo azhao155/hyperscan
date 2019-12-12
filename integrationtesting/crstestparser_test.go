@@ -3,6 +3,7 @@ package integrationtesting
 import (
 	"azwaf/waf"
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -16,7 +17,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	yaml "gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
 )
 
 // TestCase for CRS regression test
@@ -31,14 +32,15 @@ type TestCase struct {
 
 // YAML parsing requires exporting of struct fields
 type input struct {
-	DestAddr  string            `yaml:"dest_addr"`
-	Method    string            `yaml:"method"`
-	Port      string            `yaml:"port"`
-	URI       string            `yaml:"uri"`
-	Version   string            `yaml:"version"`
-	Headers   map[string]string `yaml:"headers"`
-	Data      interface{}       `yaml:"data"`
-	StopMagic bool              `yaml:"stop_magic"`
+	DestAddr       string            `yaml:"dest_addr"`
+	Method         string            `yaml:"method"`
+	Port           string            `yaml:"port"`
+	URI            string            `yaml:"uri"`
+	Version        string            `yaml:"version"`
+	Headers        map[string]string `yaml:"headers"`
+	Data           interface{}       `yaml:"data"`
+	StopMagic      bool              `yaml:"stop_magic"`
+	EncodedRequest string            `yaml:"encoded_request"`
 }
 
 type stage struct {
@@ -115,6 +117,13 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 
 			body := getBody(input.Data)
 			req := &mockWafHTTPRequest{uri: input.URI, method: input.Method, body: body}
+
+			if input.EncodedRequest != "" {
+				req, body, err = parseEncodedRequest(input.EncodedRequest)
+				if err != nil {
+					return
+				}
+			}
 
 			if req.method == "" {
 				req.method = "GET"
@@ -205,6 +214,61 @@ func getBody(inputData interface{}) (body string) {
 		}
 		body = strings.Trim(body, "\n")
 	}
+	return
+}
+
+func parseEncodedRequest(encodedRequest string) (req *mockWafHTTPRequest, body string, err error) {
+	req = &mockWafHTTPRequest{}
+
+	var r []byte
+	r, err = base64.StdEncoding.DecodeString(encodedRequest)
+	if err != nil {
+		return
+	}
+
+	buf := bytes.NewBuffer(r)
+	var reqLine string
+	reqLine, err = buf.ReadString('\n')
+	if err != nil {
+		return
+	}
+
+	reqLine = strings.TrimSpace(reqLine)
+	reqLineSplit := strings.Split(reqLine, " ")
+	if len(reqLineSplit) != 3 {
+		err = fmt.Errorf("bad request line in encoded_request")
+		return
+	}
+
+	req.method = reqLineSplit[0]
+	req.uri = reqLineSplit[1]
+	req.protocol = reqLineSplit[2]
+
+	for {
+		var headerLine string
+		headerLine, err = buf.ReadString('\n')
+		if err != nil {
+			return
+		}
+
+		headerLine = strings.TrimSpace(headerLine)
+		if headerLine == "" {
+			break
+		}
+
+		headerLineSplit := strings.Split(headerLine, ":")
+		if len(headerLineSplit) != 2 {
+			err = fmt.Errorf("invalid header line in encoded_request")
+			return
+		}
+
+		k := strings.TrimSpace(headerLineSplit[0])
+		v := strings.TrimSpace(headerLineSplit[1])
+		req.headers = append(req.headers, &mockHeaderPair{k: k, v: v})
+	}
+
+	req.body = buf.String()
+
 	return
 }
 
