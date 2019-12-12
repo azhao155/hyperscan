@@ -346,7 +346,7 @@ func TestReqScannerBodyUrlencode1(t *testing.T) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
-	body := bytes.NewBufferString(`b=aaaaaaabccc&a=helloworld1`)
+	body := bytes.NewBufferString(`%62=aaa%61aaabcc%xxc&%61=h%65lloworld1`)
 
 	// Act
 	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.URLEncodedBody, "")
@@ -360,7 +360,7 @@ func TestReqScannerBodyUrlencode1(t *testing.T) {
 	// If we implement our own io.Reader-based urldecoder in the future, we may no longer be sorting, but rather using the order the values appeared.
 	contentType := waf.URLEncodedContent
 	expectedCalls := []parsedBodyFieldCbCall{
-		{contentType, "b", "aaaaaaabccc"},
+		{contentType, "b", "aaaaaaabcc%xxc"},
 		{contentType, "a", "helloworld1"},
 	}
 

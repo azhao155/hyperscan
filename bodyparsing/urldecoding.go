@@ -1,6 +1,7 @@
 package bodyparsing
 
 import (
+	"azwaf/encoding"
 	"bytes"
 	"io"
 )
@@ -48,7 +49,7 @@ func (d *urlDecoder) next() (key string, val string, err error) {
 					d.state = foundEq
 				case '&':
 					// There was no equal-sign in this "pair"
-					key = string(bb[:i])
+					key = encoding.WeakURLUnescape(string(bb[:i]))
 					val = ""
 
 					// Consume number of bytes equivalent to this key-val pair from the buffer.
@@ -62,8 +63,8 @@ func (d *urlDecoder) next() (key string, val string, err error) {
 			case foundEq:
 				switch c {
 				case '&':
-					key = string(bb[:d.eqPos])
-					val = string(bb[d.eqPos+1 : i])
+					key = encoding.WeakURLUnescape(string(bb[:d.eqPos]))
+					val = encoding.WeakURLUnescape(string(bb[d.eqPos+1 : i]))
 
 					// Consume number of bytes equivalent to this key-val pair from the buffer.
 					d.buf.Next(i + 1)
@@ -97,11 +98,11 @@ func (d *urlDecoder) next() (key string, val string, err error) {
 
 			// If we already found an equal-sign, then we have a complete key-val pair.
 			if d.state == foundEq {
-				key = string(bb[:d.eqPos])
-				val = string(bb[d.eqPos+1:])
+				key = encoding.WeakURLUnescape(string(bb[:d.eqPos]))
+				val = encoding.WeakURLUnescape(string(bb[d.eqPos+1:]))
 			} else {
 				// We don't have a complete key-val pair, so we decide to just return the remaining bytes as a key with an empty value.
-				key = string(bb)
+				key = encoding.WeakURLUnescape(string(bb))
 			}
 
 			// Consume the rest of the buffer, just to leave things in a consistent state.
