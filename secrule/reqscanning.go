@@ -554,8 +554,6 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	}
 
 	// The "filename" is the part before the question mark.
-	// Not using url.ParseRequestURI, because REQUEST_FILENAME should be raw, and not URL-decoded.
-	// TODO consider if we should also worry about #
 	reqFilename := URI
 	var queryString string
 	n := strings.IndexByte(URI, '?')
@@ -563,6 +561,8 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		reqFilename = URI[:n]
 		queryString = URI[n+1:]
 	}
+
+	reqFilename = encoding.WeakURLUnescape(reqFilename)
 
 	err = r.scanField(TargetRequestFilename, "", reqFilename, results)
 	if err != nil {

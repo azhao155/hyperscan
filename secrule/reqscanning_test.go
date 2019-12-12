@@ -462,7 +462,7 @@ func TestReqScannerFilename(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestFilename}}, Op: Rx, Val: Value{StringToken("/p1/a%20bc.php")}}, // REQUEST_FILENAME should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestFilename}}, Op: Rx, Val: Value{StringToken("/p1/a bc.php")}}, // REQUEST_FILENAME should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -492,7 +492,7 @@ func TestReqScannerFilename(t *testing.T) {
 	if len(m) != 1 {
 		t.Fatalf("Unexpected number of matches: %v", len(m))
 	}
-	if string(m[0].Data) != "/p1/a%20bc.php" {
+	if string(m[0].Data) != "/p1/a bc.php" {
 		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 }
@@ -550,7 +550,7 @@ func TestReqScannerBasename(t *testing.T) {
 			ID: 100,
 			Items: []RuleItem{
 				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestBasename}}, Op: Rx, Val: Value{StringToken("a%20bc.php")}}, // REQUEST_BASE should not URL-decode
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestBasename}}, Op: Rx, Val: Value{StringToken("a bc.php")}}, // REQUEST_BASE should not URL-decode
 					Transformations: []Transformation{},
 				},
 			},
@@ -588,7 +588,7 @@ func TestReqScannerBasename(t *testing.T) {
 		if len(m) != 1 {
 			t.Fatalf("Unexpected number of matches: %v", len(m))
 		}
-		if string(m[0].Data) != "a%20bc.php" {
+		if string(m[0].Data) != "a bc.php" {
 			t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 		}
 	}
