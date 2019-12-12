@@ -257,7 +257,7 @@ func (l *filelogResultsLogger) TotalBytesLimitExceeded(limit int) {
 
 // TotalFullRawRequestBodyLimitExceeded is to be called when the request body length exceeded the limit while entire body was being scanned as a single field.
 func (l *filelogResultsLogger) TotalFullRawRequestBodyLimitExceeded(limit int) {
-	l.bytesLimitExceeded(fmt.Sprintf("Request body length exceeded the limit (%d bytes) while the WAF was scanning the entire request body as a single field. The OWASP Core Rule Set and possibly other SecRule-based rule sets require this scan when the request body content-type is set to application/x-www-form-urlencoded.", limit))
+	l.bytesLimitExceeded(fmt.Sprintf("Request body length exceeded the limit (%d bytes) while the WAF was scanning the entire request body as a single field. The OWASP Core Rule Set and possibly other SecRule-based rule sets require this scan under certain conditions.", limit))
 }
 
 func (l *filelogResultsLogger) bytesLimitExceeded(msg string) {
@@ -286,23 +286,32 @@ func (l *filelogResultsLogger) bytesLimitExceeded(msg string) {
 
 // BodyParseError is to be called when the request body parser hit an error causing the request to be blocked.
 func (l *filelogResultsLogger) BodyParseError(err error) {
-	lg := &customerFirewallBodyParseLogEntry{
+	l.parseError("Request body scanning error", err)
+}
+
+// HeaderParseError is to be called when we hit an error while parsing the headers causing the request to be blocked.
+func (l *filelogResultsLogger) HeaderParseError(err error) {
+	l.parseError("Request headers scanning error", err)
+}
+
+func (l *filelogResultsLogger) parseError(msg string, err error) {
+	lg := &customerFirewallParseLogEntry{
 		TimeStamp:     l.triggerTime.Format(azureLogDateFormat),
 		ResourceID:    l.resourceID,
 		OperationName: "ApplicationGatewayFirewall",
 		Category:      "ApplicationGatewayFirewallLog",
-		Properties: customerFirewallBodyParseLogEntryProperty{
+		Properties: customerFirewallReqParseLogEntryProperty{
 			InstanceID:      l.instanceID,
 			ClientIP:        l.request.RemoteAddr(),
 			RequestURI:      l.request.URI(),
-			Message:         fmt.Sprintf("Request body scanning error"),
+			Message:         msg,
 			Action:          l.blockedOrDetectedActionString(),
 			Hostname:        l.hostHeader,
 			TransactionID:   l.request.TransactionID(),
 			PolicyID:        l.request.ConfigID(),
 			PolicyScope:     l.policyScope,
 			PolicyScopeName: l.policyScopeName,
-			Details: customerFirewallLogBodyParseDetailsEntry{
+			Details: customerFirewallLogReqParseDetailsEntry{
 				Message: err.Error(),
 			},
 			Engine: "Azwaf",

@@ -81,6 +81,7 @@ func TestCrsRules(t *testing.T) {
 	resLog := newMockResultsLogger()
 	ef := secrule.NewEngineFactory(logger, rl, rsf, ref)
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
+	rlf := &mockResultsLoggerFactory{mockResultsLogger: resLog}
 
 	var total, pass, fail, skip int
 
@@ -90,14 +91,17 @@ func TestCrsRules(t *testing.T) {
 		if *ruleSetVersion != "" && *ruleSetVersion != ts.ruleSetVersion {
 			continue
 		}
+
 		c := &mockSecRuleConfig{ruleSetID: ts.ruleSetID}
 		e, err := ef.NewEngine(c)
 		if err != nil {
 			t.Fatalf("Got unexpected error: %s", err)
 		}
 
-		usesFullRawRequestBodyCb := func(contentType waf.ContentType) bool {
-			return e.UsesFullRawRequestBody() && contentType == waf.URLEncodedContent
+		wafServer, err := waf.NewStandaloneSecruleServer(logger, rlf, e, rbp)
+		if err != nil {
+			t.Logf("Error while running tests %v", err)
+			return
 		}
 
 		_, thissrcfilename, _, _ := runtime.Caller(0)
@@ -125,21 +129,10 @@ func TestCrsRules(t *testing.T) {
 			resLog.ruleMatched = make(map[int]bool)
 			for _, req := range tc.Requests {
 				// Act
-				ev := e.NewEvaluation(logger, resLog, req)
-				ev.ScanHeaders()
-				ev.EvalRules(1)
-
-				fieldCb := func(contentType waf.ContentType, fieldName string, data string) error {
-					return ev.ScanBodyField(contentType, fieldName, data)
-				}
-				err = rbp.Parse(logger, req, fieldCb, usesFullRawRequestBodyCb)
+				_, err = wafServer.EvalRequest(req)
 				if err != nil {
-					t.Logf("Error while scanning request body %v", err)
+					t.Logf("Error while wafServer.EvalRequest(req): %v", err)
 					// TODO some tests expect 400 in this case
-				}
-
-				for phase := 2; phase <= 5; phase++ {
-					ev.EvalRules(phase)
 				}
 			}
 

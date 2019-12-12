@@ -23,7 +23,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	ev := e.NewEvaluation(logger, reslog, req)
+	ev := e.NewEvaluation(logger, reslog, req, waf.OtherBody)
 	err = ev.ScanHeaders()
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -33,6 +33,43 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	// Assert
 	if r != waf.Pass {
 		t.Fatalf("EvalRequest did not return pass")
+	}
+}
+
+func TestReqbodyProcessorValues(t *testing.T) {
+	// If you change this number, make sure to add the corresponding test below as well.
+	if len(reqbodyProcessorValues) != 5 {
+		t.Fatalf("Unexpected len(reqbodyProcessorValues). You must update this test if you have changed reqbodyProcessorValues.")
+	}
+
+	// If you change this number, make sure to add the corresponding test below as well.
+	if len(waf.ReqBodyTypeToStr) != 5 {
+		t.Fatalf("Unexpected len(waf.ReqBodyTypeToStr). You must update this test if you have changed waf.ReqBodyTypeToStr.")
+	}
+
+	s := reqbodyProcessorValues[waf.OtherBody].string()
+	if s != "" {
+		t.Fatalf("Unexpected reqbodyProcessorValues[waf.OtherBody]: %v", s)
+	}
+
+	s = reqbodyProcessorValues[waf.MultipartFormDataBody].string()
+	if s != "MULTIPART" {
+		t.Fatalf("Unexpected reqbodyProcessorValues[waf.MultipartFormDataBody]: %v", s)
+	}
+
+	s = reqbodyProcessorValues[waf.URLEncodedBody].string()
+	if s != "URLENCODED" {
+		t.Fatalf("Unexpected reqbodyProcessorValues[waf.URLEncodedBody]: %v", s)
+	}
+
+	s = reqbodyProcessorValues[waf.XMLBody].string()
+	if s != "XML" {
+		t.Fatalf("Unexpected reqbodyProcessorValues[waf.XMLBody]: %v", s)
+	}
+
+	s = reqbodyProcessorValues[waf.JSONBody].string()
+	if s != "JSON" {
+		t.Fatalf("Unexpected reqbodyProcessorValues[waf.JSONBody]: %v", s)
 	}
 }
 
@@ -67,7 +104,7 @@ type mockReqScannerEvaluation struct {
 func (r *mockReqScannerEvaluation) ScanHeaders(req waf.HTTPRequest, results *ScanResults) (err error) {
 	return
 }
-func (r *mockReqScannerEvaluation) ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) (err error) {
+func (r *mockReqScannerEvaluation) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string, results *ScanResults) (err error) {
 	return
 }
 

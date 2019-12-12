@@ -203,7 +203,15 @@ func testBytesLimit(
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
 	mrbp := &mockRequestBodyParser{
-		parseCb: func(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) (err error) {
+		parseCb: func(
+			logger zerolog.Logger,
+			bodyReader io.Reader,
+			fieldCb ParsedBodyFieldCb,
+			reqBodyType ReqBodyType,
+			contentLengthOptional int,
+			multipartBoundary string,
+			alsoScanFullRawBody bool,
+		) (err error) {
 			err = errToSimulate
 			return
 		},
@@ -222,7 +230,7 @@ func testBytesLimit(
 	r, err := s.EvalRequest(req)
 
 	// Assert
-	if err != errToSimulate {
+	if err != nil {
 		t.Fatalf("Unexpected error from EvalRequest: %s", err)
 	}
 
@@ -252,17 +260,36 @@ func testBytesLimit(
 }
 
 type mockRequestBodyParser struct {
-	parseCb func(logger zerolog.Logger, req RequestBodyParserHTTPRequest, cb ParsedBodyFieldCb) error
+	parseCb func(
+		logger zerolog.Logger,
+		bodyReader io.Reader,
+		fieldCb ParsedBodyFieldCb,
+		reqBodyType ReqBodyType,
+		contentLengthOptional int,
+		multipartBoundary string,
+		alsoScanFullRawBody bool,
+	) error
 }
 
 func (r *mockRequestBodyParser) Parse(
 	logger zerolog.Logger,
-	req RequestBodyParserHTTPRequest,
+	bodyReader io.Reader,
 	fieldCb ParsedBodyFieldCb,
-	usesFullRawRequestBodyCb UsesFullRawRequestBodyCb,
+	reqBodyType ReqBodyType,
+	contentLengthOptional int,
+	multipartBoundary string,
+	alsoScanFullRawBody bool,
 ) (err error) {
 	if r.parseCb != nil {
-		err = r.parseCb(logger, req, fieldCb)
+		err = r.parseCb(
+			logger,
+			bodyReader,
+			fieldCb,
+			reqBodyType,
+			contentLengthOptional,
+			multipartBoundary,
+			alsoScanFullRawBody,
+		)
 	} else {
 		fieldCb(MultipartFormDataContent, "somearg", "somevalue")
 	}
@@ -286,7 +313,7 @@ func (m *mockSecRuleEvaluation) ScanHeaders() (err error) {
 	m.scanHeadersCalled++
 	return
 }
-func (m *mockSecRuleEvaluation) ScanBodyField(contentType ContentType, fieldName string, data string) (err error) {
+func (m *mockSecRuleEvaluation) ScanBodyField(contentType FieldContentType, fieldName string, data string) (err error) {
 	m.scanBodyFieldCalled++
 	return
 }
@@ -297,7 +324,7 @@ func (m *mockSecRuleEvaluation) EvalRules(phase int) Decision {
 func (m *mockSecRuleEvaluation) Close() {
 	m.closeCalled++
 }
-func (m *mockSecRuleEvaluation) IsForceRequestBodyScanning() bool {
+func (m *mockSecRuleEvaluation) AlsoScanFullRawRequestBody() bool {
 	return false
 }
 
@@ -306,13 +333,9 @@ type mockSecRuleEngine struct {
 	msrev               *mockSecRuleEvaluation
 }
 
-func (m *mockSecRuleEngine) NewEvaluation(logger zerolog.Logger, resultsLogger SecRuleResultsLogger, req HTTPRequest) SecRuleEvaluation {
+func (m *mockSecRuleEngine) NewEvaluation(logger zerolog.Logger, resultsLogger SecRuleResultsLogger, req HTTPRequest, reqBodyType ReqBodyType) SecRuleEvaluation {
 	m.newEvaluationCalled++
 	return m.msrev
-}
-
-func (m *mockSecRuleEngine) UsesFullRawRequestBody() bool {
-	return false
 }
 
 type mockSecRuleEngineFactory struct {
@@ -390,6 +413,8 @@ func (r *mockResultsLogger) BodyParseError(err error) {
 	r.bodyParseErrorCalled++
 }
 
+func (r *mockResultsLogger) HeaderParseError(err error) {}
+
 func (r *mockResultsLogger) SecRuleTriggered(ruleID int, decision Decision, msg string, logData string, ruleSetID RuleSetID) {
 }
 
@@ -458,7 +483,7 @@ func (s *mockCustomRuleEvaluation) ScanHeaders() error {
 	return nil
 }
 
-func (s *mockCustomRuleEvaluation) ScanBodyField(contentType ContentType, fieldName string, data string) error {
+func (s *mockCustomRuleEvaluation) ScanBodyField(contentType FieldContentType, fieldName string, data string) error {
 	s.scanBodyFieldCalled++
 	return nil
 }

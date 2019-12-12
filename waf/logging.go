@@ -8,6 +8,7 @@ type ResultsLogger interface {
 	TotalBytesLimitExceeded(limit int)
 	TotalFullRawRequestBodyLimitExceeded(limit int)
 	BodyParseError(err error)
+	HeaderParseError(err error)
 
 	// Results that the underlying engines may log
 	SecRuleResultsLogger

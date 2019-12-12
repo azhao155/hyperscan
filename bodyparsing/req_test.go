@@ -5,24 +5,18 @@ import (
 	"azwaf/waf"
 	"bytes"
 	"io"
-	"strconv"
 	"testing"
 )
 
-func arrangeAndRunBodyParser(t *testing.T, contentType string, body io.Reader, fieldCb waf.ParsedBodyFieldCb) (err error) {
-	headers := []waf.HeaderPair{
-		&mockHeaderPair{k: "Content-Type", v: contentType},
-	}
-	req := &mockWafHTTPRequest{uri: "/", headers: headers, bodyReader: body}
-
+func arrangeAndRunBodyParser(t *testing.T, body io.Reader, fieldCb waf.ParsedBodyFieldCb, reqBodyType waf.ReqBodyType, multipartBoundary string) (err error) {
 	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
-	err = rbp.Parse(logger, req, fieldCb, nil)
+	err = rbp.Parse(logger, body, fieldCb, reqBodyType, 0, multipartBoundary, false)
 	return
 }
 
 type parsedBodyFieldCbCall struct {
-	contentType waf.ContentType
+	contentType waf.FieldContentType
 	fieldName   string
 	data        string
 }
@@ -30,7 +24,7 @@ type parsedBodyFieldCbCall struct {
 func TestReqScannerBodyMultipart1(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
@@ -44,10 +38,10 @@ content-disposition: form-data; name="b"
 aaaaaaabccc
 --------------------------1aa6ce6559102--
 `)
-	contentTypeStr := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != nil {
@@ -82,7 +76,7 @@ aaaaaaabccc
 func TestReqScannerBodyMultipartSkipFile(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
@@ -96,10 +90,10 @@ content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 aaaaaaabccc
 --------------------------1aa6ce6559102--
 `)
-	contentTypeStr := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != nil {
@@ -134,15 +128,15 @@ aaaaaaabccc
 func TestReqScannerBodyMultipart0Length(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
 	body := bytes.NewBufferString(``)
-	contentTypeStr := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != nil {
@@ -157,7 +151,7 @@ func TestReqScannerBodyMultipart0Length(t *testing.T) {
 func TestReqScannerBodyJSON1(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
@@ -167,10 +161,9 @@ func TestReqScannerBodyJSON1(t *testing.T) {
 			"b": "aaaaaaabccc"
 		}
 	`)
-	contentTypeStr := "application/json"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.JSONBody, "")
 
 	// Assert
 	if err != nil {
@@ -205,7 +198,7 @@ func TestReqScannerBodyJSON1(t *testing.T) {
 
 func TestReqScannerBodyJSONParseErr(t *testing.T) {
 	// Arrange
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		return
 	}
 	body := bytes.NewBufferString(`
@@ -217,7 +210,7 @@ func TestReqScannerBodyJSONParseErr(t *testing.T) {
 	`)
 
 	// Act
-	err := arrangeAndRunBodyParser(t, "application/json", body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.JSONBody, "")
 
 	// Assert
 	if err == nil {
@@ -232,15 +225,14 @@ func TestReqScannerBodyJSONParseErr(t *testing.T) {
 func TestReqScannerBodyJSON0Length(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
 	body := bytes.NewBufferString(``)
-	contentTypeStr := "application/json"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.JSONBody, "")
 
 	// Assert
 	if err != nil {
@@ -255,7 +247,7 @@ func TestReqScannerBodyJSON0Length(t *testing.T) {
 func TestReqScannerBodyXML1(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
@@ -264,10 +256,9 @@ func TestReqScannerBodyXML1(t *testing.T) {
 			<world>aaaaaaabccc</world>
 		</hello>
 	`)
-	contentTypeStr := "text/xml"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.XMLBody, "")
 
 	// Assert
 	if err != nil {
@@ -304,7 +295,7 @@ func TestReqScannerBodyXML1(t *testing.T) {
 
 func TestReqScannerBodyXMLParseError(t *testing.T) {
 	// Arrange
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		return
 	}
 	body := bytes.NewBufferString(`
@@ -314,7 +305,7 @@ func TestReqScannerBodyXMLParseError(t *testing.T) {
 	`)
 
 	// Act
-	err := arrangeAndRunBodyParser(t, "text/xml", body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.XMLBody, "")
 
 	// Assert
 	if err == nil {
@@ -329,15 +320,14 @@ func TestReqScannerBodyXMLParseError(t *testing.T) {
 func TestReqScannerBodyXML0Length(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
 	body := bytes.NewBufferString(``)
-	contentTypeStr := "text/xml"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.XMLBody, "")
 
 	// Assert
 	if err != nil {
@@ -352,15 +342,14 @@ func TestReqScannerBodyXML0Length(t *testing.T) {
 func TestReqScannerBodyUrlencode1(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
 	body := bytes.NewBufferString(`b=aaaaaaabccc&a=helloworld1`)
-	contentTypeStr := "application/x-www-form-urlencoded"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.URLEncodedBody, "")
 
 	// Assert
 	if err != nil {
@@ -397,15 +386,14 @@ func TestReqScannerBodyUrlencode1(t *testing.T) {
 func TestReqScannerBodyUrlencode0Length(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
 	body := bytes.NewBufferString(``)
-	contentTypeStr := "application/x-www-form-urlencoded"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentTypeStr, body, parsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, parsedBodyFieldCb, waf.URLEncodedBody, "")
 
 	// Assert
 	if err != nil {
@@ -417,7 +405,7 @@ func TestReqScannerBodyUrlencode0Length(t *testing.T) {
 	}
 }
 
-var noOpParsedBodyFieldCb = func(contentType waf.ContentType, fieldName string, data string) (err error) {
+var noOpParsedBodyFieldCb = func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 	return
 }
 
@@ -430,10 +418,10 @@ aaaaaaaaaa
 `)}
 	body2 := bytes.NewBufferString("--------------------------1aa6ce6559102--\r\n")
 	body := io.MultiReader(body1, body2)
-	contentType := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != waf.ErrPausableBytesLimitExceeded {
@@ -456,10 +444,10 @@ content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 --------------------------1aa6ce6559102--
 `)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != nil {
@@ -482,10 +470,10 @@ content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 --------------------------1aa6ce6559102--
 `)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != waf.ErrTotalBytesLimitExceeded {
@@ -504,10 +492,10 @@ content-disposition: form-data; name="a"
 --------------------------1aa6ce6559102--
 `)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != waf.ErrFieldBytesLimitExceeded {
@@ -527,10 +515,10 @@ some content
 --------------------------1aa6ce6559102--
 `)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "multipart/form-data; boundary=------------------------1aa6ce6559102"
+	boundary := "------------------------1aa6ce6559102"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.MultipartFormDataBody, boundary)
 
 	// Assert
 	if err != waf.ErrFieldBytesLimitExceeded {
@@ -544,10 +532,9 @@ func TestReqScannerBodyJSONLimit(t *testing.T) {
 	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`"hello world", `)} // 1 MiB
 	body3 := bytes.NewBufferString(`"hello world"]}`)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "application/json"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.JSONBody, "")
 
 	// Assert
 	if err != waf.ErrPausableBytesLimitExceeded {
@@ -561,10 +548,9 @@ func TestReqScannerBodyJSONSingleFieldLimit(t *testing.T) {
 	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
 	body3 := bytes.NewBufferString(`"}`)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "application/json"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.JSONBody, "")
 
 	// Assert
 	if err != waf.ErrFieldBytesLimitExceeded {
@@ -578,10 +564,9 @@ func TestReqScannerBodyXMLLimit(t *testing.T) {
 	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`<world>something</world>`)} // 1 MiB
 	body3 := bytes.NewBufferString(`</hello>`)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "text/xml"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.XMLBody, "")
 
 	// Assert
 	if err != waf.ErrPausableBytesLimitExceeded {
@@ -595,10 +580,9 @@ func TestReqScannerBodyXMLSingleFieldLimit(t *testing.T) {
 	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
 	body3 := bytes.NewBufferString(`</hello>`)
 	body := io.MultiReader(body1, body2, body3)
-	contentType := "text/xml"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.XMLBody, "")
 
 	// Assert
 	if err != waf.ErrFieldBytesLimitExceeded {
@@ -611,10 +595,9 @@ func TestReqScannerBodyUrlEncodeLimit(t *testing.T) {
 	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`a=helloworld1&`)} // 1 MiB
 	body3 := bytes.NewBufferString(`a=helloworld1`)
 	body := io.MultiReader(body2, body3)
-	contentType := "application/x-www-form-urlencoded"
 
 	// Act
-	err := arrangeAndRunBodyParser(t, contentType, body, noOpParsedBodyFieldCb)
+	err := arrangeAndRunBodyParser(t, body, noOpParsedBodyFieldCb, waf.URLEncodedBody, "")
 
 	// Assert
 	if err != waf.ErrPausableBytesLimitExceeded {
@@ -624,18 +607,13 @@ func TestReqScannerBodyUrlEncodeLimit(t *testing.T) {
 
 func TestReqScannerContentLengthHeaderSaysTooLong(t *testing.T) {
 	// Arrange
-
-	headers := []waf.HeaderPair{
-		&mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"},
-		&mockHeaderPair{k: "CoNtEnT-LeNgTh", v: strconv.Itoa(1024 * 1024 * 1024)}, // 1 GiB
-	}
-	body := bytes.NewBufferString(`a=helloworld1`) // Note that the body in reality isn't actually very long
-	req := &mockWafHTTPRequest{uri: "/", headers: headers, bodyReader: body}
+	contentLength := 1024 * 1024 * 1024            // 1 GiB
+	body := bytes.NewBufferString(`a=helloworld1`) // Note that the body in reality is not actually 1 GiB
 	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
 
 	// Act
-	err := rbp.Parse(logger, req, noOpParsedBodyFieldCb, nil)
+	err := rbp.Parse(logger, body, noOpParsedBodyFieldCb, waf.URLEncodedBody, contentLength, "", true)
 
 	// Assert
 	if err != waf.ErrTotalBytesLimitExceeded {
@@ -646,21 +624,16 @@ func TestReqScannerContentLengthHeaderSaysTooLong(t *testing.T) {
 func TestReqScannerBodyRaw(t *testing.T) {
 	// Arrange
 	var calls []parsedBodyFieldCbCall
-	parsedBodyFieldCb := func(contentType waf.ContentType, fieldName string, data string) (err error) {
+	parsedBodyFieldCb := func(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
 	body := bytes.NewBufferString(`b=aaaaaaabccc&a=helloworld1`)
-	headers := []waf.HeaderPair{
-		&mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"},
-	}
-	req := &mockWafHTTPRequest{uri: "/", headers: headers, bodyReader: body}
 	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
-	usesFullRawRequestBodyCb := func(contentType waf.ContentType) bool { return true }
 
 	// Act
-	err := rbp.Parse(logger, req, parsedBodyFieldCb, usesFullRawRequestBodyCb)
+	err := rbp.Parse(logger, body, parsedBodyFieldCb, waf.URLEncodedBody, 0, "", true)
 
 	// Assert
 	if err != nil {

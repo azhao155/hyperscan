@@ -1613,7 +1613,7 @@ func TestParseValue(t *testing.T) {
 
 func TestTargetNamesStructsInSync(t *testing.T) {
 	if len(TargetNamesFromStr) != len(TargetNamesStrings)-1 {
-		t.Fatalf("len(TargetNamesFromStr) != len(targetNamesToStr)")
+		t.Fatalf("len(TargetNamesFromStr) != len(targetNamesToStr)-1")
 	}
 
 	if int(_lastTarget) != len(TargetNamesStrings) {

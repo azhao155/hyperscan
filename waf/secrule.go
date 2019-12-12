@@ -9,16 +9,15 @@ type SecRuleEngineFactory interface {
 
 // SecRuleEngine is a WAF engine compatible with a subset of the ModSecurity SecRule language.
 type SecRuleEngine interface {
-	NewEvaluation(logger zerolog.Logger, resultsLogger SecRuleResultsLogger, req HTTPRequest) SecRuleEvaluation
-	UsesFullRawRequestBody() bool
+	NewEvaluation(logger zerolog.Logger, resultsLogger SecRuleResultsLogger, req HTTPRequest, reqBodyType ReqBodyType) SecRuleEvaluation
 }
 
 // SecRuleEvaluation is a session of the SecRule engine for a single specific HTTP request.
 type SecRuleEvaluation interface {
 	ScanHeaders() error
-	ScanBodyField(contentType ContentType, fieldName string, data string) error
+	ScanBodyField(contentType FieldContentType, fieldName string, data string) error
 	EvalRules(phase int) (wafDecision Decision)
-	IsForceRequestBodyScanning() bool
+	AlsoScanFullRawRequestBody() bool
 	Close()
 }
 

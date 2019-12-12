@@ -275,7 +275,7 @@ func (e *customRuleEvaluationImpl) ScanHeaders() (err error) {
 	return
 }
 
-func (e *customRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, fieldName string, data string) (err error) {
+func (e *customRuleEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 	if contentType != waf.URLEncodedContent {
 		// TODO Consider removing this silly constraint we have because we have it in our ModSec version.
 		return

@@ -1,6 +1,8 @@
 package waf
 
-import "io"
+import (
+	"io"
+)
 
 // HeaderPair represents a header line in an HTTP request.
 type HeaderPair interface {

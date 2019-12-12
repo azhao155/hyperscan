@@ -20,7 +20,7 @@ type ReqScanner interface {
 // ReqScannerEvaluation is a session of the ReqScanner.
 type ReqScannerEvaluation interface {
 	ScanHeaders(req waf.HTTPRequest, results *ScanResults) (err error)
-	ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) error
+	ScanBodyField(contentType waf.FieldContentType, fieldName string, data string, results *ScanResults) error
 }
 
 // Match represents when a match was found during the request scanning phase.
@@ -351,7 +351,7 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *Sca
 	return
 }
 
-func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.ContentType, fieldName string, data string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string, results *ScanResults) (err error) {
 	// TODO pass on certain content types that modsec doesnt handle?
 
 	switch contentType {

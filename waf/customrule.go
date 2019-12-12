@@ -15,7 +15,7 @@ type CustomRuleEngine interface {
 // CustomRuleEvaluation is a run session of the CustomRule engine for a single specific HTTP request.
 type CustomRuleEvaluation interface {
 	ScanHeaders() error
-	ScanBodyField(contentType ContentType, fieldName string, data string) error
+	ScanBodyField(contentType FieldContentType, fieldName string, data string) error
 	EvalRules() (wafDecision Decision)
 	Close()
 }

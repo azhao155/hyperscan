@@ -5,14 +5,15 @@ import "strconv"
 type environment struct {
 	txVars map[string]Value
 
-	matchedVar      Value
-	matchedVars     []Value
-	matchedVarName  Value
-	matchedVarNames []Value
-	requestLine     Value
-	requestMethod   Value
-	requestProtocol Value
-	hostHeader      Value
+	matchedVar       Value
+	matchedVars      []Value
+	matchedVarName   Value
+	matchedVarNames  []Value
+	requestLine      Value
+	requestMethod    Value
+	requestProtocol  Value
+	hostHeader       Value
+	reqbodyProcessor Value
 
 	// TODO support other collections besides TX
 }

@@ -137,6 +137,14 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	// Create results-logger with the data specific to this request
 	resultsLogger := s.resultsLoggerFactory.NewResultsLogger(req, engines.configLogMetaData, engines.isDetectionMode)
 
+	contentLength, reqBodyType, multipartBoundary, err := getLengthAndTypeFromHeaders(req)
+	if err != nil {
+		resultsLogger.HeaderParseError(err)
+		decision = Block
+		err = nil
+		return
+	}
+
 	var customRuleEvaluation CustomRuleEvaluation
 	if engines.cre != nil {
 		customRuleEvaluation = engines.cre.NewEvaluation(logger, resultsLogger, req)
@@ -144,17 +152,23 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 		err = customRuleEvaluation.ScanHeaders()
 		if err != nil {
+			resultsLogger.HeaderParseError(err)
+			decision = Block
+			err = nil
 			return
 		}
 	}
 
 	var secRuleEvaluation SecRuleEvaluation
 	if engines.sre != nil {
-		secRuleEvaluation = engines.sre.NewEvaluation(logger, resultsLogger, req)
+		secRuleEvaluation = engines.sre.NewEvaluation(logger, resultsLogger, req, reqBodyType)
 		defer secRuleEvaluation.Close()
 
 		err = secRuleEvaluation.ScanHeaders()
 		if err != nil {
+			resultsLogger.HeaderParseError(err)
+			decision = Block
+			err = nil
 			return
 		}
 
@@ -165,7 +179,14 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	bodyFieldCb := func(contentType ContentType, fieldName string, data string) (err error) {
+	var alsoScanFullRawRequestBody bool
+	// Currently only the SecRule engine may need the raw request body.
+	if engines.sre != nil {
+		alsoScanFullRawRequestBody = secRuleEvaluation.AlsoScanFullRawRequestBody()
+	}
+
+	// The callback function the body parser will call each time it has found a body field.
+	bodyFieldCb := func(contentType FieldContentType, fieldName string, data string) (err error) {
 		if customRuleEvaluation != nil {
 			err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
 			if err != nil {
@@ -180,26 +201,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		return
 	}
 
-	usesFullRawRequestBodyCb := func(contentType ContentType) bool {
-		// Only the SecRule engine may need the raw request body
-		if engines.sre == nil {
-			return false
-		}
-
-		// The secrule engine needs the full raw request body if it has statements that uses it, and content type is application/x-www-form-urlencoded.
-		if engines.sre.UsesFullRawRequestBody() && contentType == URLEncodedContent {
-			return true
-		}
-
-		// Alternatively a rule could have run a control action to force the REQUEST_BODY variable to be set.
-		if secRuleEvaluation.IsForceRequestBodyScanning() {
-			return true
-		}
-
-		return false
-	}
-
-	err = s.requestBodyParser.Parse(logger, req, bodyFieldCb, usesFullRawRequestBodyCb)
+	err = s.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
 	if err != nil {
 		lengthLimits := s.requestBodyParser.LengthLimits()
 		if err == ErrFieldBytesLimitExceeded {
@@ -220,6 +222,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 
 		decision = Block
+		err = nil
 		return
 	}
 

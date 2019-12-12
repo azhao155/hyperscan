@@ -52,6 +52,8 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 		actualVal = perRequestEnv.requestProtocol
 	} else if target.Name == TargetRequestHeaders && strings.EqualFold(target.Selector, "host") {
 		actualVal = perRequestEnv.hostHeader
+	} else if target.Name == TargetReqbodyProcessor {
+		actualVal = perRequestEnv.reqbodyProcessor
 	}
 
 	result, output, err := opFunc(actualVal, expectedVal)

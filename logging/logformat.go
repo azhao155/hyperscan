@@ -16,12 +16,12 @@ type customerFirewallLimitExceedLogEntry struct {
 	Properties    customerFirewallLimitExceedLogEntryProperty `json:"properties"`
 }
 
-type customerFirewallBodyParseLogEntry struct {
-	TimeStamp     string                                    `json:"timeStamp"`
-	ResourceID    string                                    `json:"resourceId"`
-	OperationName string                                    `json:"operationName"`
-	Category      string                                    `json:"category"`
-	Properties    customerFirewallBodyParseLogEntryProperty `json:"properties"`
+type customerFirewallParseLogEntry struct {
+	TimeStamp     string                                   `json:"timeStamp"`
+	ResourceID    string                                   `json:"resourceId"`
+	OperationName string                                   `json:"operationName"`
+	Category      string                                   `json:"category"`
+	Properties    customerFirewallReqParseLogEntryProperty `json:"properties"`
 }
 
 type customerFirewallLogEntryProperty struct {
@@ -59,21 +59,21 @@ type customerFirewallLimitExceedLogEntryProperty struct {
 	Engine          string `json:"engine"`
 }
 
-type customerFirewallBodyParseLogEntryProperty struct {
-	InstanceID      string                                   `json:"instanceId"`
-	ClientIP        string                                   `json:"clientIp"`
-	RequestURI      string                                   `json:"requestUri"`
-	RuleSetType     string                                   `json:"ruleSetType"`
-	RuleSetVersion  string                                   `json:"ruleSetVersion"`
-	Message         string                                   `json:"message"`
-	Action          string                                   `json:"action"`
-	Details         customerFirewallLogBodyParseDetailsEntry `json:"details"`
-	Hostname        string                                   `json:"hostname"`
-	TransactionID   string                                   `json:"transactionId"`
-	PolicyID        string                                   `json:"policyId"`
-	PolicyScope     string                                   `json:"policyScope"`
-	PolicyScopeName string                                   `json:"policyScopeName"`
-	Engine          string                                   `json:"engine"`
+type customerFirewallReqParseLogEntryProperty struct {
+	InstanceID      string                                  `json:"instanceId"`
+	ClientIP        string                                  `json:"clientIp"`
+	RequestURI      string                                  `json:"requestUri"`
+	RuleSetType     string                                  `json:"ruleSetType"`
+	RuleSetVersion  string                                  `json:"ruleSetVersion"`
+	Message         string                                  `json:"message"`
+	Action          string                                  `json:"action"`
+	Details         customerFirewallLogReqParseDetailsEntry `json:"details"`
+	Hostname        string                                  `json:"hostname"`
+	TransactionID   string                                  `json:"transactionId"`
+	PolicyID        string                                  `json:"policyId"`
+	PolicyScope     string                                  `json:"policyScope"`
+	PolicyScopeName string                                  `json:"policyScopeName"`
+	Engine          string                                  `json:"engine"`
 }
 
 type customerFirewallLogDetailsEntry struct {
@@ -83,7 +83,7 @@ type customerFirewallLogDetailsEntry struct {
 	Line    string `json:"line"`
 }
 
-type customerFirewallLogBodyParseDetailsEntry struct {
+type customerFirewallLogReqParseDetailsEntry struct {
 	Message string `json:"message"`
 }
 

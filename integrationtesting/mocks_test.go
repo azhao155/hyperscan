@@ -29,6 +29,8 @@ func (l *mockResultsLogger) TotalFullRawRequestBodyLimitExceeded(limit int) {
 }
 func (l *mockResultsLogger) BodyParseError(err error) {}
 
+func (l *mockResultsLogger) HeaderParseError(err error) {}
+
 func (l *mockResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []waf.ResultsLoggerCustomRulesMatchedConditions) {
 }
 

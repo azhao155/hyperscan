@@ -2,45 +2,57 @@ package waf
 
 import (
 	"errors"
-	"github.com/rs/zerolog"
+	"fmt"
 	"io"
+	"mime"
+	"strconv"
+	"strings"
+
+	"github.com/rs/zerolog"
 )
 
 // ParsedBodyFieldCb is will be called for each parsed field.
-type ParsedBodyFieldCb = func(contentType ContentType, fieldName string, data string) error
-
-// UsesFullRawRequestBodyCb will be called to determine whether to buffer and pass the full raw request body to ParsedBodyFieldCb.
-type UsesFullRawRequestBodyCb = func(contentType ContentType) bool
+type ParsedBodyFieldCb = func(contentType FieldContentType, fieldName string, data string) error
 
 // RequestBodyParser parses HTTP request bodies.
 type RequestBodyParser interface {
 	Parse(
 		logger zerolog.Logger,
-		req RequestBodyParserHTTPRequest,
+		bodyReader io.Reader,
 		fieldCb ParsedBodyFieldCb,
-		usesFullRawRequestBodyCb UsesFullRawRequestBodyCb,
+		reqBodyType ReqBodyType,
+		contentLengthOptional int, // Content length if it was already known. 0 is fine if it was not known (transfer-encoding chunked), just slightly less performant.
+		multipartBoundary string, // A boundary to use if this is a multipart/form-data body. If this is a different request body type then use "" instead.
+		alsoScanFullRawBody bool,
 	) error
 	LengthLimits() LengthLimits
 }
 
-// RequestBodyParserHTTPRequest represents an HTTP request to be evaluated by RequestBodyParser.
-type RequestBodyParserHTTPRequest interface {
-	Headers() []HeaderPair
-	BodyReader() io.Reader
-}
+// FieldContentType states the type of the body field just scanned.
+type FieldContentType int
 
-// ContentType of the body field being parsed.
-type ContentType int
-
-// ContentTypes available.
+// FieldContentTypes available.
 const (
-	_ ContentType = iota
+	_ FieldContentType = iota
 	FullRawRequestBody
 	MultipartFormDataContent
 	MultipartFormDataFileNames
 	URLEncodedContent
 	XMLContent
 	JSONContent
+)
+
+// ReqBodyType states what to treat the request body content as.
+type ReqBodyType int
+
+// ReqBodyTypes available.
+const (
+	OtherBody ReqBodyType = iota
+	MultipartFormDataBody
+	URLEncodedBody
+	XMLBody
+	JSONBody
+	_lastReqBodyTypes
 )
 
 // LengthLimits states limitations we will enforce regarding the lengths of different parts of the request.
@@ -70,3 +82,52 @@ var ErrTotalBytesLimitExceeded = errors.New("total request length limit exceeded
 
 // ErrTotalFullRawRequestBodyExceeded is returned when the total request length limit exceeded for full raw request body buffering was exceeded.
 var ErrTotalFullRawRequestBodyExceeded = errors.New("total request length limit exceeded for full raw request body buffering")
+
+// ReqBodyTypeToStr maps from a content-type string to ReqBodyType.
+var ReqBodyTypeToStr = map[string]ReqBodyType{
+	"":                                  OtherBody,
+	"multipart/form-data":               MultipartFormDataBody,
+	"application/x-www-form-urlencoded": URLEncodedBody,
+	"text/xml":                          XMLBody,
+	"application/json":                  JSONBody,
+}
+
+// ReqBodyTypeStrings maps from a ReqBodyType to a content-type string.
+var ReqBodyTypeStrings = []string{
+	"",
+	"multipart/form-data",
+	"application/x-www-form-urlencoded",
+	"text/xml",
+	"application/json",
+}
+
+func getLengthAndTypeFromHeaders(req HTTPRequest) (contentLength int, reqBodyType ReqBodyType, multipartBoundary string, err error) {
+	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
+
+	for _, h := range req.Headers() {
+		k := h.Key()
+		v := h.Value()
+
+		if strings.EqualFold("content-length", k) {
+			contentLength, err = strconv.Atoi(v)
+			if err != nil {
+				err = fmt.Errorf("failed to parse Content-Length header")
+				return
+			}
+		}
+
+		if strings.EqualFold("content-type", k) {
+			mediatypeStr, mediaTypeParams, _ := mime.ParseMediaType(v)
+			reqBodyType = OtherBody
+			if t, ok := ReqBodyTypeToStr[mediatypeStr]; ok {
+				reqBodyType = t
+			}
+
+			if reqBodyType == MultipartFormDataBody {
+				multipartBoundary = mediaTypeParams["boundary"]
+			}
+		}
+	}
+
+	return
+}

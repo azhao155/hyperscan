@@ -49,6 +49,7 @@ type secRuleEvaluationImpl struct {
 	resultsLogger        waf.SecRuleResultsLogger
 	engine               *engineImpl
 	request              waf.HTTPRequest
+	reqBodyType          waf.ReqBodyType
 	scanResults          *ScanResults
 	ruleTriggeredCb      func(stmt Statement, decision waf.Decision, msg string, logData string)
 	reqScannerEvaluation ReqScannerEvaluation
@@ -58,7 +59,7 @@ type secRuleEvaluationImpl struct {
 	env                  *environment
 }
 
-func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecRuleResultsLogger, req waf.HTTPRequest) waf.SecRuleEvaluation {
+func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecRuleResultsLogger, req waf.HTTPRequest, reqBodyType waf.ReqBodyType) waf.SecRuleEvaluation {
 	ruleTriggeredCb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		var ruleID int
 		switch stmt := stmt.(type) {
@@ -97,12 +98,18 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 
 	env := newEnvironment()
 
+	// This is needed in the env to later populate the REQBODY_PROCESSOR target.
+	if int(reqBodyType) < len(reqbodyProcessorValues) {
+		env.reqbodyProcessor = reqbodyProcessorValues[reqBodyType]
+	}
+
 	scanResults := NewScanResults()
 
 	ruleEvaluator := s.ruleEvaluatorFactory.NewRuleEvaluator(logger, env, s.statements, scanResults, ruleTriggeredCb)
 
 	return &secRuleEvaluationImpl{
 		request:              req,
+		reqBodyType:          reqBodyType,
 		resultsLogger:        resultsLogger,
 		logger:               logger,
 		engine:               s,
@@ -116,8 +123,18 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 	}
 }
 
-func (s *engineImpl) UsesFullRawRequestBody() bool {
-	return s.usesFullRawRequestBody
+func (s *secRuleEvaluationImpl) AlsoScanFullRawRequestBody() bool {
+	// The secrule engine needs the full raw request body if it has statements that uses it, and content type is application/x-www-form-urlencoded.
+	if s.engine.usesFullRawRequestBody && s.reqBodyType == waf.URLEncodedBody {
+		return true
+	}
+
+	// Alternatively a rule could have run a control action "ctl:forceRequestBodyVariable=On".
+	if s.ruleEvaluator.IsForceRequestBodyScanning() {
+		return true
+	}
+
+	return false
 }
 
 func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
@@ -134,7 +151,7 @@ func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
 	return
 }
 
-func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.ContentType, fieldName string, data string) (err error) {
+func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string) (err error) {
 	return s.reqScannerEvaluation.ScanBodyField(contentType, fieldName, data, s.scanResults)
 }
 
@@ -159,10 +176,6 @@ func (s *secRuleEvaluationImpl) EvalRules(phase int) (wafDecision waf.Decision) 
 	return
 }
 
-func (s *secRuleEvaluationImpl) IsForceRequestBodyScanning() bool {
-	return s.ruleEvaluator.IsForceRequestBodyScanning()
-}
-
 // Release resources.
 func (s *secRuleEvaluationImpl) Close() {
 	s.scratchSpaceNext <- s.scratchSpace
@@ -183,4 +196,12 @@ func usesRequestBodyTarget(statements []Statement) bool {
 	}
 
 	return false
+}
+
+var reqbodyProcessorValues = []Value{
+	Value{},
+	Value{StringToken("MULTIPART")},
+	Value{StringToken("URLENCODED")},
+	Value{StringToken("XML")},
+	Value{StringToken("JSON")},
 }

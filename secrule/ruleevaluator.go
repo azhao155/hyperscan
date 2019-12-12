@@ -321,7 +321,7 @@ func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, s
 // We require a late scan (a scan in the eval phase as opposed to the req scan phase) if either left or right side was not known in the scan phase.
 func requiresLateScan(predicate RulePredicate, target Target) bool {
 	switch target.Name {
-	case TargetMatchedVar, TargetMatchedVars, TargetMatchedVarName, TargetMatchedVarsNames, TargetTx:
+	case TargetMatchedVar, TargetMatchedVars, TargetMatchedVarName, TargetMatchedVarsNames, TargetTx, TargetReqbodyProcessor:
 		return true
 	}
 
