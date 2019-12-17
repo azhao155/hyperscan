@@ -639,24 +639,24 @@ func TestSecRuleActions(t *testing.T) {
 			&SetVarAction{
 				variable: Value{StringToken("tx.sql_injection_score")},
 				operator: increment,
-				value:    Value{MacroToken("tx.critical_anomaly_score")},
+				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		}},
 		{`"id:'950902',setvar:'tx.sql_injection_score=+%{tx.critical_anomaly_score}'"`, 950902, []Action{
 			&SetVarAction{
 				variable: Value{StringToken("tx.sql_injection_score")},
 				operator: increment,
-				value:    Value{MacroToken("tx.critical_anomaly_score")},
+				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		}},
 		{`"id:'950902',logdata:'Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}'"`, 950902, []Action{
 			&LogDataAction{LogData: Value{
 				StringToken("Matched Data: "),
-				MacroToken("tx.0"),
+				MacroToken{Name: EnvVarTx, Selector: "0"},
 				StringToken(" found within "),
-				MacroToken("matched_var_name"),
+				MacroToken{Name: EnvVarMatchedVarName},
 				StringToken(": "),
-				MacroToken("matched_var")}},
+				MacroToken{Name: EnvVarMatchedVar}}},
 		}},
 	}
 
@@ -1033,32 +1033,32 @@ func TestRule942320(t *testing.T) {
 		&RawAction{`tag`, `PCI/6.5.2`},
 		&LogDataAction{LogData: Value{
 			StringToken("Matched Data: "),
-			MacroToken("tx.0"),
+			MacroToken{Name: EnvVarTx, Selector: "0"},
 			StringToken(" found within "),
-			MacroToken("matched_var_name"),
+			MacroToken{Name: EnvVarMatchedVarName},
 			StringToken(": "),
-			MacroToken("matched_var")}},
+			MacroToken{Name: EnvVarMatchedVar}}},
 		&RawAction{`severity`, `CRITICAL`},
 		&SetVarAction{
 			variable: Value{StringToken("tx.msg")},
 			operator: set,
-			value:    Value{MacroToken("rule.msg")},
+			value:    Value{MacroToken{Name: EnvVarRule, Selector: "msg"}},
 		},
 		&SetVarAction{
 			variable: Value{StringToken("tx.sql_injection_score")},
 			operator: increment,
-			value:    Value{MacroToken("tx.critical_anomaly_score")},
+			value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 		},
 		&SetVarAction{
 			variable: Value{StringToken("tx.anomaly_score")},
 			operator: increment,
-			value:    Value{MacroToken("tx.critical_anomaly_score")},
+			value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 		},
 
 		&SetVarAction{
-			variable: Value{StringToken("tx."), MacroToken("rule.id"), StringToken("-OWASP_CRS/WEB_ATTACK/SQLI-"), MacroToken("matched_var_name")},
+			variable: Value{StringToken("tx."), MacroToken{Name: EnvVarRule, Selector: "id"}, StringToken("-OWASP_CRS/WEB_ATTACK/SQLI-"), MacroToken{Name: EnvVarMatchedVarName}},
 			operator: set,
-			value:    Value{MacroToken("tx.0")},
+			value:    Value{MacroToken{Name: EnvVarTx, Selector: "0"}},
 		},
 	}
 
@@ -1503,7 +1503,7 @@ func TestParseSetVar(t *testing.T) {
 			SetVarAction{
 				variable: Value{StringToken("tx.anomaly_score")},
 				operator: increment,
-				value:    Value{MacroToken("tx.critical_anomaly_score")},
+				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		},
 		{
@@ -1511,15 +1511,15 @@ func TestParseSetVar(t *testing.T) {
 			SetVarAction{
 				variable: Value{StringToken("tx.anomaly_score")},
 				operator: set,
-				value:    Value{MacroToken("tx.critical_anomaly_score"), StringToken(" "), MacroToken("tx.something")},
+				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}, StringToken(" "), MacroToken{Name: EnvVarTx, Selector: "something"}},
 			},
 		},
 		{
 			`%{tx.something}=+%{tx.critical_anomaly_score}`,
 			SetVarAction{
-				variable: Value{MacroToken("tx.something")},
+				variable: Value{MacroToken{Name: EnvVarTx, Selector: "something"}},
 				operator: increment,
-				value:    Value{MacroToken("tx.critical_anomaly_score")},
+				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		},
 	}
@@ -1592,11 +1592,11 @@ func TestParseValue(t *testing.T) {
 	}
 	tests := []testCase{
 		{`hello`, Value{StringToken("hello")}},
-		{`%{tx.somevar1}`, Value{MacroToken("tx.somevar1")}},
-		{`hello%{tx.somevar1}`, Value{StringToken("hello"), MacroToken("tx.somevar1")}},
-		{`hello%{tx.somevar1}world`, Value{StringToken("hello"), MacroToken("tx.somevar1"), StringToken("world")}},
-		{`%{tx.somevar1}world`, Value{MacroToken("tx.somevar1"), StringToken("world")}},
-		{`%{tx.somevar1}world%{tx.somevar2}`, Value{MacroToken("tx.somevar1"), StringToken("world"), MacroToken("tx.somevar2")}},
+		{`%{tx.somevar1}`, Value{MacroToken{Name: EnvVarTx, Selector: "somevar1"}}},
+		{`hello%{tx.somevar1}`, Value{StringToken("hello"), MacroToken{Name: EnvVarTx, Selector: "somevar1"}}},
+		{`hello%{tx.somevar1}world`, Value{StringToken("hello"), MacroToken{Name: EnvVarTx, Selector: "somevar1"}, StringToken("world")}},
+		{`%{tx.somevar1}world`, Value{MacroToken{Name: EnvVarTx, Selector: "somevar1"}, StringToken("world")}},
+		{`%{tx.somevar1}world%{tx.somevar2}`, Value{MacroToken{Name: EnvVarTx, Selector: "somevar1"}, StringToken("world"), MacroToken{Name: EnvVarTx, Selector: "somevar2"}}},
 		{`123`, Value{IntToken(123)}},
 	}
 

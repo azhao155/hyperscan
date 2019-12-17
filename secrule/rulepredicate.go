@@ -16,44 +16,40 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 	var actualVal Value
 	if target.Name == TargetTx {
 		if target.IsCount {
-			// Variable counting
+			// Transaction variable collection counting.
 			actualVal = Value{IntToken(0)}
 			if target.Selector != "" {
-				key := strings.ToLower("tx." + target.Selector)
-				if perRequestEnv.hasKey(key) {
+				if v := perRequestEnv.get(EnvVarTx, target.Selector); v != nil {
 					actualVal = Value{IntToken(1)}
 				}
 			}
 		} else {
-			key := strings.ToLower("tx." + target.Selector)
-
-			varObj, ok := perRequestEnv.get(key)
-			if !ok {
-				return false, Match{}, fmt.Errorf("target %s not found in env map", key)
+			varObj := perRequestEnv.get(EnvVarTx, target.Selector)
+			if varObj == nil {
+				return false, Match{}, fmt.Errorf("transaction variable %s was not set", target.Selector)
 			}
-
 			actualVal = varObj
 		}
 	} else if target.IsCount {
 		actualVal = Value{IntToken(scanResults.targetsCount[target])}
 	} else if target.Name == TargetMatchedVar {
-		actualVal = perRequestEnv.matchedVar
+		actualVal = perRequestEnv.get(EnvVarMatchedVar, "")
 	} else if target.Name == TargetMatchedVars {
-		return rp.evalCollection(target, expectedVal, perRequestEnv.matchedVars, opFunc)
+		return rp.evalCollection(target, expectedVal, perRequestEnv.getCollection(EnvVarMatchedVars), opFunc)
 	} else if target.Name == TargetMatchedVarName {
-		actualVal = perRequestEnv.matchedVarName
+		actualVal = perRequestEnv.get(EnvVarMatchedVarName, "")
 	} else if target.Name == TargetMatchedVarsNames {
-		return rp.evalCollection(target, expectedVal, perRequestEnv.matchedVarNames, opFunc)
+		return rp.evalCollection(target, expectedVal, perRequestEnv.getCollection(EnvVarMatchedVarNames), opFunc)
 	} else if target.Name == TargetRequestLine {
-		actualVal = perRequestEnv.requestLine
+		actualVal = perRequestEnv.get(EnvVarRequestLine, "")
 	} else if target.Name == TargetRequestMethod {
-		actualVal = perRequestEnv.requestMethod
+		actualVal = perRequestEnv.get(EnvVarRequestMethod, "")
 	} else if target.Name == TargetRequestProtocol {
-		actualVal = perRequestEnv.requestProtocol
+		actualVal = perRequestEnv.get(EnvVarRequestProtocol, "")
 	} else if target.Name == TargetRequestHeaders && strings.EqualFold(target.Selector, "host") {
-		actualVal = perRequestEnv.hostHeader
+		actualVal = perRequestEnv.get(EnvVarRequestHeaders, "host")
 	} else if target.Name == TargetReqbodyProcessor {
-		actualVal = perRequestEnv.reqbodyProcessor
+		actualVal = perRequestEnv.get(EnvVarReqbodyProcessor, "")
 	}
 
 	result, output, err := opFunc(actualVal, expectedVal)

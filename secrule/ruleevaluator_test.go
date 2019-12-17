@@ -137,7 +137,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	p := RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "ANOMALY_SCORE"}}, Op: Ge, Val: Value{MacroToken("tx.inbound_anomaly_threshold")}}
+	p := RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "anomaly_score"}}, Op: Ge, Val: Value{MacroToken{Name: EnvVarTx, Selector: "inbound_anomaly_threshold"}}}
 	rules := []Statement{
 		&Rule{
 			ID: 100,
@@ -152,8 +152,8 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 	}
 
 	em := newEnvironment()
-	em.set("tx.anomaly_score", Value{IntToken(10)})
-	em.set("tx.inbound_anomaly_threshold", Value{IntToken(5)})
+	em.set(EnvVarTx, "anomaly_score", Value{IntToken(10)})
+	em.set(EnvVarTx, "inbound_anomaly_threshold", Value{IntToken(5)})
 	ref := NewRuleEvaluatorFactory()
 
 	tc := make(map[Target]int)
@@ -313,7 +313,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -326,10 +326,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Block, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(123)}, v)
+	assert.Equal(Value{IntToken(123)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(1, cbCalled)
 }
 
@@ -359,7 +356,7 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -372,10 +369,7 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(123)}, v)
+	assert.Equal(Value{IntToken(123)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(0, cbCalled)
 }
 
@@ -391,7 +385,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -404,10 +398,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(123)}, v)
+	assert.Equal(Value{IntToken(123)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(1, cbCalled)
 }
 
@@ -427,7 +418,7 @@ func TestRuleEvaluatorSetVarString(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -440,10 +431,7 @@ func TestRuleEvaluatorSetVarString(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal("abc", v.string())
+	assert.Equal("abc", env.get(EnvVarTx, "somevar").string())
 	assert.Equal(3, cbCalled)
 }
 
@@ -460,7 +448,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -473,10 +461,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(124)}, v)
+	assert.Equal(Value{IntToken(124)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(1, cbCalled)
 }
 
@@ -588,10 +573,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(2)}, v)
+	assert.Equal(Value{IntToken(2)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -641,10 +623,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(4)}, v)
+	assert.Equal(Value{IntToken(4)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -695,10 +674,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal("abbcc", v.string())
+	assert.Equal("abbcc", env.get(EnvVarTx, "somevar").string())
 	assert.Equal(cbCalled, 2)
 }
 
@@ -872,7 +848,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -885,10 +861,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(10)}, v)
+	assert.Equal(Value{IntToken(10)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -906,7 +879,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -919,10 +892,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(10)}, v)
+	assert.Equal(Value{IntToken(10)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -943,7 +913,7 @@ func TestSkipAfter(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -955,15 +925,9 @@ func TestSkipAfter(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(10)}, v)
+	assert.Equal(Value{IntToken(10)}, env.get(EnvVarTx, "somevar"))
 
-	assert.True(env.hasKey("tx.othervar"))
-	v, ok = env.get("tx.othervar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(10)}, v)
+	assert.Equal(Value{IntToken(10)}, env.get(EnvVarTx, "othervar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -984,7 +948,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -997,10 +961,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(20)}, v)
+	assert.Equal(Value{IntToken(20)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(3, cbCalled)
 }
 
@@ -1018,7 +979,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -1030,7 +991,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	assert.Equal(1, cbCalled)
 }
 
@@ -1048,7 +1009,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	env := newEnvironment()
-	assert.False(env.hasKey("tx.somevar"))
+	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
@@ -1060,10 +1021,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(10)}, v)
+	assert.Equal(Value{IntToken(10)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -1209,10 +1167,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(2)}, v)
+	assert.Equal(Value{IntToken(2)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(2, cbCalled)
 }
 
@@ -1251,10 +1206,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 	re.ProcessPhase(2)
 
 	// Assert
-	assert.True(env.hasKey("tx.somevar"))
-	v, ok := env.get("tx.somevar")
-	assert.True(ok)
-	assert.Equal(Value{IntToken(1)}, v)
+	assert.Equal(Value{IntToken(1)}, env.get(EnvVarTx, "somevar"))
 	assert.Equal(1, cbCalled)
 }
 
@@ -1662,7 +1614,7 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 					Actions:   []Action{&CaptureAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar"), StringToken("$")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken{Name: EnvVarTx, Selector: "myvar"}, StringToken("$")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1713,7 +1665,7 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 					Actions:   []Action{&CaptureAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.2"), StringToken("$")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "1"}}, Op: Rx, Val: Value{StringToken("^"), MacroToken{Name: EnvVarTx, Selector: "2"}, StringToken("$")}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1907,7 +1859,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
-	sv1, _ := parseSetVarAction("tx.myvar=helloworld")
+	sv1, _ := parseSetVarAction("tx.MYVAR=helloworld")
 	rules := []Statement{
 		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
 		&Rule{
@@ -1922,7 +1874,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 			ID: 103,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "MYVAR"}}, Op: Streq, Val: Value{MacroToken("matched_var")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "myvar"}}, Op: Streq, Val: Value{MacroToken{Name: EnvVarMatchedVar}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -1983,7 +1935,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 			ID: 103,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2045,7 +1997,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 			ID: 103,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 				},
 			},
 		},
@@ -2053,7 +2005,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 			ID: 104,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVar}}, Op: Rx, Val: Value{StringToken("^"), MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2109,7 +2061,7 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 					Actions:   []Action{&DenyAction{}},
 				},
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVarName}}, Op: Rx, Val: Value{StringToken("^"), MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetMatchedVarName}}, Op: Rx, Val: Value{StringToken("^"), MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2162,7 +2114,7 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 			Items: []RuleItem{
 				{
 					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs, IsCount: true}}, Op: Gt, Val: Value{IntToken(0)}},
-					Actions:   []Action{&SetVarAction{variable: Value{StringToken("tx.args_count")}, value: Value{MacroToken("matched_var")}}},
+					Actions:   []Action{&SetVarAction{variable: Value{StringToken("tx.args_count")}, value: Value{MacroToken{Name: EnvVarMatchedVar}}}},
 				},
 			},
 		},
@@ -2426,7 +2378,7 @@ func TestRuleEvaluatorLateScanRequestLineRightSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestLine}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestLine}}, Op: Rx, Val: Value{MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2442,7 +2394,7 @@ func TestRuleEvaluatorLateScanRequestLineRightSide(t *testing.T) {
 		cbCalled++
 	}
 	em := newEnvironment()
-	em.requestLine = Value{StringToken([]byte("GET /a%20bc.php?arg1=helloworld HTTP/1.1"))}
+	em.set(EnvVarRequestLine, "", Value{StringToken([]byte("GET /a%20bc.php?arg1=helloworld HTTP/1.1"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
@@ -2465,7 +2417,7 @@ func TestRuleEvaluatorLateScanRequestMethodRightSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestMethod}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestMethod}}, Op: Rx, Val: Value{MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2481,7 +2433,7 @@ func TestRuleEvaluatorLateScanRequestMethodRightSide(t *testing.T) {
 		cbCalled++
 	}
 	em := newEnvironment()
-	em.requestMethod = Value{StringToken([]byte("HELLOWORLDMETHOD"))}
+	em.set(EnvVarRequestMethod, "", Value{StringToken([]byte("HELLOWORLDMETHOD"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
@@ -2504,7 +2456,7 @@ func TestRuleEvaluatorLateScanRequestProtocolRightSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestProtocol}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestProtocol}}, Op: Rx, Val: Value{MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2520,7 +2472,7 @@ func TestRuleEvaluatorLateScanRequestProtocolRightSide(t *testing.T) {
 		cbCalled++
 	}
 	em := newEnvironment()
-	em.requestProtocol = Value{StringToken([]byte("HTTP/1.1"))}
+	em.set(EnvVarRequestProtocol, "", Value{StringToken([]byte("HTTP/1.1"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
@@ -2543,7 +2495,7 @@ func TestRuleEvaluatorLateScanHostHeaderRightSide(t *testing.T) {
 			ID: 102,
 			Items: []RuleItem{
 				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "host"}}, Op: Rx, Val: Value{MacroToken("tx.myvar")}},
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders, Selector: "host"}}, Op: Rx, Val: Value{MacroToken{Name: EnvVarTx, Selector: "myvar"}}},
 					Actions:   []Action{&DenyAction{}},
 				},
 			},
@@ -2559,7 +2511,7 @@ func TestRuleEvaluatorLateScanHostHeaderRightSide(t *testing.T) {
 		cbCalled++
 	}
 	em := newEnvironment()
-	em.hostHeader = Value{StringToken([]byte("example.com"))}
+	em.set(EnvVarRequestHeaders, "host", Value{StringToken([]byte("example.com"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 

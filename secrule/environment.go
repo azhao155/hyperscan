@@ -1,21 +1,27 @@
 package secrule
 
-import "strconv"
+import (
+	"strconv"
+)
 
 type environment struct {
-	txVars map[string]Value
-
+	// Single-valued variables.
+	hostHeader       Value
 	matchedVar       Value
-	matchedVars      []Value
 	matchedVarName   Value
-	matchedVarNames  []Value
+	reqbodyProcessor Value
 	requestLine      Value
 	requestMethod    Value
 	requestProtocol  Value
-	hostHeader       Value
-	reqbodyProcessor Value
 
-	// TODO support other collections besides TX
+	// Collections that can only be retrieved item by item.
+	txVars map[string]Value
+
+	// Collections that can be retrieved as collections.
+	matchedVars     []Value
+	matchedVarNames []Value
+
+	// TODO support collections such as ip and session
 }
 
 func newEnvironment() *environment {
@@ -24,36 +30,85 @@ func newEnvironment() *environment {
 	}
 }
 
-func (cim environment) get(k string) (v Value, ok bool) {
-	// Try first to get built-in variable values.
-	switch k {
-	case "request_method":
-		return cim.requestMethod, true
-	case "matched_var":
-		return cim.matchedVar, true
-	case "matched_var_name":
-		return cim.matchedVarName, true
-	case "request_line":
-		return cim.requestLine, true
-	case "request_headers.host":
-		return cim.hostHeader, true
+func (cim *environment) get(name EnvVarName, selector string) (v Value) {
+	switch name {
+	case EnvVarRequestHeaders:
+		if selector == "host" {
+			return cim.hostHeader
+		}
+	case EnvVarMatchedVar:
+		return cim.matchedVar
+	case EnvVarMatchedVarName:
+		return cim.matchedVarName
+	case EnvVarReqbodyProcessor:
+		return cim.reqbodyProcessor
+	case EnvVarRequestLine:
+		return cim.requestLine
+	case EnvVarRequestMethod:
+		return cim.requestMethod
+	case EnvVarRequestProtocol:
+		return cim.requestProtocol
+	case EnvVarTx:
+		v = cim.txVars[selector]
 	}
 
-	// Try in the tx-vars map.
-	v, ok = cim.txVars[k]
 	return
 }
 
-func (cim environment) set(k string, v Value) {
-	cim.txVars[k] = v
+func (cim *environment) set(name EnvVarName, collectionKey string, val Value) {
+	switch name {
+	case EnvVarRequestHeaders:
+		if collectionKey == "host" {
+			cim.hostHeader = val
+		}
+	case EnvVarMatchedVar:
+		cim.matchedVar = val
+	case EnvVarMatchedVarName:
+		cim.matchedVarName = val
+	case EnvVarReqbodyProcessor:
+		cim.reqbodyProcessor = val
+	case EnvVarRequestLine:
+		cim.requestLine = val
+	case EnvVarRequestMethod:
+		cim.requestMethod = val
+	case EnvVarRequestProtocol:
+		cim.requestProtocol = val
+	case EnvVarTx:
+		cim.txVars[collectionKey] = val
+	}
 }
 
-func (cim environment) delete(k string) {
-	delete(cim.txVars, k)
+func (cim *environment) delete(name EnvVarName, selector string) {
+	switch name {
+	case EnvVarRequestHeaders:
+		if selector == "host" {
+			cim.hostHeader = nil
+		}
+	case EnvVarMatchedVar:
+		cim.matchedVar = nil
+	case EnvVarMatchedVarName:
+		cim.matchedVarName = nil
+	case EnvVarReqbodyProcessor:
+		cim.reqbodyProcessor = nil
+	case EnvVarRequestLine:
+		cim.requestLine = nil
+	case EnvVarRequestMethod:
+		cim.requestMethod = nil
+	case EnvVarRequestProtocol:
+		cim.requestProtocol = nil
+	case EnvVarTx:
+		delete(cim.txVars, selector)
+	}
 }
 
-func (cim environment) hasKey(k string) (ok bool) {
-	_, ok = cim.txVars[k]
+func (cim *environment) getCollection(name EnvVarName) (vv []Value) {
+	switch name {
+	case EnvVarMatchedVars:
+		return cim.matchedVars
+	case EnvVarMatchedVarNames:
+		return cim.matchedVarNames
+	}
+
 	return
 }
 

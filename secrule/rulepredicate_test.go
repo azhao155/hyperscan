@@ -22,7 +22,7 @@ func TestVarCounting(t *testing.T) {
 	assert.Nil(err)
 	assert.False(result)
 
-	em.set("tx.1", Value{StringToken("v1")})
+	em.set(EnvVarTx, "1", Value{StringToken("v1")})
 	result, _, err = rp.eval(target, sr, em)
 	assert.Nil(err)
 	assert.True(result)
@@ -44,9 +44,9 @@ func TestVarGt(t *testing.T) {
 
 	// Act
 	result1, _, err1 := rp.eval(target, sr, em)
-	em.set("tx.somevar", Value{IntToken(3)})
+	em.set(EnvVarTx, "somevar", Value{IntToken(3)})
 	result2, _, err2 := rp.eval(target, sr, em)
-	em.set("tx.somevar", Value{IntToken(5)})
+	em.set(EnvVarTx, "somevar", Value{IntToken(5)})
 	result3, _, err3 := rp.eval(target, sr, em)
 
 	// Assert

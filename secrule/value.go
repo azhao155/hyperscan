@@ -11,14 +11,16 @@ func (v Value) expandMacros(env *environment) (output Value) {
 	for _, token := range v {
 		// Replace with value from env if macro-token.
 		if mt, ok := token.(MacroToken); ok {
-			var ok bool
-			v, ok := env.get(string(mt))
-			if !ok {
-				continue
+
+			v := env.get(mt.Name, mt.Selector)
+			if v != nil {
+				output = append(output, v...)
+			} else {
+				// Macros that could not be resolved will result in blanks.
 			}
 
-			output = append(output, v...)
 			continue
+
 		}
 
 		// This was not a macro token, so just keep it as is.

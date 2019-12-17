@@ -40,12 +40,49 @@ type StringToken []byte
 type IntToken int
 
 // MacroToken is an element in a Value-string that is a macro (variable). Macros can be expanded to concrete values, given an environment.
-type MacroToken string
+type MacroToken struct {
+	Name     EnvVarName // Example value: EnvVarTx for "%{tx.anomaly_score}"
+	Selector string     // Example value: "anomaly_score" for "%{tx.anomaly_score}"
+}
 
 // ValidateByteRangeToken is an element in a Value-string that represents the allowed bytes for a @validateByteRange operator.
 type ValidateByteRangeToken struct {
 	allowedBytes [256]bool
 }
+
+// EnvVarName describes an environment variable that SecRules can use for example in macros.
+type EnvVarName int
+
+// Environment variables that SecRules can use for example in macros.
+const (
+	_ EnvVarName = iota
+	EnvVarIP
+	EnvVarMatchedVar
+	EnvVarMatchedVarName
+	EnvVarMultipartBoundaryQuoted
+	EnvVarMultipartBoundaryWhitespace
+	EnvVarMultipartDataAfter
+	EnvVarMultipartDataBefore
+	EnvVarMultipartFileLimitExceeded
+	EnvVarMultipartHeaderFolding
+	EnvVarMultipartInvalidHeaderFolding
+	EnvVarMultipartInvalidQuoting
+	EnvVarMultipartLfLine
+	EnvVarMultipartSemicolonMissing
+	EnvVarRemoteAddr
+	EnvVarReqbodyErrorMsg
+	EnvVarReqbodyProcessorError
+	EnvVarReqbodyProcessor
+	EnvVarRequestHeaders
+	EnvVarRequestLine
+	EnvVarRequestMethod
+	EnvVarRule
+	EnvVarTx
+	EnvVarRequestProtocol
+	EnvVarMatchedVars
+	EnvVarMatchedVarNames
+	_lastEnvVarName
+)
 
 // RulePredicate that determines whether a rule is triggered.
 type RulePredicate struct {

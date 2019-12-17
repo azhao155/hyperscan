@@ -34,12 +34,12 @@ func TestValueEqual(t *testing.T) {
 		{Value{StringToken("")}, Value{}, true},
 		{Value{StringToken(""), StringToken("")}, Value{}, true},
 
-		{Value{MacroToken("xxx")}, Value{MacroToken("xxx")}, true},
-		{Value{MacroToken("xxx")}, Value{MacroToken("yyy")}, false},
-		{Value{MacroToken("xxxyyy")}, Value{MacroToken("xxx"), MacroToken("yyy")}, false},
-		{Value{MacroToken("xxx"), MacroToken("yyy")}, Value{MacroToken("xxxyyy")}, false},
+		{Value{MacroToken{Name: EnvVarTx, Selector: "xxx"}}, Value{MacroToken{Name: EnvVarTx, Selector: "xxx"}}, true},
+		{Value{MacroToken{Name: EnvVarTx, Selector: "xxx"}}, Value{MacroToken{Name: EnvVarTx, Selector: "yyy"}}, false},
+		{Value{MacroToken{Name: EnvVarTx, Selector: "xxxyyy"}}, Value{MacroToken{Name: EnvVarTx, Selector: "xxx"}, MacroToken{Name: EnvVarTx, Selector: "yyy"}}, false},
+		{Value{MacroToken{Name: EnvVarTx, Selector: "xxx"}, MacroToken{Name: EnvVarTx, Selector: "yyy"}}, Value{MacroToken{Name: EnvVarTx, Selector: "xxxyyy"}}, false},
 
-		{Value{StringToken("aaa"), StringToken("bbb"), IntToken(123), MacroToken("xxx")}, Value{StringToken("aaabbb"), IntToken(123), MacroToken("xxx")}, true},
+		{Value{StringToken("aaa"), StringToken("bbb"), IntToken(123), MacroToken{Name: EnvVarTx, Selector: "xxx"}}, Value{StringToken("aaabbb"), IntToken(123), MacroToken{Name: EnvVarTx, Selector: "xxx"}}, true},
 	}
 
 	var b strings.Builder

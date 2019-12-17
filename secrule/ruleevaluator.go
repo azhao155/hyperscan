@@ -183,13 +183,13 @@ func (re *ruleEvaluatorImpl) runActions(actions []Action, match Match) {
 					t = IntToken(n)
 				}
 
-				re.perRequestEnv.set("tx."+strconv.Itoa(i), Value{t})
+				re.perRequestEnv.set(EnvVarTx, strconv.Itoa(i), Value{t})
 			}
 
 			re.cleanUpCapturedVars = func() {
 				// Clean up tx.1, tx.2, etc., if they were set
 				for i := 0; i < txVarCount; i++ {
-					re.perRequestEnv.delete("tx." + strconv.Itoa(i))
+					re.perRequestEnv.delete(EnvVarTx, strconv.Itoa(i))
 				}
 				re.cleanUpCapturedVars = nil
 			}
@@ -298,8 +298,12 @@ func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, s
 	returnValIfTrigger := !ruleItem.Predicate.Neg
 
 	isTxTarget := target.Name == TargetTx
-	// TODO support regex selectors for tx variable names
-	isTxTargetPresent := isTxTarget && env.hasKey(strings.ToLower(TargetNamesStrings[target.Name]+"."+target.Selector))
+	var isTxTargetPresent bool
+	if isTxTarget {
+		// TODO support regex selectors for tx variable names
+		v := env.get(EnvVarTx, strings.ToLower(target.Selector))
+		isTxTargetPresent = v != nil
+	}
 
 	if isTxTarget && !isTxTargetPresent && !target.IsCount {
 		// This is a tx variable that is not set

@@ -180,6 +180,33 @@ var TargetNamesStrings = []string{
 	"XML",
 }
 
+var envVarNamesFromStr = map[string]EnvVarName{
+	"ip":                               EnvVarIP,
+	"matched_var":                      EnvVarMatchedVar,
+	"matched_var_name":                 EnvVarMatchedVarName,
+	"multipart_boundary_quoted":        EnvVarMultipartBoundaryQuoted,
+	"multipart_boundary_whitespace":    EnvVarMultipartBoundaryWhitespace,
+	"multipart_data_after":             EnvVarMultipartDataAfter,
+	"multipart_data_before":            EnvVarMultipartDataBefore,
+	"multipart_file_limit_exceeded":    EnvVarMultipartFileLimitExceeded,
+	"multipart_header_folding":         EnvVarMultipartHeaderFolding,
+	"multipart_invalid_header_folding": EnvVarMultipartInvalidHeaderFolding,
+	"multipart_invalid_quoting":        EnvVarMultipartInvalidQuoting,
+	"multipart_lf_line":                EnvVarMultipartLfLine,
+	"multipart_semicolon_missing":      EnvVarMultipartSemicolonMissing, // Note: same as multipart_missing_semicolon
+	"multipart_missing_semicolon":      EnvVarMultipartSemicolonMissing, // Note: same as multipart_semicolon_missing
+	"remote_addr":                      EnvVarRemoteAddr,
+	"reqbody_error_msg":                EnvVarReqbodyErrorMsg,
+	"reqbody_processor":                EnvVarReqbodyProcessor,
+	"reqbody_processor_error":          EnvVarReqbodyProcessorError,
+	"request_headers":                  EnvVarRequestHeaders,
+	"request_line":                     EnvVarRequestLine,
+	"request_method":                   EnvVarRequestMethod,
+	"rule":                             EnvVarRule,
+	"tx":                               EnvVarTx,
+	"request_protocol":                 EnvVarRequestProtocol,
+}
+
 type ruleParserImpl struct {
 }
 
@@ -511,7 +538,10 @@ func parseOperator(s string) (op Operator, val Value, neg bool, rest string, err
 		s = strings.TrimLeft(s, " ")
 	}
 
-	val = parseValue(s)
+	val, err = parseValue(s)
+	if err != nil {
+		return
+	}
 
 	// Special case for @validateByteRange
 	if op == ValidateByteRange {
@@ -591,10 +621,22 @@ func parseActions(rawActions []RawAction) (
 			actions = append(actions, &DenyAction{})
 
 		case "msg":
-			actions = append(actions, &MsgAction{Msg: parseValue(a.Val)})
+			var v Value
+			v, err = parseValue(a.Val)
+			if err != nil {
+				return
+			}
+
+			actions = append(actions, &MsgAction{Msg: v})
 
 		case "logdata":
-			actions = append(actions, &LogDataAction{LogData: parseValue(a.Val)})
+			var v Value
+			v, err = parseValue(a.Val)
+			if err != nil {
+				return
+			}
+
+			actions = append(actions, &LogDataAction{LogData: v})
 
 		case "t":
 			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
@@ -678,10 +720,22 @@ func parseSetVarAction(parameter string) (sv SetVarAction, err error) {
 		return
 	}
 
+	var variable Value
+	variable, err = parseValue(result["variable"])
+	if err != nil {
+		return
+	}
+
+	var value Value
+	value, err = parseValue(result["value"])
+	if err != nil {
+		return
+	}
+
 	sv = SetVarAction{
-		variable: parseValue(result["variable"]),
+		variable: variable,
 		operator: op,
-		value:    parseValue(result["value"]),
+		value:    value,
 	}
 
 	return
@@ -702,9 +756,15 @@ func parseCtlAction(parameter string) (ctl CtlAction, err error) {
 		return
 	}
 
+	var value Value
+	value, err = parseValue(result["value"])
+	if err != nil {
+		return
+	}
+
 	ctl = CtlAction{
 		setting: setting,
-		value:   parseValue(result["value"]),
+		value:   value,
 	}
 
 	return
@@ -836,17 +896,53 @@ func parseActionKeyValue(s string) (key string, val string) {
 
 // A "value" is a string with macros, or sometimes just an integer value. It is used for logging and comparisons.
 // Example: "Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}".
-func parseValue(s string) (e Value) {
+func parseValue(s string) (e Value, err error) {
 	// Append macro-tokens and possibly the string tokens tokens between them.
 	var pos int
 	for _, match := range variableMacroRegex.FindAllStringSubmatchIndex(s, -1) {
+		// If there was a string in between previous macro and this macro, append it as a StringToken.
 		if pos != match[0] {
 			e = append(e, StringToken(s[pos:match[0]]))
 		}
 
-		macroName := s[match[0]+2 : match[1]-1] // Get rid of "%{" and "}"
-		macroName = strings.ToLower(macroName)
-		e = append(e, MacroToken(macroName))
+		// Parse the macro token.
+		m := s[match[0]+2 : match[1]-1] // Get rid of "%{" and "}"
+		m = strings.ToLower(m)
+		macroParts := strings.Split(m, ".")
+		if len(macroParts) == 1 {
+			t, ok := envVarNamesFromStr[m]
+			if !ok {
+				err = fmt.Errorf("unsupported macro %s", m)
+				return
+			}
+			e = append(e, MacroToken{Name: t})
+		} else if len(macroParts) == 2 {
+			// This macro has a selector, so it refers to a collection.
+
+			t, ok := envVarNamesFromStr[macroParts[0]]
+			if !ok {
+				err = fmt.Errorf("unsupported macro %s", m)
+				return
+			}
+
+			// These are the only collection macros we support.
+			if !(t == EnvVarRequestHeaders || t == EnvVarTx || t == EnvVarIP || t == EnvVarRule) {
+				err = fmt.Errorf("unsupported macro %s", m)
+				return
+			}
+
+			// For the request_headers macro we only support the "host" entry.
+			if t == EnvVarRequestHeaders && macroParts[1] != "host" {
+				err = fmt.Errorf("unsupported macro %s", m)
+				return
+			}
+
+			e = append(e, MacroToken{Name: t, Selector: macroParts[1]})
+		} else {
+			err = fmt.Errorf("unsupported macro %s", m)
+			return
+		}
+
 		pos = match[1]
 	}
 
@@ -859,8 +955,8 @@ func parseValue(s string) (e Value) {
 	}
 
 	// There were no macros. Try if the value is just an int token.
-	n, err := strconv.Atoi(s)
-	if err == nil {
+	n, erratoi := strconv.Atoi(s)
+	if erratoi == nil {
 		e = append(e, IntToken(n))
 		return
 	}

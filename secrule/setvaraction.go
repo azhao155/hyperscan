@@ -9,16 +9,23 @@ func executeSetVarAction(sv *SetVarAction, perRequestEnv *environment) (err erro
 	variableName := strings.ToLower(sv.variable.expandMacros(perRequestEnv).string())
 	value := sv.value.expandMacros(perRequestEnv)
 
+	if !strings.HasPrefix(variableName, "tx.") {
+		err = fmt.Errorf("unsupported variable %s for setvar operation", variableName)
+		return
+	}
+
+	variableName = strings.TrimPrefix(variableName, "tx.")
+
 	// Eval operator
 	switch sv.operator {
 	case set:
-		perRequestEnv.set(variableName, value)
+		perRequestEnv.set(EnvVarTx, variableName, value)
 	case increment, decrement:
 		if err = performNumericalOperation(variableName, sv.operator, value, perRequestEnv); err != nil {
 			return
 		}
 	case deleteVar:
-		perRequestEnv.delete(variableName)
+		perRequestEnv.delete(EnvVarTx, variableName)
 	default:
 		err = fmt.Errorf("unsupported operator %d for setvar operation", sv.operator)
 		return
@@ -28,8 +35,8 @@ func executeSetVarAction(sv *SetVarAction, perRequestEnv *environment) (err erro
 }
 
 func performNumericalOperation(variable string, op setvarActionOperator, value Value, perRequestEnv *environment) error {
-	curr, ok := perRequestEnv.get(variable)
-	if !ok {
+	curr := perRequestEnv.get(EnvVarTx, variable)
+	if curr == nil {
 		curr = Value{IntToken(0)}
 	}
 
@@ -50,6 +57,6 @@ func performNumericalOperation(variable string, op setvarActionOperator, value V
 		currInt -= valueInt
 	}
 
-	perRequestEnv.set(variable, Value{IntToken(currInt)})
+	perRequestEnv.set(EnvVarTx, variable, Value{IntToken(currInt)})
 	return nil
 }

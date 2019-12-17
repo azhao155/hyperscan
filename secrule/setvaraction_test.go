@@ -55,7 +55,7 @@ func TestparseSetVarActionNumericAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected operator: %d", sv.operator)
 	}
 
-	if !sv.value.equal(Value{MacroToken("tx.critical_anomaly_score")}) {
+	if !sv.value.equal(Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}}) {
 		t.Fatalf("Got unexpected value: %s", sv.value)
 	}
 }
@@ -75,7 +75,7 @@ func TestparseSetVarActionStringAssignment(t *testing.T) {
 		t.Fatalf("Got unexpected operator: %d", sv.operator)
 	}
 
-	if !sv.value.equal(Value{MacroToken("tx.sqli_select_statement"), MacroToken("matched_var")}) {
+	if !sv.value.equal(Value{MacroToken{Name: EnvVarTx, Selector: "sqli_select_statement"}, MacroToken{Name: EnvVarMatchedVar}}) {
 		t.Fatalf("Got unexpected value: %s", sv.value)
 	}
 }
@@ -97,7 +97,7 @@ func TestparseSetVarActionDeletion(t *testing.T) {
 }
 
 func TestSetvarActionExecuteAssignment(t *testing.T) {
-	param := "ip.reput_block_flag=1"
+	param := "tx.somevar=1"
 	sv, err := parseSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -108,83 +108,82 @@ func TestSetvarActionExecuteAssignment(t *testing.T) {
 		t.Fatalf("Unexpected error during execute %s", err)
 	}
 
-	val, ok := perReqState.get("ip.reput_block_flag")
-	if !ok {
-		t.Fatalf("Per request state key: ip.reput_block_flag not found")
+	val := perReqState.get(EnvVarTx, "somevar")
+	if val == nil {
+		t.Fatalf("Per request state key: tx.somevar not found")
 	}
 
 	if !val.equal(Value{IntToken(1)}) {
-		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val)
+		t.Fatalf("Unexpected per request state key: tx.somevar, value: %s", val)
 	}
 }
 
 func TestSetvarActionExecuteIncrement(t *testing.T) {
-	param := "ip.reput_block_flag=+1"
+	param := "tx.somevar=+1"
 	sv, err := parseSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	perReqState := newEnvironment()
-	perReqState.set("ip.reput_block_flag", Value{IntToken(1)})
+	perReqState.set(EnvVarTx, "somevar", Value{IntToken(1)})
 
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
 	}
 
-	val, ok := perReqState.get("ip.reput_block_flag")
+	val := perReqState.get(EnvVarTx, "somevar")
 
-	if !ok {
-		t.Fatalf("Per request state key: ip.reput_block_flag not found")
+	if val == nil {
+		t.Fatalf("Per request state key: tx.somevar not found")
 	}
 
 	if !val.equal(Value{IntToken(2)}) {
-		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val.string())
+		t.Fatalf("Unexpected per request state key: tx.somevar, value: %s", val.string())
 	}
 }
 
 func TestSetvarActionExecuteDecrement(t *testing.T) {
-	param := "ip.reput_block_flag=-1"
+	param := "tx.somevar=-1"
 	sv, err := parseSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	perReqState := newEnvironment()
-	perReqState.set("ip.reput_block_flag", Value{IntToken(5)})
+	perReqState.set(EnvVarTx, "somevar", Value{IntToken(5)})
 
 	if err = executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
 	}
 
-	val, ok := perReqState.get("ip.reput_block_flag")
-	if !ok {
-		t.Fatalf("Per request state key: ip.reput_block_flag not found")
+	val := perReqState.get(EnvVarTx, "somevar")
+	if val == nil {
+		t.Fatalf("Per request state key: tx.somevar not found")
 	}
 
 	if !val.equal(Value{IntToken(4)}) {
-		t.Fatalf("Unexpected per request state key: ip.reput_block_flag, value: %s", val.string())
+		t.Fatalf("Unexpected per request state key: tx.somevar, value: %s", val.string())
 	}
 }
 
 func TestSetvarActionExecuteDelete(t *testing.T) {
-	param := "!ip.reput_block_flag"
+	param := "!tx.somevar"
 	sv, err := parseSetVarAction(param)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
 	perReqState := newEnvironment()
-	perReqState.set("ip.reput_block_flag", Value{IntToken(5)})
+	perReqState.set(EnvVarTx, "somevar", Value{IntToken(5)})
 
 	if err := executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
 	}
 
-	if _, ok := perReqState.get("ip.reput_block_flag"); ok {
-		t.Fatalf("Per request state key: ip.reput_block_flag should have been deleted")
+	if v := perReqState.get(EnvVarTx, "somevar"); v != nil {
+		t.Fatalf("Per request state key: tx.somevar should have been deleted")
 	}
-
 }
 
 func TestSetvarActionExecuteExpandVars(t *testing.T) {
@@ -195,15 +194,15 @@ func TestSetvarActionExecuteExpandVars(t *testing.T) {
 	}
 
 	perReqState := newEnvironment()
-	perReqState.set("tx.anomaly_score", Value{IntToken(15)})
-	perReqState.set("tx.critical_anomaly_score", Value{IntToken(5)})
+	perReqState.set(EnvVarTx, "anomaly_score", Value{IntToken(15)})
+	perReqState.set(EnvVarTx, "critical_anomaly_score", Value{IntToken(5)})
 
 	if err := executeSetVarAction(&sv, perReqState); err != nil {
 		t.Fatalf("Unexpected error during execute %s", err)
 	}
 
-	val, ok := perReqState.get("tx.anomaly_score")
-	if !ok {
+	val := perReqState.get(EnvVarTx, "anomaly_score")
+	if val == nil {
 		t.Fatalf("Per request state key: tx.anomaly_score not found")
 
 	}

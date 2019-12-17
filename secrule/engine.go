@@ -100,7 +100,7 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 
 	// This is needed in the env to later populate the REQBODY_PROCESSOR target.
 	if int(reqBodyType) < len(reqbodyProcessorValues) {
-		env.reqbodyProcessor = reqbodyProcessorValues[reqBodyType]
+		env.set(EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType])
 	}
 
 	scanResults := NewScanResults()
@@ -143,10 +143,10 @@ func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
 		return
 	}
 
-	s.env.requestLine = Value{StringToken(s.scanResults.requestLine)}
-	s.env.requestMethod = Value{StringToken(s.scanResults.requestMethod)}
-	s.env.requestProtocol = Value{StringToken(s.scanResults.requestProtocol)}
-	s.env.hostHeader = Value{StringToken(s.scanResults.hostHeader)}
+	s.env.set(EnvVarRequestLine, "", Value{StringToken(s.scanResults.requestLine)})
+	s.env.set(EnvVarRequestMethod, "", Value{StringToken(s.scanResults.requestMethod)})
+	s.env.set(EnvVarRequestProtocol, "", Value{StringToken(s.scanResults.requestProtocol)})
+	s.env.set(EnvVarRequestHeaders, "host", Value{StringToken(s.scanResults.hostHeader)})
 
 	return
 }
