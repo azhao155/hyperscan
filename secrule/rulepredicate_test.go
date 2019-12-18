@@ -16,7 +16,7 @@ func TestVarCounting(t *testing.T) {
 		Val:     Value{IntToken(0)},
 	}
 
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	sr := &ScanResults{targetsCount: make(map[Target]int)}
 	result, _, err := rp.eval(target, sr, em)
 	assert.Nil(err)
@@ -39,7 +39,7 @@ func TestVarGt(t *testing.T) {
 		Val:     Value{IntToken(4)},
 	}
 
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	sr := &ScanResults{targetsCount: make(map[Target]int)}
 
 	// Act

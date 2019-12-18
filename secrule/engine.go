@@ -2,17 +2,19 @@ package secrule
 
 import (
 	"azwaf/waf"
+	"regexp"
 
 	"github.com/rs/zerolog"
 )
 
 type engineImpl struct {
-	statements             []Statement
-	reqScanner             ReqScanner
-	scratchSpaceNext       chan *ReqScannerScratchSpace
-	ruleEvaluatorFactory   RuleEvaluatorFactory
-	usesFullRawRequestBody bool
-	ruleSetID              waf.RuleSetID
+	statements                     []Statement
+	reqScanner                     ReqScanner
+	scratchSpaceNext               chan *ReqScannerScratchSpace
+	ruleEvaluatorFactory           RuleEvaluatorFactory
+	usesFullRawRequestBody         bool
+	ruleSetID                      waf.RuleSetID
+	txTargetRegexSelectorsCompiled map[string]*regexp.Regexp
 }
 
 // NewEngine creates a SecRule engine from statements
@@ -32,13 +34,20 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, ref RuleEvaluatorF
 
 	usesFullRawRequestBody := usesRequestBodyTarget(statements)
 
+	// CRS has a few rules that uses regex selectors on TX-targets such as "SecRule TX:/^HEADER_NAME_/ ...", so we will precompile these regexes.
+	txTargetRegexSelectorsCompiled, err := getTxTargetRegexSelectorsCompiled(statements)
+	if err != nil {
+		return
+	}
+
 	engine = &engineImpl{
-		statements:             statements,
-		reqScanner:             reqScanner,
-		ruleEvaluatorFactory:   ref,
-		scratchSpaceNext:       scratchSpaceNext,
-		usesFullRawRequestBody: usesFullRawRequestBody,
-		ruleSetID:              ruleSetID,
+		statements:                     statements,
+		reqScanner:                     reqScanner,
+		ruleEvaluatorFactory:           ref,
+		scratchSpaceNext:               scratchSpaceNext,
+		usesFullRawRequestBody:         usesFullRawRequestBody,
+		ruleSetID:                      ruleSetID,
+		txTargetRegexSelectorsCompiled: txTargetRegexSelectorsCompiled,
 	}
 
 	return
@@ -96,7 +105,7 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 
 	reqScannerEvaluation := s.reqScanner.NewReqScannerEvaluation(scratchSpace)
 
-	env := newEnvironment()
+	env := newEnvironment(s.txTargetRegexSelectorsCompiled)
 
 	// This is needed in the env to later populate the REQBODY_PROCESSOR target.
 	if int(reqBodyType) < len(reqbodyProcessorValues) {

@@ -1,10 +1,14 @@
 package secrule
 
 import (
+	"fmt"
+	"regexp"
 	"strconv"
 )
 
 type environment struct {
+	txTargetRegexSelectorsCompiled map[string]*regexp.Regexp // CRS has a few rules that uses regex selectors on TX-targets such as "SecRule TX:/^HEADER_NAME_/ ...". This holds the precompiled regexes.
+
 	// Single-valued variables.
 	hostHeader       Value
 	matchedVar       Value
@@ -24,9 +28,10 @@ type environment struct {
 	// TODO support collections such as ip and session
 }
 
-func newEnvironment() *environment {
+func newEnvironment(txTargetRegexSelectorsCompiled map[string]*regexp.Regexp) *environment {
 	return &environment{
-		txVars: make(map[string]Value),
+		txTargetRegexSelectorsCompiled: txTargetRegexSelectorsCompiled,
+		txVars:                         make(map[string]Value),
 	}
 }
 
@@ -50,6 +55,23 @@ func (cim *environment) get(name EnvVarName, selector string) (v Value) {
 		return cim.requestProtocol
 	case EnvVarTx:
 		v = cim.txVars[selector]
+	}
+
+	return
+}
+
+// CRS has a few rules that uses regex selectors on TX-targets such as "SecRule TX:/^HEADER_NAME_/ ...".
+// This func returns all TX-variables whose key matches a given selector.
+func (cim *environment) getTxVarsViaRegexSelector(selector string) (vv []Value) {
+	for k, v := range cim.txVars {
+		rx := cim.txTargetRegexSelectorsCompiled[selector]
+		if rx == nil {
+			panic(fmt.Sprintf("regex for TX-variable selector %s was not found in the precompiled set", selector))
+		}
+
+		if rx.MatchString(k) {
+			vv = append(vv, v)
+		}
 	}
 
 	return
@@ -140,4 +162,31 @@ func (cim *environment) updateMatches(matches []Match) {
 			cim.matchedVarName = vn
 		}
 	}
+}
+
+// CRS has a few rules that uses regex selectors on TX-targets such as "SecRule TX:/^HEADER_NAME_/ ...". This func precompiles these.
+func getTxTargetRegexSelectorsCompiled(statements []Statement) (rxs map[string]*regexp.Regexp, err error) {
+	rxs = make(map[string]*regexp.Regexp)
+
+	for _, statement := range statements {
+		switch statement := statement.(type) {
+		case *Rule:
+			for _, ruleItem := range statement.Items {
+				for _, target := range ruleItem.Predicate.Targets {
+					if target.Name == TargetTx && target.IsRegexSelector {
+						// Regex selectors are not case sensitive.
+						rx := fmt.Sprintf("(?i:%s)", target.Selector)
+
+						rxs[target.Selector], err = regexp.Compile(rx)
+						if err != nil {
+							err = fmt.Errorf("invalid TX-target regex selector %v: %v", target.Selector, err)
+							return
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return
 }

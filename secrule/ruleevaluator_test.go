@@ -45,7 +45,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -83,7 +83,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	decision := re.ProcessPhase(2)
 	assert.Equal(waf.Block, decision)
@@ -127,7 +127,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	decision := re.ProcessPhase(2)
 	assert.Equal(waf.Allow, decision)
@@ -151,7 +151,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 		},
 	}
 
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	em.set(EnvVarTx, "anomaly_score", Value{IntToken(10)})
 	em.set(EnvVarTx, "inbound_anomaly_threshold", Value{IntToken(5)})
 	ref := NewRuleEvaluatorFactory()
@@ -200,7 +200,7 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -238,7 +238,7 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -276,7 +276,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -312,7 +312,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	tc := make(map[Target]int)
 	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -355,7 +355,7 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 	tc := make(map[Target]int)
 	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -384,7 +384,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -417,7 +417,7 @@ func TestRuleEvaluatorSetVarString(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -447,7 +447,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -490,7 +490,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -525,7 +525,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -561,7 +561,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 	tc[Target{Name: TargetArgs}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	ref := NewRuleEvaluatorFactory()
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
@@ -611,7 +611,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 	tc[Target{Name: TargetArgs, Selector: "d"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	ref := NewRuleEvaluatorFactory()
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
@@ -662,7 +662,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 	tc[Target{Name: TargetArgs, Selector: "d"}] = 1
 	sr := &ScanResults{matches: m, targetsCount: tc}
 	ref := NewRuleEvaluatorFactory()
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	var cbCalled int
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
@@ -704,7 +704,7 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	re.ProcessPhase(2)
@@ -739,7 +739,7 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	re.ProcessPhase(2)
@@ -791,7 +791,7 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	re.ProcessPhase(2)
@@ -825,7 +825,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	re.ProcessPhase(2)
@@ -847,7 +847,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -878,7 +878,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -912,7 +912,7 @@ func TestSkipAfter(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -947,7 +947,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -978,7 +978,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -1008,7 +1008,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	m := make(map[matchKey][]Match)
 	tc := make(map[Target]int)
 	sr := &ScanResults{matches: m, targetsCount: tc}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	assert.Nil(env.get(EnvVarTx, "somevar"))
 	ref := NewRuleEvaluatorFactory()
 	var cbCalled int
@@ -1050,7 +1050,7 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1084,7 +1084,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1121,7 +1121,7 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1160,7 +1160,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
@@ -1199,7 +1199,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	env := newEnvironment()
+	env := newEnvironment(nil)
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
@@ -1237,7 +1237,7 @@ func TestRuleEvaluatorNegateMultiTxTargets(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1272,7 +1272,7 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1307,7 +1307,7 @@ func TestRuleEvaluatorNegateMultiTxTargetsNegative(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1342,7 +1342,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1377,7 +1377,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1402,7 +1402,7 @@ func TestRuleEvaluatorCountArgsTarget(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 	tc1 := make(map[Target]int)
 	tc1[Target{Name: TargetArgs, Selector: "hello", IsCount: true}] = 2
@@ -1444,7 +1444,7 @@ func TestRuleEvaluatorCountTxTargetSet(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 	tc1 := make(map[Target]int)
 	sr1 := &ScanResults{targetsCount: tc1}
@@ -1477,7 +1477,7 @@ func TestRuleEvaluatorCountTxTargetNotSet(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 	tc1 := make(map[Target]int)
 	sr1 := &ScanResults{targetsCount: tc1}
@@ -1519,7 +1519,7 @@ func TestRuleEvaluatorLateScanTarget(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -1565,7 +1565,7 @@ func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -1620,7 +1620,7 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -1671,7 +1671,7 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -1740,7 +1740,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -1784,7 +1784,7 @@ func TestRuleEvaluatorCtlActionForceRequestBodyScanning(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1810,7 +1810,7 @@ func TestRuleEvaluatorCtlActionForceRequestBodyScanningNegative1(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1836,7 +1836,7 @@ func TestRuleEvaluatorCtlActionForceRequestBodyScanningNegative2(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	re := ref.NewRuleEvaluator(logger, newEnvironment(), rules, sr, cb)
+	re := ref.NewRuleEvaluator(logger, newEnvironment(nil), rules, sr, cb)
 
 	// Act
 	decision := re.ProcessPhase(2)
@@ -1880,7 +1880,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -1941,7 +1941,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2010,7 +2010,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 				},
 			},
 		}}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2067,7 +2067,7 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2128,7 +2128,7 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2183,7 +2183,7 @@ func TestRuleEvaluatorMatchedVarsCollection(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2256,7 +2256,7 @@ func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2320,7 +2320,7 @@ func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
 			},
 		},
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	ref := NewRuleEvaluatorFactory()
 
 	m := make(map[matchKey][]Match)
@@ -2393,7 +2393,7 @@ func TestRuleEvaluatorLateScanRequestLineRightSide(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	em.set(EnvVarRequestLine, "", Value{StringToken([]byte("GET /a%20bc.php?arg1=helloworld HTTP/1.1"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
@@ -2432,7 +2432,7 @@ func TestRuleEvaluatorLateScanRequestMethodRightSide(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	em.set(EnvVarRequestMethod, "", Value{StringToken([]byte("HELLOWORLDMETHOD"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
@@ -2471,7 +2471,7 @@ func TestRuleEvaluatorLateScanRequestProtocolRightSide(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	em.set(EnvVarRequestProtocol, "", Value{StringToken([]byte("HTTP/1.1"))})
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
@@ -2510,8 +2510,53 @@ func TestRuleEvaluatorLateScanHostHeaderRightSide(t *testing.T) {
 	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
 		cbCalled++
 	}
-	em := newEnvironment()
+	em := newEnvironment(nil)
 	em.set(EnvVarRequestHeaders, "host", Value{StringToken([]byte("example.com"))})
+	ref := NewRuleEvaluatorFactory()
+	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
+
+	// Act
+	decision := re.ProcessPhase(2)
+
+	// Assert
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorTxVarRegexSelector(t *testing.T) {
+	/*
+		SecAction "id:101,nolog,setvar:tx.my123var=helloworld"
+		SecRule TX:/my[0-9]*var/ "@streq helloworld" "id:102,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1, _ := parseSetVarAction("tx.my123var=helloworld")
+	rules := []Statement{
+		&ActionStmt{ID: 101, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 102,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "my[0-9]*var", IsRegexSelector: true}}, Op: Eq, Val: Value{StringToken("helloworld")}},
+					Actions:   []Action{&DenyAction{}},
+				},
+			},
+		},
+	}
+
+	m := make(map[matchKey][]Match)
+	tc := make(map[Target]int)
+	tc[Target{Name: TargetRequestLine}] = 1
+	sr := &ScanResults{targetsCount: tc, matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
+		cbCalled++
+	}
+	rxs, err := getTxTargetRegexSelectorsCompiled(rules)
+	assert.Nil(err)
+	em := newEnvironment(rxs)
 	ref := NewRuleEvaluatorFactory()
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 

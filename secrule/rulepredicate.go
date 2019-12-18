@@ -15,20 +15,27 @@ func (rp *RulePredicate) eval(target Target, scanResults *ScanResults, perReques
 
 	var actualVal Value
 	if target.Name == TargetTx {
-		if target.IsCount {
-			// Transaction variable collection counting.
-			actualVal = Value{IntToken(0)}
-			if target.Selector != "" {
+		if target.IsRegexSelector {
+			vv := perRequestEnv.getTxVarsViaRegexSelector(target.Selector)
+
+			if target.IsCount {
+				actualVal = Value{IntToken(len(vv))}
+			} else {
+				return rp.evalCollection(target, expectedVal, vv, opFunc)
+			}
+		} else {
+			if target.IsCount {
+				actualVal = Value{IntToken(0)}
 				if v := perRequestEnv.get(EnvVarTx, target.Selector); v != nil {
 					actualVal = Value{IntToken(1)}
 				}
+			} else {
+				varObj := perRequestEnv.get(EnvVarTx, target.Selector)
+				if varObj == nil {
+					return false, Match{}, fmt.Errorf("transaction variable %s was not set", target.Selector)
+				}
+				actualVal = varObj
 			}
-		} else {
-			varObj := perRequestEnv.get(EnvVarTx, target.Selector)
-			if varObj == nil {
-				return false, Match{}, fmt.Errorf("transaction variable %s was not set", target.Selector)
-			}
-			actualVal = varObj
 		}
 	} else if target.IsCount {
 		actualVal = Value{IntToken(scanResults.targetsCount[target])}

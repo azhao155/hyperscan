@@ -86,13 +86,15 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 						// Update the environment matched_var, matched_vars, etc., for any rule that may need it during late scanning.
 						re.perRequestEnv.updateMatches(matches)
 
-						var latestMatch Match
-						if len(matches) > 0 {
-							latestMatch = matches[len(matches)-1]
+						if len(matches) == 0 {
+							// This could happen on a rule that did all its scanning in the scan phase, and had a negation. Hopefully the match value is never needed in this case...
+							matches = []Match{Match{}}
 						}
 
-						// Some actions are to be run after each rule item.
-						re.runActions(ruleItem.Actions, latestMatch)
+						// Some actions are to be run after each rule item for each match.
+						for _, m := range matches {
+							re.runActions(ruleItem.Actions, m)
+						}
 
 						// Some actions are only to be run when all rule items triggered.
 						if curRuleItemIdx == len(stmt.Items)-1 {
@@ -300,9 +302,11 @@ func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, s
 	isTxTarget := target.Name == TargetTx
 	var isTxTargetPresent bool
 	if isTxTarget {
-		// TODO support regex selectors for tx variable names
-		v := env.get(EnvVarTx, strings.ToLower(target.Selector))
-		isTxTargetPresent = v != nil
+		if target.IsRegexSelector {
+			isTxTargetPresent = len(env.getTxVarsViaRegexSelector(target.Selector)) > 0
+		} else {
+			isTxTargetPresent = env.get(EnvVarTx, strings.ToLower(target.Selector)) != nil
+		}
 	}
 
 	if isTxTarget && !isTxTargetPresent && !target.IsCount {
