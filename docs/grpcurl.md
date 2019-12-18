@@ -25,7 +25,7 @@ grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/PutConfig <<EOF
       },
       "ipReputationConfig": {
         "enabled": true
-      }
+      },
       "customRuleConfig": {
         "customRules": [
           {
