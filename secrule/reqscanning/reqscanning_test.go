@@ -1,10 +1,15 @@
-package secrule
+package reqscanning
 
 import (
+	. "azwaf/secrule"
+	. "azwaf/secrule/ast"
+
 	"azwaf/waf"
 	"bytes"
+	"fmt"
 	"io"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,11 +37,11 @@ func TestReqScanner1(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	if sr.targetsCount[Target{Name: TargetRequestURIRaw}] == 0 {
+	if sr.TargetsCount[Target{Name: TargetRequestURIRaw}] == 0 {
 		t.Fatalf("Target REQUEST_URI_RAW not present")
 	}
 
-	if sr.targetsCount[Target{Name: TargetXML, Selector: "/*"}] != 0 {
+	if sr.TargetsCount[Target{Name: TargetXML, Selector: "/*"}] != 0 {
 		t.Fatalf("Unexpected target XML:/* present")
 	}
 
@@ -691,8 +696,8 @@ func TestReqScannerRequestLine(t *testing.T) {
 	}
 
 	// Special case for REQUEST_LINE
-	if !bytes.Equal(sr.requestLine, []byte("GET /a%20bc.php?arg1=something HTTP/1.1")) {
-		t.Fatalf("Unexpected ScanResults.requestLine: %s", sr.requestLine)
+	if !bytes.Equal(sr.RequestLine, []byte("GET /a%20bc.php?arg1=something HTTP/1.1")) {
+		t.Fatalf("Unexpected ScanResults.RequestLine: %s", sr.RequestLine)
 	}
 }
 
@@ -740,8 +745,8 @@ func TestReqScannerRequestMethod(t *testing.T) {
 	}
 
 	// Special case for REQUEST_METHOD
-	if !bytes.Equal(sr.requestMethod, []byte("GET")) {
-		t.Fatalf("Unexpected ScanResults.requestMethod: %s", sr.requestMethod)
+	if !bytes.Equal(sr.RequestMethod, []byte("GET")) {
+		t.Fatalf("Unexpected ScanResults.RequestMethod: %s", sr.RequestMethod)
 	}
 }
 
@@ -789,8 +794,8 @@ func TestReqScannerRequestProtocol(t *testing.T) {
 	}
 
 	// Special case for REQUEST_PROTOCOL
-	if !bytes.Equal(sr.requestProtocol, []byte("HTTP/1.1")) {
-		t.Fatalf("Unexpected ScanResults.requestProtocol: %s", sr.requestMethod)
+	if !bytes.Equal(sr.RequestProtocol, []byte("HTTP/1.1")) {
+		t.Fatalf("Unexpected ScanResults.RequestProtocol: %s", sr.RequestMethod)
 	}
 }
 
@@ -838,8 +843,8 @@ func TestReqScannerHostHeader(t *testing.T) {
 	}
 
 	// Special case for REQUEST_HEADERS:Host
-	if !bytes.Equal(sr.hostHeader, []byte("example.com")) {
-		t.Fatalf("Unexpected ScanResults.hostHeader: %s", sr.requestMethod)
+	if !bytes.Equal(sr.HostHeader, []byte("example.com")) {
+		t.Fatalf("Unexpected ScanResults.HostHeader: %s", sr.RequestMethod)
 	}
 }
 
@@ -1572,7 +1577,7 @@ func TestReqScannerCount(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	n := sr.targetsCount[Target{Name: TargetArgs, IsCount: true}]
+	n := sr.TargetsCount[Target{Name: TargetArgs, IsCount: true}]
 	if n != 4 {
 		t.Fatalf("Unexpected targets count: %v", n)
 	}
@@ -1609,7 +1614,7 @@ func TestReqScannerCountWithSelector(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	n := sr.targetsCount[Target{Name: TargetArgs, Selector: "hello", IsCount: true}]
+	n := sr.TargetsCount[Target{Name: TargetArgs, Selector: "hello", IsCount: true}]
 	if n != 2 {
 		t.Fatalf("Unexpected targets count: %v", n)
 	}
@@ -1619,7 +1624,7 @@ func TestValidateByteRangeOperator(t *testing.T) {
 	// Arrange
 	var vbrt ValidateByteRangeToken
 	for i := 97; i <= 122; i++ { // lower case letters
-		vbrt.allowedBytes[i] = true
+		vbrt.AllowedBytes[i] = true
 	}
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
@@ -1762,6 +1767,79 @@ func TestReqScannerExceptTargetsRegex(t *testing.T) {
 	}
 }
 
+func TestTransformationsViaReqScanner(t *testing.T) {
+	// Arrange
+
+	// A multi-regex engine mock that just keeps track of what we asked it to scan for.
+	var scannedFor []string
+	mf := &mockMultiRegexEngineFactory{
+		newMultiRegexEngineMockFunc: func(mm []waf.MultiRegexEnginePattern) waf.MultiRegexEngine {
+			return &mockMultiRegexEngine{
+				scanMockFunc: func(input []byte) []waf.MultiRegexEngineMatch {
+					scannedFor = append(scannedFor, string(input))
+					return nil
+				},
+			}
+		},
+	}
+
+	rsf := NewReqScannerFactory(mf)
+
+	type testcase struct {
+		inputURI             string
+		inputTransformations []Transformation
+		target               TargetName
+		expected             string
+	}
+	tests := []testcase{
+		{`/a.php?arg1=AAAAAAABCCC`, []Transformation{Lowercase}, TargetArgs, `aaaaaaabccc`},
+		{`/a.php?arg1=hello%20world`, []Transformation{}, TargetArgs, `hello world`}, // ARGS is always already URL-decoded during ARGS parsing.
+		{`/a.php?arg1=hello%20world`, []Transformation{}, TargetRequestURIRaw, `/a.php?arg1=hello%20world`},
+		{`/a.php?arg1=hello%20world`, []Transformation{URLDecodeUni}, TargetRequestURIRaw, `/a.php?arg1=hello world`},
+		{`/a.php?arg1=AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, TargetRequestURIRaw, `/a.php?arg1=aaaaaaa bccc`},
+	}
+
+	var b strings.Builder
+	for i, test := range tests {
+		scannedFor = []string{}
+		rules := []Statement{&Rule{ID: 100, Items: []RuleItem{{Predicate: RulePredicate{Targets: []Target{{Name: test.target}}, Op: Rx, Val: Value{StringToken("abc")}}, Transformations: test.inputTransformations}}}}
+		req := &mockWafHTTPRequest{uri: test.inputURI}
+		rs, err1 := rsf.NewReqScanner(rules)
+		s, _ := rs.NewScratchSpace()
+		rse := rs.NewReqScannerEvaluation(s)
+		sr := NewScanResults()
+
+		// Act
+		err2 := rse.ScanHeaders(req, sr)
+
+		// Assert
+		if err1 != nil {
+			fmt.Fprintf(&b, "Test %v. Got unexpected error: %v\n", i+1, err1)
+			continue
+		}
+
+		if err2 != nil {
+			fmt.Fprintf(&b, "Test %v. Got unexpected error: %v\n", i+1, err2)
+			continue
+		}
+
+		n := len(scannedFor)
+		if n != 1 {
+			fmt.Fprintf(&b, "Test %v. Only expected 1 scan to happen. Unexpected number of scans happened: %v\n", i+1, n)
+			continue
+		}
+
+		if scannedFor[0] != test.expected {
+			fmt.Fprintf(&b, "Test %v. A scan for an unexpected string happened. Expected: %v. Actual: %v\n", i+1, test.expected, scannedFor[0])
+			continue
+		}
+	}
+
+	if b.Len() > 0 {
+		t.Fatalf("\n%s", b.String())
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader
@@ -1791,3 +1869,52 @@ type mockLogMetaData struct {
 
 func (h *mockLogMetaData) Scope() string     { return "Global" }
 func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
+
+func newMockRuleLoader() RuleLoader {
+	return &mockRuleLoader{}
+}
+
+type mockRuleLoader struct{}
+
+func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err error) {
+	statements = []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("xyz")}},
+					Transformations: []Transformation{Lowercase},
+				},
+			},
+		},
+		&Rule{
+			ID: 300,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestURIRaw}}, Op: Rx, Val: Value{StringToken("a+bc")}},
+					Transformations: []Transformation{Lowercase, RemoveWhitespace},
+				},
+			},
+		},
+		&Rule{
+			ID: 400,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetXML, Selector: "/*"}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+			},
+		}}
+
+	return
+}

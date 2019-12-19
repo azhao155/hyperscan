@@ -1,6 +1,9 @@
-package secrule
+package ruleparsing
 
 import (
+	sr "azwaf/secrule"
+	ast "azwaf/secrule/ast"
+
 	"azwaf/waf"
 	"fmt"
 	"io/ioutil"
@@ -11,18 +14,13 @@ import (
 	"strings"
 )
 
-// RuleLoader obtains rules for a given rule set.
-type RuleLoader interface {
-	Rules(r waf.RuleSetID) (statements []Statement, err error)
-}
-
 type crsRuleLoader struct {
-	parser RuleParser
+	parser sr.RuleParser
 	fs     RuleLoaderFileSystem
 }
 
 // NewCrsRuleLoader loads and parses CRS files from disk.
-func NewCrsRuleLoader(parser RuleParser, fs RuleLoaderFileSystem) RuleLoader {
+func NewCrsRuleLoader(parser sr.RuleParser, fs RuleLoaderFileSystem) sr.RuleLoader {
 	return &crsRuleLoader{
 		parser: parser,
 		fs:     fs,
@@ -36,10 +34,8 @@ var ruleSetPathsMap = map[waf.RuleSetID][]string{
 	"OWASP CRS 3.1 with config for regression tests": {"crs3.1/main.regressiontesting.conf"},
 }
 
-type includeLoaderCb func(filePath string) (statements []Statement, err error)
-
 // GetRules loads and parses CRS files from disk.
-func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, err error) {
+func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []ast.Statement, err error) {
 	paths, ok := ruleSetPathsMap[ruleSetID]
 	if !ok {
 		err = fmt.Errorf("unsupported ruleset: %s", ruleSetID)
@@ -49,7 +45,7 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, 
 	crsRulesPath := getCrsRulesPath()
 	for _, crsFile := range paths {
 		fullPath := filepath.Join(crsRulesPath, crsFile)
-		var rr []Statement
+		var rr []ast.Statement
 		rr, err = loadRulesFromPath(fullPath, c.parser, c.fs, nil)
 		if err != nil {
 			return
@@ -60,7 +56,7 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []Statement, 
 	return
 }
 
-func loadRulesFromPath(filePath string, parser RuleParser, fs RuleLoaderFileSystem, parentIncludeFiles []string) (statements []Statement, err error) {
+func loadRulesFromPath(filePath string, parser sr.RuleParser, fs RuleLoaderFileSystem, parentIncludeFiles []string) (statements []ast.Statement, err error) {
 	// Guard against cyclic includes
 	filePath, err = fs.Abs(filePath)
 	if err != nil {
@@ -92,7 +88,7 @@ func loadRulesFromPath(filePath string, parser RuleParser, fs RuleLoaderFileSyst
 		return loadPhraseFile(path.Join(path.Dir(filePath), fileName))
 	}
 
-	includeLoaderCb := func(includeFilePath string) (statements []Statement, err error) {
+	includeLoaderCb := func(includeFilePath string) (statements []ast.Statement, err error) {
 		p := includeFilePath
 		if !filepath.IsAbs(includeFilePath) {
 			p = path.Join(path.Dir(filePath), includeFilePath)
@@ -111,9 +107,9 @@ func loadRulesFromPath(filePath string, parser RuleParser, fs RuleLoaderFileSyst
 	return
 }
 
-func filterUnsupportedRules(stmts []Statement) (filteredStmts []Statement) {
+func filterUnsupportedRules(stmts []ast.Statement) (filteredStmts []ast.Statement) {
 	for _, r := range stmts {
-		rule, ok := r.(*Rule)
+		rule, ok := r.(*ast.Rule)
 		if ok {
 			// Skip this rule until we add support for backreferences
 			// TODO add support for backreferences
@@ -145,13 +141,11 @@ func getCrsRulesPath() string {
 		// Instead use the rule files in the source tree
 		_, s, _, _ := runtime.Caller(0)
 		s = filepath.Dir(s)
-		dir = filepath.Join(s, "rulesetfiles")
+		dir = filepath.Join(s, "..", "rulesetfiles")
 	}
 
 	return dir
 }
-
-type phraseLoaderCb func(string) ([]string, error)
 
 func loadPhraseFile(fullPath string) (phrases []string, err error) {
 	var bb []byte
@@ -172,18 +166,13 @@ func loadPhraseFile(fullPath string) (phrases []string, err error) {
 }
 
 type standaloneRuleLoader struct {
-	parser                RuleParser
+	parser                sr.RuleParser
 	fs                    RuleLoaderFileSystem
 	secRuleConfigFilePath string
 }
 
-// StandaloneRuleLoader loads a fixed set of rules defined at the creation of the StandaloneRuleLoader object.
-type StandaloneRuleLoader interface {
-	Rules() (statements []Statement, err error)
-}
-
 // NewStandaloneRuleLoader loads and parses SecRule files from disk, given a SecRule file path.
-func NewStandaloneRuleLoader(parser RuleParser, fs RuleLoaderFileSystem, secRuleConfigFilePath string) StandaloneRuleLoader {
+func NewStandaloneRuleLoader(parser sr.RuleParser, fs RuleLoaderFileSystem, secRuleConfigFilePath string) sr.StandaloneRuleLoader {
 	return &standaloneRuleLoader{
 		parser:                parser,
 		fs:                    fs,
@@ -192,7 +181,7 @@ func NewStandaloneRuleLoader(parser RuleParser, fs RuleLoaderFileSystem, secRule
 }
 
 // GetRules loads and parses a SecRule config file from disk (given in the constructor).
-func (c *standaloneRuleLoader) Rules() (statements []Statement, err error) {
+func (c *standaloneRuleLoader) Rules() (statements []ast.Statement, err error) {
 	statements, err = loadRulesFromPath(c.secRuleConfigFilePath, c.parser, c.fs, nil)
 	if err != nil {
 		return

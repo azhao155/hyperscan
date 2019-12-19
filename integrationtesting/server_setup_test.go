@@ -1,13 +1,17 @@
 package integrationtesting
 
 import (
+	sreng "azwaf/secrule/engine"
+	srrs "azwaf/secrule/reqscanning"
+	srre "azwaf/secrule/ruleevaluation"
+	srrp "azwaf/secrule/ruleparsing"
+
 	"azwaf/bodyparsing"
 	"azwaf/customrule"
 	"azwaf/geodb"
 	"azwaf/hyperscan"
 	"azwaf/ipreputation"
 	"azwaf/logging"
-	"azwaf/secrule"
 	"azwaf/testutils"
 	"azwaf/waf"
 	"testing"
@@ -15,17 +19,17 @@ import (
 
 func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	logger := testutils.NewTestLogger(t)
-	p := secrule.NewRuleParser()
-	rlfs := secrule.NewRuleLoaderFileSystem()
-	rl := secrule.NewCrsRuleLoader(p, rlfs)
+	p := srrp.NewRuleParser()
+	rlfs := srrp.NewRuleLoaderFileSystem()
+	rl := srrp.NewCrsRuleLoader(p, rlfs)
 	hsfs := hyperscan.NewCacheFileSystem()
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
+	rsf := srrs.NewReqScannerFactory(mref)
+	ref := srre.NewRuleEvaluatorFactory()
 	reslog := newMockResultsLogger()
 	rlf := &mockResultsLoggerFactory{mockResultsLogger: reslog}
-	ef := secrule.NewEngineFactory(logger, rl, rsf, ref)
+	ef := sreng.NewEngineFactory(logger, rl, rsf, ref)
 	e, err := ef.NewEngine(&mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -52,15 +56,15 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	}
 
 	// Setup secrule engine
-	p := secrule.NewRuleParser()
+	p := srrp.NewRuleParser()
 	rlfs := &mockRuleLoaderFileSystem{}
-	rl := secrule.NewCrsRuleLoader(p, rlfs)
+	rl := srrp.NewCrsRuleLoader(p, rlfs)
 	hsfs := hyperscan.NewCacheFileSystem()
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
-	sref := secrule.NewEngineFactory(logger, rl, rsf, ref)
+	rsf := srrs.NewReqScannerFactory(mref)
+	ref := srre.NewRuleEvaluatorFactory()
+	sref := sreng.NewEngineFactory(logger, rl, rsf, ref)
 
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 

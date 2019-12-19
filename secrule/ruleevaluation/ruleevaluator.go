@@ -1,6 +1,9 @@
-package secrule
+package ruleevaluation
 
 import (
+	sr "azwaf/secrule"
+	ast "azwaf/secrule/ast"
+
 	"azwaf/waf"
 	"strconv"
 	"strings"
@@ -8,28 +11,19 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// RuleEvaluator processes the incoming request against all parsed rules
-type RuleEvaluator interface {
-	ProcessPhase(phase int) (decision waf.Decision)
-	IsForceRequestBodyScanning() bool
-}
-
-// RuleEvaluatorTriggeredCb is will be called when the rule evaluator has decided that a rule is triggered.
-type RuleEvaluatorTriggeredCb = func(stmt Statement, decision waf.Decision, msg string, logData string)
-
 type ruleEvaluatorImpl struct {
 	phase                    int
 	logger                   zerolog.Logger
-	perRequestEnv            *environment
-	statements               []Statement
-	scanResults              *ScanResults
-	triggeredCb              RuleEvaluatorTriggeredCb
+	perRequestEnv            sr.Environment
+	statements               []ast.Statement
+	scanResults              *sr.ScanResults
+	triggeredCb              sr.RuleEvaluatorTriggeredCb
 	cleanUpCapturedVars      func()
 	skipAfter                string
 	stmtID                   int
 	shouldLog                bool
-	msg                      Value
-	logData                  Value
+	msg                      ast.Value
+	logData                  ast.Value
 	decision                 waf.Decision
 	forceRequestBodyScanning bool
 }
@@ -49,7 +43,7 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 	for _, stmt := range re.statements {
 		// If we are currently looking for a skipAfter marker, then keep skipping until we find it.
 		if re.skipAfter != "" {
-			if m, ok := stmt.(*Marker); ok {
+			if m, ok := stmt.(*ast.Marker); ok {
 				if m.Label == re.skipAfter {
 					re.skipAfter = ""
 				}
@@ -69,10 +63,10 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 		re.logData = nil
 
 		switch stmt := stmt.(type) {
-		case *Rule:
+		case *ast.Rule:
 			re.stmtID = stmt.ID
 
-			re.perRequestEnv.resetMatchesCollections()
+			re.perRequestEnv.ResetMatchesCollections()
 
 			for curRuleItemIdx, ruleItem := range stmt.Items {
 				anyRuleItemTriggered := false
@@ -84,11 +78,11 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 
 					if triggered {
 						// Update the environment matched_var, matched_vars, etc., for any rule that may need it during late scanning.
-						re.perRequestEnv.updateMatches(matches)
+						re.perRequestEnv.UpdateMatches(matches)
 
 						if len(matches) == 0 {
 							// This could happen on a rule that did all its scanning in the scan phase, and had a negation. Hopefully the match value is never needed in this case...
-							matches = []Match{Match{}}
+							matches = []sr.Match{sr.Match{}}
 						}
 
 						// Some actions are to be run after each rule item for each match.
@@ -107,7 +101,7 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 							}
 
 							if re.shouldLog {
-								re.triggeredCb(stmt, re.decision, re.msg.expandMacros(re.perRequestEnv).string(), re.logData.expandMacros(re.perRequestEnv).string())
+								re.triggeredCb(stmt, re.decision, re.perRequestEnv.ExpandMacros(re.msg).String(), re.perRequestEnv.ExpandMacros(re.logData).String())
 							}
 
 							if re.decision != waf.Pass {
@@ -124,9 +118,9 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 				}
 			}
 
-		case *ActionStmt:
+		case *ast.ActionStmt:
 			re.stmtID = stmt.ID
-			re.runActions(stmt.Actions, Match{})
+			re.runActions(stmt.Actions, sr.Match{})
 			re.runActionsAfterAllRuleItemsTriggered(stmt.Actions)
 
 			if phase == 5 && re.decision != waf.Pass {
@@ -134,7 +128,7 @@ func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 			}
 
 			if re.shouldLog {
-				re.triggeredCb(stmt, re.decision, re.msg.expandMacros(re.perRequestEnv).string(), re.logData.expandMacros(re.perRequestEnv).string())
+				re.triggeredCb(stmt, re.decision, re.perRequestEnv.ExpandMacros(re.msg).String(), re.perRequestEnv.ExpandMacros(re.logData).String())
 			}
 
 			if re.decision != waf.Pass {
@@ -155,96 +149,96 @@ func (re *ruleEvaluatorImpl) IsForceRequestBodyScanning() bool {
 }
 
 // This runs the actions that need to run after each rule item had a target that triggered
-func (re *ruleEvaluatorImpl) runActions(actions []Action, match Match) {
+func (re *ruleEvaluatorImpl) runActions(actions []ast.Action, match sr.Match) {
 	// TODO implement the "pass" action. If there are X many matches, the pass action is supposed to make all actions execute X many times.
 
 	for _, action := range actions {
 		switch action := action.(type) {
 
-		case *SetVarAction:
+		case *ast.SetVarAction:
 			err := executeSetVarAction(action, re.perRequestEnv)
 			if err != nil {
 				re.logger.Warn().Int("ruleID", re.stmtID).Err(err).Msg("Error executing setVar action")
 			}
 
-		case *NoLogAction:
+		case *ast.NoLogAction:
 			re.shouldLog = false
 
-		case *LogAction:
+		case *ast.LogAction:
 			re.shouldLog = true
 
-		case *CaptureAction:
+		case *ast.CaptureAction:
 			txVarCount := len(match.CaptureGroups)
 			if txVarCount > 10 {
 				txVarCount = 10
 			}
 
 			for i := 0; i < txVarCount; i++ {
-				var t Token = StringToken(match.CaptureGroups[i])
+				var t ast.Token = ast.StringToken(match.CaptureGroups[i])
 				if n, err := strconv.Atoi(string(match.CaptureGroups[i])); err == nil {
-					t = IntToken(n)
+					t = ast.IntToken(n)
 				}
 
-				re.perRequestEnv.set(EnvVarTx, strconv.Itoa(i), Value{t})
+				re.perRequestEnv.Set(ast.EnvVarTx, strconv.Itoa(i), ast.Value{t})
 			}
 
 			re.cleanUpCapturedVars = func() {
 				// Clean up tx.1, tx.2, etc., if they were set
 				for i := 0; i < txVarCount; i++ {
-					re.perRequestEnv.delete(EnvVarTx, strconv.Itoa(i))
+					re.perRequestEnv.Delete(ast.EnvVarTx, strconv.Itoa(i))
 				}
 				re.cleanUpCapturedVars = nil
 			}
 
-		case *CtlAction:
-			switch action.setting {
-			case ForceRequestBodyVariable:
-				if strings.EqualFold(action.value.expandMacros(re.perRequestEnv).string(), "on") {
+		case *ast.CtlAction:
+			switch action.Setting {
+			case ast.ForceRequestBodyVariable:
+				if strings.EqualFold(re.perRequestEnv.ExpandMacros(action.Value).String(), "on") {
 					re.forceRequestBodyScanning = true
 				}
 			default:
-				re.logger.Warn().Int("action.setting", int(action.setting)).Msg("Unsupported ctlAction")
+				re.logger.Warn().Int("action.setting", int(action.Setting)).Msg("Unsupported ctlAction")
 			}
 		}
 	}
 }
 
 // This runs the actions that need to run after all rule items have triggered
-func (re *ruleEvaluatorImpl) runActionsAfterAllRuleItemsTriggered(actions []Action) {
+func (re *ruleEvaluatorImpl) runActionsAfterAllRuleItemsTriggered(actions []ast.Action) {
 	re.logger.Debug().Int("ruleID", re.stmtID).Msg("Rule triggered")
 
 	// Some actions are to be run after all rule items in the chain triggered.
 	for _, action := range actions {
 		switch action := action.(type) {
 
-		case *SkipAfterAction:
+		case *ast.SkipAfterAction:
 			re.skipAfter = action.Label
 			re.logger.Debug().Str("label", re.skipAfter).Msg("Skipping to marker")
 
-		case *MsgAction:
+		case *ast.MsgAction:
 			re.msg = action.Msg
 
-		case *LogDataAction:
+		case *ast.LogDataAction:
 			re.logData = action.LogData
 
-		case *AllowAction:
+		case *ast.AllowAction:
 			re.decision = waf.Allow
 
-		case *DenyAction:
+		case *ast.DenyAction:
 			re.decision = waf.Block
 
-		case *CtlAction:
+		case *ast.CtlAction:
 
 		}
 	}
 }
 
-func checkPhaseShouldContinue(phase int, stmt Statement) bool {
+func checkPhaseShouldContinue(phase int, stmt ast.Statement) bool {
 	var stmtPhase int
 	switch stmt := stmt.(type) {
-	case *Rule:
+	case *ast.Rule:
 		stmtPhase = stmt.Phase
-	case *ActionStmt:
+	case *ast.ActionStmt:
 		stmtPhase = stmt.Phase
 	}
 	if stmtPhase == 0 {
@@ -258,7 +252,7 @@ func checkPhaseShouldContinue(phase int, stmt Statement) bool {
 	return false
 }
 
-func evalPredicate(env *environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (triggered bool, matches []Match, err error) {
+func evalPredicate(env sr.Environment, ruleItem ast.RuleItem, target ast.Target, scanResults *sr.ScanResults, rule *ast.Rule, curRuleItemIdx int) (triggered bool, matches []sr.Match, err error) {
 	if requiresLateScan(ruleItem.Predicate, target) {
 		// We need to a late scan for this predicate now, because we were not able to do it in the scanning phase.
 		// This is the less common case.
@@ -266,14 +260,14 @@ func evalPredicate(env *environment, ruleItem RuleItem, target Target, scanResul
 		if err != nil {
 			return false, nil, err
 		}
-		return triggered, []Match{match}, err
+		return triggered, []sr.Match{match}, err
 	}
 
 	// If we do not require a late scan, it's because we know the answer to this predicate already.
 	// The scanning for this predicate was done in the request scanning phase.
 	// This is the simplest and most common case.
 
-	if scanResults.targetsCount[target] == 0 {
+	if scanResults.TargetsCount[target] == 0 {
 		// This a target we never even came across
 		triggered = false
 		return
@@ -293,19 +287,19 @@ func evalPredicate(env *environment, ruleItem RuleItem, target Target, scanResul
 
 }
 
-func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, scanResults *ScanResults, rule *Rule, curRuleItemIdx int) (result bool, match Match, err error) {
+func evalPredicateLateScan(env sr.Environment, ruleItem ast.RuleItem, target ast.Target, scanResults *sr.ScanResults, rule *ast.Rule, curRuleItemIdx int) (result bool, match sr.Match, err error) {
 	// A predicate that requires late scanning means that it could not be scanned in the request scanning phase, and therefore must be scanned now.
 	// This is because either left or right side was a variable we could not yet know the value of in the request scanning phase.
 
 	returnValIfTrigger := !ruleItem.Predicate.Neg
 
-	isTxTarget := target.Name == TargetTx
+	isTxTarget := target.Name == ast.TargetTx
 	var isTxTargetPresent bool
 	if isTxTarget {
 		if target.IsRegexSelector {
-			isTxTargetPresent = len(env.getTxVarsViaRegexSelector(target.Selector)) > 0
+			isTxTargetPresent = len(env.GetTxVarsViaRegexSelector(target.Selector)) > 0
 		} else {
-			isTxTargetPresent = env.get(EnvVarTx, strings.ToLower(target.Selector)) != nil
+			isTxTargetPresent = env.Get(ast.EnvVarTx, strings.ToLower(target.Selector)) != nil
 		}
 	}
 
@@ -316,7 +310,7 @@ func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, s
 	}
 
 	var triggered bool
-	triggered, match, err = ruleItem.Predicate.eval(target, scanResults, env)
+	triggered, match, err = eval(ruleItem.Predicate, target, scanResults, env)
 	if triggered {
 		result = returnValIfTrigger
 		return
@@ -327,9 +321,9 @@ func evalPredicateLateScan(env *environment, ruleItem RuleItem, target Target, s
 }
 
 // We require a late scan (a scan in the eval phase as opposed to the req scan phase) if either left or right side was not known in the scan phase.
-func requiresLateScan(predicate RulePredicate, target Target) bool {
+func requiresLateScan(predicate ast.RulePredicate, target ast.Target) bool {
 	switch target.Name {
-	case TargetMatchedVar, TargetMatchedVars, TargetMatchedVarName, TargetMatchedVarsNames, TargetTx, TargetReqbodyProcessor:
+	case ast.TargetMatchedVar, ast.TargetMatchedVars, ast.TargetMatchedVarName, ast.TargetMatchedVarsNames, ast.TargetTx, ast.TargetReqbodyProcessor:
 		return true
 	}
 
@@ -337,7 +331,7 @@ func requiresLateScan(predicate RulePredicate, target Target) bool {
 		return true
 	}
 
-	if predicate.Val.hasMacros() {
+	if predicate.Val.HasMacros() {
 		return true
 	}
 

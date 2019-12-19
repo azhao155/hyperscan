@@ -1,7 +1,9 @@
 package hyperscan
 
 import (
-	"azwaf/secrule"
+	ast "azwaf/secrule/ast"
+	srrp "azwaf/secrule/ruleparsing"
+
 	"azwaf/waf"
 	"fmt"
 	"io/ioutil"
@@ -15,7 +17,7 @@ import (
 func TestAllCrsReqRulesIndividually(t *testing.T) {
 	// Arrange
 	f := NewMultiRegexEngineFactory(nil)
-	p := secrule.NewRuleParser()
+	p := srrp.NewRuleParser()
 
 	// TODO Add more rulesets when they become supported
 	files := []string{
@@ -60,7 +62,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 		}
 
 		for _, rule := range rr {
-			rule, ok := rule.(*secrule.Rule)
+			rule, ok := rule.(*ast.Rule)
 			if !ok {
 				continue
 			}
@@ -78,7 +80,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 			}
 
 			for itemIdx, item := range rule.Items {
-				if item.Predicate.Op != secrule.Rx {
+				if item.Predicate.Op != ast.Rx {
 					continue
 				}
 
@@ -86,7 +88,7 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 					continue
 				}
 
-				tok, ok := item.Predicate.Val[0].(secrule.StringToken)
+				tok, ok := item.Predicate.Val[0].(ast.StringToken)
 				if !ok {
 					continue
 				}

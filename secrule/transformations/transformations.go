@@ -1,6 +1,8 @@
-package secrule
+package transformations
 
 import (
+	ast "azwaf/secrule/ast"
+
 	"azwaf/encoding"
 	"bytes"
 	"fmt"
@@ -15,62 +17,63 @@ import (
 // Explicitly writing out what the SecRule-lang considers whitespaces, as it differs a little from Go Regexp's "\s".
 var whitespaceRegex = regexp.MustCompile(`[\x20\x0c\x09\x0a\x0d\x0b]+`) // ' ', \f, \t, \n, \r, \v. (0xa0 is done separately because the regex engine seems to have trouble with it.)
 
-func applyTransformations(s string, tt []Transformation) string {
+// ApplyTransformations applies a transformation pipeline a string.
+func ApplyTransformations(s string, tt []ast.Transformation) string {
 	// TODO implement a trie for caching already done transformations
 
 	orig := s
 	for _, t := range tt {
 		// TODO implement all transformations
 		switch t {
-		case CmdLine:
-		case CompressWhitespace:
+		case ast.CmdLine:
+		case ast.CompressWhitespace:
 			if whitespaceRegex.FindStringIndex(s) != nil || strings.Contains(s, "\xa0") {
 				s = strings.Replace(s, "\xa0", " ", -1) // The regex engine seems to have trouble with 0xa0, so doing it separately.
 				s = whitespaceRegex.ReplaceAllString(s, " ")
 			}
-		case CSSDecode:
-		case HexEncode:
-		case HTMLEntityDecode:
+		case ast.CSSDecode:
+		case ast.HexEncode:
+		case ast.HTMLEntityDecode:
 			if strings.Contains(s, "&") {
 				s = html.UnescapeString(s)
 				// TODO ensure this aligns with the intended htmlEntityDecode functionality of SecRule-lang: https://github.com/SpiderLabs/ModSecurity/wiki/Reference-Manual-(v2.x)#htmlEntityDecode
 				// TODO read https://golang.org/pkg/html/#UnescapeString closely. We need to think about if the unicode behaviour here is correct for SecRule-lang.
 			}
-		case JsDecode:
-			s = jsUnescape(s)
-		case Length:
+		case ast.JsDecode:
+			s = JsUnescape(s)
+		case ast.Length:
 			// TODO is this really used? Isn't @ for this? Should we use the type-system to keep this as int here?
 			s = strconv.Itoa(len(s))
-		case Lowercase:
+		case ast.Lowercase:
 			s = strings.ToLower(s)
-		case None:
+		case ast.None:
 			s = orig
-		case NormalisePath, NormalizePath:
-		case NormalisePathWin, NormalizePathWin:
-		case RemoveComments:
-		case RemoveNulls:
+		case ast.NormalisePath, ast.NormalizePath:
+		case ast.NormalisePathWin, ast.NormalizePathWin:
+		case ast.RemoveComments:
+		case ast.RemoveNulls:
 			if strings.Contains(s, "\x00") {
 				s = strings.Replace(s, "\x00", "", -1)
 			}
-		case RemoveWhitespace:
+		case ast.RemoveWhitespace:
 			if whitespaceRegex.FindStringIndex(s) != nil || strings.Contains(s, "\xa0") {
 				s = strings.Replace(s, "\xa0", "", -1) // The regex engine seems to have trouble with 0xa0, so doing it separately.
 				s = whitespaceRegex.ReplaceAllString(s, "")
 			}
-		case ReplaceComments:
-		case Sha1:
-		case URLDecode, URLDecodeUni:
+		case ast.ReplaceComments:
+		case ast.Sha1:
+		case ast.URLDecode, ast.URLDecodeUni:
 			s = encoding.WeakURLUnescape(s)
-		case Utf8toUnicode:
-			s = utf8ToUnicode(s)
+		case ast.Utf8toUnicode:
+			s = Utf8ToUnicode(s)
 		}
 	}
 
 	return s
 }
 
-// According to the book ModSecurity Handbook, this transformation should convert all UTF-8 characters sequences to Unicode using a %uHHHH syntax.
-func utf8ToUnicode(input string) (output string) {
+// Utf8ToUnicode converts all UTF-8 characters sequences to Unicode using a %uHHHH syntax. This is what it should do according to the book ModSecurity Handbook.
+func Utf8ToUnicode(input string) (output string) {
 	// Check first if there any UTF-8 sequences before we start doing memory allocations.
 	// The range-operator on a string will parse UTF-8 sequences into the rune type.
 	hasUtf8 := false
@@ -104,10 +107,10 @@ func utf8ToUnicode(input string) (output string) {
 	return
 }
 
-// Javascript unescape.
+// JsUnescape performs a Javascript unescape.
 // Mostly based on https://www.ecma-international.org/ecma-262/6.0/#sec-literals-string-literals
 // plus we imitate a little bit of special behaviour like ModSecurity has.
-func jsUnescape(input string) string {
+func JsUnescape(input string) string {
 	// Don't allocate memory if we know up front that there are no escape sequences in this string.
 	if !strings.Contains(input, "\\") {
 		return input
@@ -225,7 +228,7 @@ func jsUnescape(input string) string {
 			switch c {
 			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
 				r, _ := strconv.ParseInt(input[i-3:i+1], 16, 64) // No err handling needed, because we know the prior four bytes were hex digits.
-				r = unicodeFullWidthToASCII(r)
+				r = UnicodeFullWidthToASCII(r)
 				buf.WriteRune(rune(r))
 				state = notInEscape
 			default:
@@ -243,7 +246,7 @@ func jsUnescape(input string) string {
 					// Fallback to just writing the input without the \.
 					buf.WriteString(input[escapeStartPos+1 : i+1])
 				} else {
-					r = unicodeFullWidthToASCII(r)
+					r = UnicodeFullWidthToASCII(r)
 					buf.WriteRune(rune(r))
 				}
 				state = notInEscape
@@ -318,8 +321,8 @@ func jsUnescape(input string) string {
 	return buf.String()
 }
 
-// ModSecurity has a very special handling of full width characters (ff01 - ff5e). It maps them to the corresponding ASCII characters. We will imitate this.
-func unicodeFullWidthToASCII(r int64) int64 {
+// UnicodeFullWidthToASCII width characters (ff01 - ff5e) to the corresponding ASCII characters. This is a special thing ModSecurity does. We will imitate this.
+func UnicodeFullWidthToASCII(r int64) int64 {
 	if r >= 0xff01 && r <= 0xff5e {
 		// The first printable char in ASCII is 0x20, and corresponds to 0xFF00.
 		lowestByte := r & 0xff
@@ -328,7 +331,8 @@ func unicodeFullWidthToASCII(r int64) int64 {
 	return r
 }
 
-func transformationListEquals(a []Transformation, b []Transformation) bool {
+// TransformationListEquals checks whether two transformation pipelines are equal.
+func TransformationListEquals(a []ast.Transformation, b []ast.Transformation) bool {
 	if len(a) != len(b) {
 		return false
 	}

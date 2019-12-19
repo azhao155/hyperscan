@@ -1,4 +1,4 @@
-package secrule
+package reqscanning
 
 import (
 	"azwaf/waf"

@@ -1,6 +1,8 @@
-package secrule
+package engine
 
 import (
+	sr "azwaf/secrule"
+
 	"azwaf/waf"
 	"fmt"
 
@@ -8,7 +10,7 @@ import (
 )
 
 // NewEngineFactory creates a factory that can create SecRule engines.
-func NewEngineFactory(logger zerolog.Logger, rl RuleLoader, rsf ReqScannerFactory, ref RuleEvaluatorFactory) waf.SecRuleEngineFactory {
+func NewEngineFactory(logger zerolog.Logger, rl sr.RuleLoader, rsf sr.ReqScannerFactory, ref sr.RuleEvaluatorFactory) waf.SecRuleEngineFactory {
 	return &engineFactoryImpl{
 		logger:               logger,
 		ruleLoader:           rl,
@@ -19,9 +21,9 @@ func NewEngineFactory(logger zerolog.Logger, rl RuleLoader, rsf ReqScannerFactor
 
 type engineFactoryImpl struct {
 	logger               zerolog.Logger
-	ruleLoader           RuleLoader
-	reqScannerFactory    ReqScannerFactory
-	ruleEvaluatorFactory RuleEvaluatorFactory
+	ruleLoader           sr.RuleLoader
+	reqScannerFactory    sr.ReqScannerFactory
+	ruleEvaluatorFactory sr.RuleEvaluatorFactory
 }
 
 func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecRuleEngine, err error) {

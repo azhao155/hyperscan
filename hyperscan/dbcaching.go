@@ -3,7 +3,6 @@ package hyperscan
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	hs "github.com/flier/gohs/hyperscan"
 	"io"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	hs "github.com/flier/gohs/hyperscan"
 )
 
 // DbCache is a cache for pre-built Hyperscan databases.

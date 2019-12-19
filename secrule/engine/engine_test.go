@@ -1,8 +1,12 @@
-package secrule
+package engine
 
 import (
+	. "azwaf/secrule"
+	. "azwaf/secrule/ast"
+
 	"azwaf/testutils"
 	"azwaf/waf"
+	"io"
 	"testing"
 
 	"github.com/rs/zerolog"
@@ -47,27 +51,27 @@ func TestReqbodyProcessorValues(t *testing.T) {
 		t.Fatalf("Unexpected len(waf.ReqBodyTypeToStr). You must update this test if you have changed waf.ReqBodyTypeToStr.")
 	}
 
-	s := reqbodyProcessorValues[waf.OtherBody].string()
+	s := reqbodyProcessorValues[waf.OtherBody].String()
 	if s != "" {
 		t.Fatalf("Unexpected reqbodyProcessorValues[waf.OtherBody]: %v", s)
 	}
 
-	s = reqbodyProcessorValues[waf.MultipartFormDataBody].string()
+	s = reqbodyProcessorValues[waf.MultipartFormDataBody].String()
 	if s != "MULTIPART" {
 		t.Fatalf("Unexpected reqbodyProcessorValues[waf.MultipartFormDataBody]: %v", s)
 	}
 
-	s = reqbodyProcessorValues[waf.URLEncodedBody].string()
+	s = reqbodyProcessorValues[waf.URLEncodedBody].String()
 	if s != "URLENCODED" {
 		t.Fatalf("Unexpected reqbodyProcessorValues[waf.URLEncodedBody]: %v", s)
 	}
 
-	s = reqbodyProcessorValues[waf.XMLBody].string()
+	s = reqbodyProcessorValues[waf.XMLBody].String()
 	if s != "XML" {
 		t.Fatalf("Unexpected reqbodyProcessorValues[waf.XMLBody]: %v", s)
 	}
 
-	s = reqbodyProcessorValues[waf.JSONBody].string()
+	s = reqbodyProcessorValues[waf.JSONBody].String()
 	if s != "JSON" {
 		t.Fatalf("Unexpected reqbodyProcessorValues[waf.JSONBody]: %v", s)
 	}
@@ -118,7 +122,7 @@ func (f *mockReqScannerFactory) NewReqScanner(statements []Statement) (r ReqScan
 
 type mockRuleEvaluatorFactory struct{}
 
-func (r *mockRuleEvaluatorFactory) NewRuleEvaluator(logger zerolog.Logger, perRequestEnv *environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) RuleEvaluator {
+func (r *mockRuleEvaluatorFactory) NewRuleEvaluator(logger zerolog.Logger, perRequestEnv Environment, statements []Statement, scanResults *ScanResults, triggeredCb RuleEvaluatorTriggeredCb) RuleEvaluator {
 	return &mockRuleEvaluator{}
 }
 
@@ -132,3 +136,82 @@ func (r *mockRuleEvaluator) ProcessPhase(phase int) (decision waf.Decision) {
 func (r *mockRuleEvaluator) IsForceRequestBodyScanning() bool {
 	return false
 }
+
+func newMockRuleLoader() RuleLoader {
+	return &mockRuleLoader{}
+}
+
+type mockRuleLoader struct{}
+
+func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err error) {
+	statements = []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("xyz")}},
+					Transformations: []Transformation{Lowercase},
+				},
+			},
+		},
+		&Rule{
+			ID: 300,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestURIRaw}}, Op: Rx, Val: Value{StringToken("a+bc")}},
+					Transformations: []Transformation{Lowercase, RemoveWhitespace},
+				},
+			},
+		},
+		&Rule{
+			ID: 400,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetXML, Selector: "/*"}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+			},
+		}}
+
+	return
+}
+
+type mockWafHTTPRequest struct {
+	uri        string
+	bodyReader io.Reader
+	headers    []waf.HeaderPair
+}
+
+func (r *mockWafHTTPRequest) Method() string                      { return "GET" }
+func (r *mockWafHTTPRequest) URI() string                         { return r.uri }
+func (r *mockWafHTTPRequest) Protocol() string                    { return "HTTP/1.1" }
+func (r *mockWafHTTPRequest) RemoteAddr() string                  { return "0.0.0.0" }
+func (r *mockWafHTTPRequest) ConfigID() string                    { return "SecRuleConfig1" }
+func (r *mockWafHTTPRequest) Headers() []waf.HeaderPair           { return r.headers }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader               { return r.bodyReader }
+func (r *mockWafHTTPRequest) LogMetaData() waf.RequestLogMetaData { return &mockLogMetaData{} }
+func (r *mockWafHTTPRequest) TransactionID() string               { return "abc" }
+
+type mockHeaderPair struct {
+	k string
+	v string
+}
+
+func (h *mockHeaderPair) Key() string   { return h.k }
+func (h *mockHeaderPair) Value() string { return h.v }
+
+type mockLogMetaData struct {
+}
+
+func (h *mockLogMetaData) Scope() string     { return "Global" }
+func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }

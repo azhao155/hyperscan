@@ -1,6 +1,8 @@
-package secrule
+package ruleevaluation
 
 import (
+	. "azwaf/secrule/ast"
+
 	"testing"
 
 	"github.com/stretchr/testify/assert"

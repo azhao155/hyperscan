@@ -1,16 +1,14 @@
-package secrule
+package ruleparsing
 
 import (
+	sr "azwaf/secrule"
+	ast "azwaf/secrule/ast"
+
 	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
 )
-
-// RuleParser parses SecRule language files.
-type RuleParser interface {
-	Parse(input string, pf phraseLoaderCb, ilcb includeLoaderCb) (statements []Statement, err error)
-}
 
 var statementNameRegex = regexp.MustCompile(`(?s)^\w+([ \t]|\\\n)+`)
 var targetRegex = regexp.MustCompile(`(?i)^!?&?(XML:/[^|\s,]+|\w+:/(\\.|[^/\\])+/|\w+:'(\\.|[^'\\])+'|\w+:[^|\s,]+|\w+)`)
@@ -24,201 +22,155 @@ var variableMacroRegex = regexp.MustCompile(`%{(?P<variable>[^}]+)}`)
 var setVarParameterRegex = regexp.MustCompile(`!?(?P<variable>[^=]+)(?P<operator>=[+-]?)?(?P<value>.+)?`)
 var ctlParameterRegex = regexp.MustCompile(`(?P<setting>[^=]+)=(?P<value>.+)`)
 
-var transformationsMap = map[string]Transformation{
-	"cmdline":            CmdLine,
-	"compresswhitespace": CompressWhitespace,
-	"cssdecode":          CSSDecode,
-	"hexencode":          HexEncode,
-	"htmlentitydecode":   HTMLEntityDecode,
-	"jsdecode":           JsDecode,
-	"length":             Length,
-	"lowercase":          Lowercase,
-	"none":               None,
-	"normalisepath":      NormalisePath,
-	"normalisepathwin":   NormalisePathWin,
-	"normalizepath":      NormalizePath,
-	"normalizepathwin":   NormalizePathWin,
-	"removecomments":     RemoveComments,
-	"removenulls":        RemoveNulls,
-	"removewhitespace":   RemoveWhitespace,
-	"replacecomments":    ReplaceComments,
-	"sha1":               Sha1,
-	"urldecode":          URLDecode,
-	"urldecodeuni":       URLDecodeUni,
-	"utf8tounicode":      Utf8toUnicode,
+var transformationsMap = map[string]ast.Transformation{
+	"cmdline":            ast.CmdLine,
+	"compresswhitespace": ast.CompressWhitespace,
+	"cssdecode":          ast.CSSDecode,
+	"hexencode":          ast.HexEncode,
+	"htmlentitydecode":   ast.HTMLEntityDecode,
+	"jsdecode":           ast.JsDecode,
+	"length":             ast.Length,
+	"lowercase":          ast.Lowercase,
+	"none":               ast.None,
+	"normalisepath":      ast.NormalisePath,
+	"normalisepathwin":   ast.NormalisePathWin,
+	"normalizepath":      ast.NormalizePath,
+	"normalizepathwin":   ast.NormalizePathWin,
+	"removecomments":     ast.RemoveComments,
+	"removenulls":        ast.RemoveNulls,
+	"removewhitespace":   ast.RemoveWhitespace,
+	"replacecomments":    ast.ReplaceComments,
+	"sha1":               ast.Sha1,
+	"urldecode":          ast.URLDecode,
+	"urldecodeuni":       ast.URLDecodeUni,
+	"utf8tounicode":      ast.Utf8toUnicode,
 }
 
-var operatorsMap = map[string]Operator{
-	"@beginswith":           BeginsWith,
-	"@endswith":             EndsWith,
-	"@contains":             Contains,
-	"@containsword":         ContainsWord,
-	"@detectsqli":           DetectSQLi,
-	"@detectxss":            DetectXSS,
-	"@eq":                   Eq,
-	"@ge":                   Ge,
-	"@gt":                   Gt,
-	"@le":                   Le,
-	"@lt":                   Lt,
-	"@pm":                   Pm,
-	"@pmf":                  Pmf,
-	"@pmfromfile":           PmFromFile,
-	"@rx":                   Rx,
-	"@streq":                Streq,
-	"@strmatch":             Strmatch,
-	"@validatebyterange":    ValidateByteRange,
-	"@validateurlencoding":  ValidateURLEncoding,
-	"@validateutf8encoding": ValidateUtf8Encoding,
-	"@within":               Within,
-	"@geolookup":            GeoLookup,
-	"@ipmatch":              IPMatch,
-	"@ipmatchfromfile":      IPMatchFromFile,
-	"@rbl":                  Rbl,
+var operatorsMap = map[string]ast.Operator{
+	"@beginswith":           ast.BeginsWith,
+	"@endswith":             ast.EndsWith,
+	"@contains":             ast.Contains,
+	"@containsword":         ast.ContainsWord,
+	"@detectsqli":           ast.DetectSQLi,
+	"@detectxss":            ast.DetectXSS,
+	"@eq":                   ast.Eq,
+	"@ge":                   ast.Ge,
+	"@gt":                   ast.Gt,
+	"@le":                   ast.Le,
+	"@lt":                   ast.Lt,
+	"@pm":                   ast.Pm,
+	"@pmf":                  ast.Pmf,
+	"@pmfromfile":           ast.PmFromFile,
+	"@rx":                   ast.Rx,
+	"@streq":                ast.Streq,
+	"@strmatch":             ast.Strmatch,
+	"@validatebyterange":    ast.ValidateByteRange,
+	"@validateurlencoding":  ast.ValidateURLEncoding,
+	"@validateutf8encoding": ast.ValidateUtf8Encoding,
+	"@within":               ast.Within,
+	"@geolookup":            ast.GeoLookup,
+	"@ipmatch":              ast.IPMatch,
+	"@ipmatchfromfile":      ast.IPMatchFromFile,
+	"@rbl":                  ast.Rbl,
 }
 
-var ctlActionSettingsMap = map[string]CtlActionSetting{
-	"auditengine":              AuditEngine,
-	"auditlogparts":            AuditLogParts,
-	"forcerequestbodyvariable": ForceRequestBodyVariable,
-	"requestbodyaccess":        RequestBodyAccess,
-	"requestbodyprocessor":     RequestBodyProcessor,
-	"ruleengine":               RuleEngine,
-	"ruleremovebyid":           RuleRemoveByID,
-	"ruleremovebytag":          RuleRemoveByTag,
-	"ruleremovetargetbyid":     RuleRemoveTargetByID,
-	"ruleremovetargetbytag":    RuleRemoveTargetByTag,
+var ctlActionSettingsMap = map[string]ast.CtlActionSetting{
+	"auditengine":              ast.AuditEngine,
+	"auditlogparts":            ast.AuditLogParts,
+	"forcerequestbodyvariable": ast.ForceRequestBodyVariable,
+	"requestbodyaccess":        ast.RequestBodyAccess,
+	"requestbodyprocessor":     ast.RequestBodyProcessor,
+	"ruleengine":               ast.RuleEngine,
+	"ruleremovebyid":           ast.RuleRemoveByID,
+	"ruleremovebytag":          ast.RuleRemoveByTag,
+	"ruleremovetargetbyid":     ast.RuleRemoveTargetByID,
+	"ruleremovetargetbytag":    ast.RuleRemoveTargetByTag,
 }
 
 // TargetNamesFromStr gets TargetName enums from strings. Ensure this is in sync with TargetNamesStrings and the TargetName const iota block.
-var TargetNamesFromStr = map[string]TargetName{
-	"ARGS":                         TargetArgs,
-	"ARGS_COMBINED_SIZE":           TargetArgsCombinedSize,
-	"ARGS_GET":                     TargetArgsGet,
-	"ARGS_GET_NAMES":               TargetArgsGetNames,
-	"ARGS_NAMES":                   TargetArgsNames,
-	"ARGS_POST":                    TargetArgsPost,
-	"DURATION":                     TargetDuration,
-	"FILES":                        TargetFiles,
-	"FILES_COMBINED_SIZE":          TargetFilesCombinedSize,
-	"FILES_NAMES":                  TargetFilesNames,
-	"GEO":                          TargetGeo,
-	"IP":                           TargetIP,
-	"MATCHED_VAR":                  TargetMatchedVar,
-	"MATCHED_VAR_NAME":             TargetMatchedVarName,
-	"MATCHED_VARS":                 TargetMatchedVars,
-	"MATCHED_VARS_NAMES":           TargetMatchedVarsNames,
-	"MULTIPART_STRICT_ERROR":       TargetMultipartStrictError,
-	"MULTIPART_UNMATCHED_BOUNDARY": TargetMultipartUnmatchedBoundary,
-	"QUERY_STRING":                 TargetQueryString,
-	"REMOTE_ADDR":                  TargetRemoteAddr,
-	"REQBODY_ERROR":                TargetReqbodyError,
-	"REQBODY_PROCESSOR":            TargetReqbodyProcessor,
-	"REQUEST_BASENAME":             TargetRequestBasename,
-	"REQUEST_BODY":                 TargetRequestBody,
-	"REQUEST_COOKIES":              TargetRequestCookies,
-	"REQUEST_COOKIES_NAMES":        TargetRequestCookiesNames,
-	"REQUEST_FILENAME":             TargetRequestFilename,
-	"REQUEST_HEADERS":              TargetRequestHeaders,
-	"REQUEST_HEADERS_NAMES":        TargetRequestHeadersNames,
-	"REQUEST_LINE":                 TargetRequestLine,
-	"REQUEST_METHOD":               TargetRequestMethod,
-	"REQUEST_PROTOCOL":             TargetRequestProtocol,
-	"REQUEST_URI":                  TargetRequestURI,
-	"REQUEST_URI_RAW":              TargetRequestURIRaw,
-	"RESOURCE":                     TargetResource,
-	"RESPONSE_BODY":                TargetResponseBody,
-	"RESPONSE_STATUS":              TargetResponseStatus,
-	"TX":                           TargetTx,
-	"UNIQUE_ID":                    TargetUniqueID,
-	"WEBSERVER_ERROR_LOG":          TargetWebserverErrorLog,
-	"XML":                          TargetXML,
+var TargetNamesFromStr = map[string]ast.TargetName{
+	"ARGS":                         ast.TargetArgs,
+	"ARGS_COMBINED_SIZE":           ast.TargetArgsCombinedSize,
+	"ARGS_GET":                     ast.TargetArgsGet,
+	"ARGS_GET_NAMES":               ast.TargetArgsGetNames,
+	"ARGS_NAMES":                   ast.TargetArgsNames,
+	"ARGS_POST":                    ast.TargetArgsPost,
+	"DURATION":                     ast.TargetDuration,
+	"FILES":                        ast.TargetFiles,
+	"FILES_COMBINED_SIZE":          ast.TargetFilesCombinedSize,
+	"FILES_NAMES":                  ast.TargetFilesNames,
+	"GEO":                          ast.TargetGeo,
+	"IP":                           ast.TargetIP,
+	"MATCHED_VAR":                  ast.TargetMatchedVar,
+	"MATCHED_VAR_NAME":             ast.TargetMatchedVarName,
+	"MATCHED_VARS":                 ast.TargetMatchedVars,
+	"MATCHED_VARS_NAMES":           ast.TargetMatchedVarsNames,
+	"MULTIPART_STRICT_ERROR":       ast.TargetMultipartStrictError,
+	"MULTIPART_UNMATCHED_BOUNDARY": ast.TargetMultipartUnmatchedBoundary,
+	"QUERY_STRING":                 ast.TargetQueryString,
+	"REMOTE_ADDR":                  ast.TargetRemoteAddr,
+	"REQBODY_ERROR":                ast.TargetReqbodyError,
+	"REQBODY_PROCESSOR":            ast.TargetReqbodyProcessor,
+	"REQUEST_BASENAME":             ast.TargetRequestBasename,
+	"REQUEST_BODY":                 ast.TargetRequestBody,
+	"REQUEST_COOKIES":              ast.TargetRequestCookies,
+	"REQUEST_COOKIES_NAMES":        ast.TargetRequestCookiesNames,
+	"REQUEST_FILENAME":             ast.TargetRequestFilename,
+	"REQUEST_HEADERS":              ast.TargetRequestHeaders,
+	"REQUEST_HEADERS_NAMES":        ast.TargetRequestHeadersNames,
+	"REQUEST_LINE":                 ast.TargetRequestLine,
+	"REQUEST_METHOD":               ast.TargetRequestMethod,
+	"REQUEST_PROTOCOL":             ast.TargetRequestProtocol,
+	"REQUEST_URI":                  ast.TargetRequestURI,
+	"REQUEST_URI_RAW":              ast.TargetRequestURIRaw,
+	"RESOURCE":                     ast.TargetResource,
+	"RESPONSE_BODY":                ast.TargetResponseBody,
+	"RESPONSE_STATUS":              ast.TargetResponseStatus,
+	"TX":                           ast.TargetTx,
+	"UNIQUE_ID":                    ast.TargetUniqueID,
+	"WEBSERVER_ERROR_LOG":          ast.TargetWebserverErrorLog,
+	"XML":                          ast.TargetXML,
 }
 
-// TargetNamesStrings gets strings from the int value of TargetName enums. Ensure this is in sync with TargetNamesFromStr and the TargetName const iota block.
-var TargetNamesStrings = []string{
-	"",
-	"ARGS",
-	"ARGS_COMBINED_SIZE",
-	"ARGS_GET",
-	"ARGS_GET_NAMES",
-	"ARGS_NAMES",
-	"ARGS_POST",
-	"DURATION",
-	"FILES",
-	"FILES_COMBINED_SIZE",
-	"FILES_NAMES",
-	"GEO",
-	"IP",
-	"MATCHED_VAR",
-	"MATCHED_VAR_NAME",
-	"MATCHED_VARS",
-	"MATCHED_VARS_NAMES",
-	"MULTIPART_STRICT_ERROR",
-	"MULTIPART_UNMATCHED_BOUNDARY",
-	"QUERY_STRING",
-	"REMOTE_ADDR",
-	"REQBODY_ERROR",
-	"REQBODY_PROCESSOR",
-	"REQUEST_BASENAME",
-	"REQUEST_BODY",
-	"REQUEST_COOKIES",
-	"REQUEST_COOKIES_NAMES",
-	"REQUEST_FILENAME",
-	"REQUEST_HEADERS",
-	"REQUEST_HEADERS_NAMES",
-	"REQUEST_LINE",
-	"REQUEST_METHOD",
-	"REQUEST_PROTOCOL",
-	"REQUEST_URI",
-	"REQUEST_URI_RAW",
-	"RESOURCE",
-	"RESPONSE_BODY",
-	"RESPONSE_STATUS",
-	"TX",
-	"UNIQUE_ID",
-	"WEBSERVER_ERROR_LOG",
-	"XML",
-}
-
-var envVarNamesFromStr = map[string]EnvVarName{
-	"ip":                               EnvVarIP,
-	"matched_var":                      EnvVarMatchedVar,
-	"matched_var_name":                 EnvVarMatchedVarName,
-	"multipart_boundary_quoted":        EnvVarMultipartBoundaryQuoted,
-	"multipart_boundary_whitespace":    EnvVarMultipartBoundaryWhitespace,
-	"multipart_data_after":             EnvVarMultipartDataAfter,
-	"multipart_data_before":            EnvVarMultipartDataBefore,
-	"multipart_file_limit_exceeded":    EnvVarMultipartFileLimitExceeded,
-	"multipart_header_folding":         EnvVarMultipartHeaderFolding,
-	"multipart_invalid_header_folding": EnvVarMultipartInvalidHeaderFolding,
-	"multipart_invalid_quoting":        EnvVarMultipartInvalidQuoting,
-	"multipart_lf_line":                EnvVarMultipartLfLine,
-	"multipart_semicolon_missing":      EnvVarMultipartSemicolonMissing, // Note: same as multipart_missing_semicolon
-	"multipart_missing_semicolon":      EnvVarMultipartSemicolonMissing, // Note: same as multipart_semicolon_missing
-	"remote_addr":                      EnvVarRemoteAddr,
-	"reqbody_error_msg":                EnvVarReqbodyErrorMsg,
-	"reqbody_processor":                EnvVarReqbodyProcessor,
-	"reqbody_processor_error":          EnvVarReqbodyProcessorError,
-	"request_headers":                  EnvVarRequestHeaders,
-	"request_line":                     EnvVarRequestLine,
-	"request_method":                   EnvVarRequestMethod,
-	"rule":                             EnvVarRule,
-	"tx":                               EnvVarTx,
-	"request_protocol":                 EnvVarRequestProtocol,
+var envVarNamesFromStr = map[string]ast.EnvVarName{
+	"ip":                               ast.EnvVarIP,
+	"matched_var":                      ast.EnvVarMatchedVar,
+	"matched_var_name":                 ast.EnvVarMatchedVarName,
+	"multipart_boundary_quoted":        ast.EnvVarMultipartBoundaryQuoted,
+	"multipart_boundary_whitespace":    ast.EnvVarMultipartBoundaryWhitespace,
+	"multipart_data_after":             ast.EnvVarMultipartDataAfter,
+	"multipart_data_before":            ast.EnvVarMultipartDataBefore,
+	"multipart_file_limit_exceeded":    ast.EnvVarMultipartFileLimitExceeded,
+	"multipart_header_folding":         ast.EnvVarMultipartHeaderFolding,
+	"multipart_invalid_header_folding": ast.EnvVarMultipartInvalidHeaderFolding,
+	"multipart_invalid_quoting":        ast.EnvVarMultipartInvalidQuoting,
+	"multipart_lf_line":                ast.EnvVarMultipartLfLine,
+	"multipart_semicolon_missing":      ast.EnvVarMultipartSemicolonMissing, // Note: same as multipart_missing_semicolon
+	"multipart_missing_semicolon":      ast.EnvVarMultipartSemicolonMissing, // Note: same as multipart_semicolon_missing
+	"remote_addr":                      ast.EnvVarRemoteAddr,
+	"reqbody_error_msg":                ast.EnvVarReqbodyErrorMsg,
+	"reqbody_processor":                ast.EnvVarReqbodyProcessor,
+	"reqbody_processor_error":          ast.EnvVarReqbodyProcessorError,
+	"request_headers":                  ast.EnvVarRequestHeaders,
+	"request_line":                     ast.EnvVarRequestLine,
+	"request_method":                   ast.EnvVarRequestMethod,
+	"rule":                             ast.EnvVarRule,
+	"tx":                               ast.EnvVarTx,
+	"request_protocol":                 ast.EnvVarRequestProtocol,
 }
 
 type ruleParserImpl struct {
 }
 
 // NewRuleParser creates a secrule.RuleParser.
-func NewRuleParser() RuleParser {
+func NewRuleParser() sr.RuleParser {
 	return &ruleParserImpl{}
 }
 
 // Parse a ruleset.
-func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoaderCb) (statements []Statement, err error) {
-	statements = []Statement{}
-	curRule := &Rule{}
+func (r *ruleParserImpl) Parse(input string, pf sr.PhraseLoaderCb, ilcb sr.IncludeLoaderCb) (statements []ast.Statement, err error) {
+	statements = []ast.Statement{}
+	curRule := &ast.Rule{}
 	rest := input
 	lineNumber := 0
 	for {
@@ -270,7 +222,7 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoad
 			}
 
 			includeFilePath := strings.Trim(rest, " \\\t\r\n")
-			var rr []Statement
+			var rr []ast.Statement
 			rr, err = ilcb(includeFilePath)
 			if err != nil {
 				err = fmt.Errorf("error in file included from line number %v: %v", lineNumber, err)
@@ -293,8 +245,8 @@ func (r *ruleParserImpl) Parse(input string, pf phraseLoaderCb, ilcb includeLoad
 }
 
 // Parse a single rule.
-func parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLoaderCb) (err error) {
-	ru := &RuleItem{}
+func parseSecRule(s string, curRule **ast.Rule, statements *[]ast.Statement, pf sr.PhraseLoaderCb) (err error) {
+	ru := &ast.RuleItem{}
 
 	ru.Predicate.Targets, ru.Predicate.ExceptTargets, s, err = parseTargets(s)
 	if err != nil {
@@ -309,15 +261,15 @@ func parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLo
 	}
 
 	switch ru.Predicate.Op {
-	case Pm:
-		ru.PmPhrases = strings.Split(ru.Predicate.Val.string(), " ")
-	case Pmf, PmFromFile:
+	case ast.Pm:
+		ru.PmPhrases = strings.Split(ru.Predicate.Val.String(), " ")
+	case ast.Pmf, ast.PmFromFile:
 		if pf == nil {
 			err = fmt.Errorf("rules contained @pmf but no loader callback was given")
 			return
 		}
 
-		ru.PmPhrases, err = pf(ru.Predicate.Val.string())
+		ru.PmPhrases, err = pf(ru.Predicate.Val.String())
 		if err != nil {
 			return
 		}
@@ -374,15 +326,15 @@ func parseSecRule(s string, curRule **Rule, statements *[]Statement, pf phraseLo
 	if !hasChainAction {
 		// End of rule chain
 		*statements = append(*statements, *curRule)
-		*curRule = &Rule{}
+		*curRule = &ast.Rule{}
 	}
 
 	return
 }
 
 // Parse a single SecAction statement.
-func parseSecActionStmt(s string, curRule **Rule, statements *[]Statement) (err error) {
-	actionStmt := &ActionStmt{}
+func parseSecActionStmt(s string, curRule **ast.Rule, statements *[]ast.Statement) (err error) {
+	actionStmt := &ast.ActionStmt{}
 
 	rawActions, s, err := parseRawActions(s)
 	if err != nil {
@@ -414,8 +366,8 @@ func parseSecActionStmt(s string, curRule **Rule, statements *[]Statement) (err 
 }
 
 // Parse a single SecAction statement.
-func parseSecMarker(s string, curRule **Rule, statements *[]Statement) (err error) {
-	marker := &Marker{}
+func parseSecMarker(s string, curRule **ast.Rule, statements *[]ast.Statement) (err error) {
+	marker := &ast.Marker{}
 
 	marker.Label, s = nextArg(s)
 
@@ -431,7 +383,7 @@ func parseSecMarker(s string, curRule **Rule, statements *[]Statement) (err erro
 }
 
 // Parse a SecRule targets field (aka. variables field).
-func parseTargets(s string) (targets []Target, exceptTargets []Target, rest string, err error) {
+func parseTargets(s string) (targets []ast.Target, exceptTargets []ast.Target, rest string, err error) {
 	s, rest = nextArg(s)
 
 	for {
@@ -475,7 +427,7 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 		}
 
 		isRegexSelector := false
-		if name != TargetXML && len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
+		if name != ast.TargetXML && len(selector) >= 2 && selector[0] == '/' && selector[len(selector)-1] == '/' {
 			isRegexSelector = true
 			selector = selector[1 : len(selector)-1]
 
@@ -490,7 +442,7 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 			selector = strings.ToLower(selector)
 		}
 
-		target := Target{
+		target := ast.Target{
 			Name:            name,
 			Selector:        selector,
 			IsRegexSelector: isRegexSelector,
@@ -515,8 +467,8 @@ func parseTargets(s string) (targets []Target, exceptTargets []Target, rest stri
 }
 
 // Parse a SecRule Operator field.
-func parseOperator(s string) (op Operator, val Value, neg bool, rest string, err error) {
-	op = Rx
+func parseOperator(s string) (op ast.Operator, val ast.Value, neg bool, rest string, err error) {
+	op = ast.Rx
 
 	s, rest = nextArg(s)
 
@@ -544,13 +496,13 @@ func parseOperator(s string) (op Operator, val Value, neg bool, rest string, err
 	}
 
 	// Special case for @validateByteRange
-	if op == ValidateByteRange {
-		if val.hasMacros() {
+	if op == ast.ValidateByteRange {
+		if val.HasMacros() {
 			err = fmt.Errorf("macros in @validateByteRange not supported")
 			return
 		}
 
-		val, err = parseValidateByteRangeVal(val.string())
+		val, err = parseValidateByteRangeVal(val.String())
 		if err != nil {
 			return
 		}
@@ -560,7 +512,7 @@ func parseOperator(s string) (op Operator, val Value, neg bool, rest string, err
 }
 
 // Parse a raw SecRule actions arg into RawAction key-value pairs.
-func parseRawActions(s string) (actions []RawAction, rest string, err error) {
+func parseRawActions(s string) (actions []ast.RawAction, rest string, err error) {
 	s, rest = nextArg(s)
 	s = strings.Trim(s, " \t\r\n")
 
@@ -580,7 +532,7 @@ func parseRawActions(s string) (actions []RawAction, rest string, err error) {
 		var k, v string
 		k, v = parseActionKeyValue(a)
 		k = strings.ToLower(k)
-		actions = append(actions, RawAction{k, v})
+		actions = append(actions, ast.RawAction{k, v})
 
 		// Consume whitespace
 		_, s = findConsume(argSpaceRegex, s)
@@ -594,10 +546,10 @@ func parseRawActions(s string) (actions []RawAction, rest string, err error) {
 	}
 }
 
-func parseActions(rawActions []RawAction) (
-	actions []Action,
+func parseActions(rawActions []ast.RawAction) (
+	actions []ast.Action,
 	id int,
-	transformations []Transformation,
+	transformations []ast.Transformation,
 	hasChainAction bool,
 	phase int,
 	err error) {
@@ -615,28 +567,28 @@ func parseActions(rawActions []RawAction) (
 			hasChainAction = true
 
 		case "allow":
-			actions = append(actions, &AllowAction{})
+			actions = append(actions, &ast.AllowAction{})
 
 		case "deny":
-			actions = append(actions, &DenyAction{})
+			actions = append(actions, &ast.DenyAction{})
 
 		case "msg":
-			var v Value
+			var v ast.Value
 			v, err = parseValue(a.Val)
 			if err != nil {
 				return
 			}
 
-			actions = append(actions, &MsgAction{Msg: v})
+			actions = append(actions, &ast.MsgAction{Msg: v})
 
 		case "logdata":
-			var v Value
+			var v ast.Value
 			v, err = parseValue(a.Val)
 			if err != nil {
 				return
 			}
 
-			actions = append(actions, &LogDataAction{LogData: v})
+			actions = append(actions, &ast.LogDataAction{LogData: v})
 
 		case "t":
 			if t, ok := transformationsMap[strings.ToLower(a.Val)]; ok {
@@ -647,7 +599,7 @@ func parseActions(rawActions []RawAction) (
 			}
 
 		case "setvar":
-			var sv SetVarAction
+			var sv ast.SetVarAction
 			sv, err = parseSetVarAction(a.Val)
 			if err != nil {
 				return
@@ -656,10 +608,10 @@ func parseActions(rawActions []RawAction) (
 			actions = append(actions, &sv)
 
 		case "nolog":
-			actions = append(actions, &NoLogAction{})
+			actions = append(actions, &ast.NoLogAction{})
 
 		case "log":
-			actions = append(actions, &LogAction{})
+			actions = append(actions, &ast.LogAction{})
 
 		case "phase":
 			phase, err = parsePhase(a.Val)
@@ -668,13 +620,13 @@ func parseActions(rawActions []RawAction) (
 			}
 
 		case "skipafter":
-			actions = append(actions, &SkipAfterAction{Label: a.Val})
+			actions = append(actions, &ast.SkipAfterAction{Label: a.Val})
 
 		case "capture":
-			actions = append(actions, &CaptureAction{})
+			actions = append(actions, &ast.CaptureAction{})
 
 		case "ctl":
-			var ctl CtlAction
+			var ctl ast.CtlAction
 			ctl, err = parseCtlAction(a.Val)
 			if err != nil {
 				return
@@ -683,7 +635,7 @@ func parseActions(rawActions []RawAction) (
 			actions = append(actions, &ctl)
 		default:
 			// TODO support all actions and do a proper error here for unknown actions
-			var rawAction RawAction
+			var rawAction ast.RawAction
 			rawAction = a
 			actions = append(actions, &rawAction)
 
@@ -693,7 +645,7 @@ func parseActions(rawActions []RawAction) (
 	return
 }
 
-func parseSetVarAction(parameter string) (sv SetVarAction, err error) {
+func parseSetVarAction(parameter string) (sv ast.SetVarAction, err error) {
 	matches := setVarParameterRegex.FindStringSubmatch(parameter)
 	if matches == nil {
 		err = fmt.Errorf("unsupported parameter %s for setvar operation", parameter)
@@ -720,28 +672,28 @@ func parseSetVarAction(parameter string) (sv SetVarAction, err error) {
 		return
 	}
 
-	var variable Value
+	var variable ast.Value
 	variable, err = parseValue(result["variable"])
 	if err != nil {
 		return
 	}
 
-	var value Value
+	var value ast.Value
 	value, err = parseValue(result["value"])
 	if err != nil {
 		return
 	}
 
-	sv = SetVarAction{
-		variable: variable,
-		operator: op,
-		value:    value,
+	sv = ast.SetVarAction{
+		Variable: variable,
+		Operator: op,
+		Value:    value,
 	}
 
 	return
 }
 
-func parseCtlAction(parameter string) (ctl CtlAction, err error) {
+func parseCtlAction(parameter string) (ctl ast.CtlAction, err error) {
 	matches := ctlParameterRegex.FindStringSubmatch(parameter)
 	if matches == nil {
 		err = fmt.Errorf("unsupported parameter %s for ctl operation", parameter)
@@ -756,15 +708,15 @@ func parseCtlAction(parameter string) (ctl CtlAction, err error) {
 		return
 	}
 
-	var value Value
+	var value ast.Value
 	value, err = parseValue(result["value"])
 	if err != nil {
 		return
 	}
 
-	ctl = CtlAction{
-		setting: setting,
-		value:   value,
+	ctl = ast.CtlAction{
+		Setting: setting,
+		Value:   value,
 	}
 
 	return
@@ -896,13 +848,13 @@ func parseActionKeyValue(s string) (key string, val string) {
 
 // A "value" is a string with macros, or sometimes just an integer value. It is used for logging and comparisons.
 // Example: "Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}".
-func parseValue(s string) (e Value, err error) {
+func parseValue(s string) (e ast.Value, err error) {
 	// Append macro-tokens and possibly the string tokens tokens between them.
 	var pos int
 	for _, match := range variableMacroRegex.FindAllStringSubmatchIndex(s, -1) {
 		// If there was a string in between previous macro and this macro, append it as a StringToken.
 		if pos != match[0] {
-			e = append(e, StringToken(s[pos:match[0]]))
+			e = append(e, ast.StringToken(s[pos:match[0]]))
 		}
 
 		// Parse the macro token.
@@ -915,7 +867,7 @@ func parseValue(s string) (e Value, err error) {
 				err = fmt.Errorf("unsupported macro %s", m)
 				return
 			}
-			e = append(e, MacroToken{Name: t})
+			e = append(e, ast.MacroToken{Name: t})
 		} else if len(macroParts) == 2 {
 			// This macro has a selector, so it refers to a collection.
 
@@ -926,18 +878,18 @@ func parseValue(s string) (e Value, err error) {
 			}
 
 			// These are the only collection macros we support.
-			if !(t == EnvVarRequestHeaders || t == EnvVarTx || t == EnvVarIP || t == EnvVarRule) {
+			if !(t == ast.EnvVarRequestHeaders || t == ast.EnvVarTx || t == ast.EnvVarIP || t == ast.EnvVarRule) {
 				err = fmt.Errorf("unsupported macro %s", m)
 				return
 			}
 
 			// For the request_headers macro we only support the "host" entry.
-			if t == EnvVarRequestHeaders && macroParts[1] != "host" {
+			if t == ast.EnvVarRequestHeaders && macroParts[1] != "host" {
 				err = fmt.Errorf("unsupported macro %s", m)
 				return
 			}
 
-			e = append(e, MacroToken{Name: t, Selector: macroParts[1]})
+			e = append(e, ast.MacroToken{Name: t, Selector: macroParts[1]})
 		} else {
 			err = fmt.Errorf("unsupported macro %s", m)
 			return
@@ -949,7 +901,7 @@ func parseValue(s string) (e Value, err error) {
 	// If there were macros, append the remainder as a string literal.
 	if len(e) > 0 {
 		if pos != len(s) {
-			e = append(e, StringToken(s[pos:len(s)]))
+			e = append(e, ast.StringToken(s[pos:len(s)]))
 		}
 		return
 	}
@@ -957,20 +909,20 @@ func parseValue(s string) (e Value, err error) {
 	// There were no macros. Try if the value is just an int token.
 	n, erratoi := strconv.Atoi(s)
 	if erratoi == nil {
-		e = append(e, IntToken(n))
+		e = append(e, ast.IntToken(n))
 		return
 	}
 
 	// The value is a string literal.
-	e = append(e, StringToken(s))
+	e = append(e, ast.StringToken(s))
 
 	return
 }
 
 // Special for @validateByteRange is that the val will be stored as a Value{ValidateByteRangeToken{...}}.
-func parseValidateByteRangeVal(s string) (val Value, err error) {
+func parseValidateByteRangeVal(s string) (val ast.Value, err error) {
 	parts := strings.Split(s, ",")
-	var t ValidateByteRangeToken
+	var t ast.ValidateByteRangeToken
 	for _, part := range parts {
 		r := strings.Split(part, "-")
 		n := len(r)
@@ -990,7 +942,7 @@ func parseValidateByteRangeVal(s string) (val Value, err error) {
 		}
 
 		if n == 1 {
-			t.allowedBytes[from] = true
+			t.AllowedBytes[from] = true
 		} else if n == 2 {
 			var to int
 			to, err = strconv.Atoi(r[1])
@@ -1005,12 +957,12 @@ func parseValidateByteRangeVal(s string) (val Value, err error) {
 			}
 
 			for i := from; i <= to; i++ {
-				t.allowedBytes[i] = true
+				t.AllowedBytes[i] = true
 			}
 		}
 	}
 
-	val = Value{t}
+	val = ast.Value{t}
 	return
 }
 
@@ -1027,21 +979,36 @@ func findConsume(re *regexp.Regexp, s string) (match string, rest string) {
 	return
 }
 
-func checkForUnsupportedFeatures(statements *[]Statement) error {
+func toSetvarOperator(opStr string) (ast.SetVarActionOperator, error) {
+	switch opStr {
+	case "=":
+		return ast.Set, nil
+	case "=+":
+		return ast.Increment, nil
+	case "=-":
+		return ast.Decrement, nil
+	case "!":
+		return ast.DeleteVar, nil
+	}
+
+	return -1, fmt.Errorf("Unsupported operator %s", opStr)
+}
+
+func checkForUnsupportedFeatures(statements *[]ast.Statement) error {
 	// Ensure that there are no rules that have scan-phase variables on the left with macros on the right.
 	// We do not support this, because expanded macros are not available at the point in time when we stream scan through requests.
 	for _, s := range *statements {
 		switch s := s.(type) {
-		case *Rule:
+		case *ast.Rule:
 			for _, item := range s.Items {
 				for _, t := range item.Predicate.Targets {
-					if t.IsCount || item.Predicate.Op == Ge || item.Predicate.Op == Gt || item.Predicate.Op == Le || item.Predicate.Op == Lt {
+					if t.IsCount || item.Predicate.Op == ast.Ge || item.Predicate.Op == ast.Gt || item.Predicate.Op == ast.Le || item.Predicate.Op == ast.Lt {
 						continue
 					}
 					switch t.Name {
-					case TargetArgs, TargetArgsGet, TargetArgsNames, TargetFiles, TargetFilesNames, TargetQueryString, TargetRequestBasename, TargetRequestBody, TargetRequestCookies, TargetRequestCookiesNames, TargetRequestFilename, TargetRequestHeaders, TargetRequestHeadersNames, TargetRequestURI, TargetRequestURIRaw, TargetXML:
-						if item.Predicate.Val.hasMacros() {
-							return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, TargetNamesStrings[t.Name])
+					case ast.TargetArgs, ast.TargetArgsGet, ast.TargetArgsNames, ast.TargetFiles, ast.TargetFilesNames, ast.TargetQueryString, ast.TargetRequestBasename, ast.TargetRequestBody, ast.TargetRequestCookies, ast.TargetRequestCookiesNames, ast.TargetRequestFilename, ast.TargetRequestHeaders, ast.TargetRequestHeadersNames, ast.TargetRequestURI, ast.TargetRequestURIRaw, ast.TargetXML:
+						if item.Predicate.Val.HasMacros() {
+							return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, ast.TargetNamesStrings[t.Name])
 						}
 						// There are a few scan-phase variables that are exempt from this restriction and have workarounds because they are used in CRS:
 						//     "REQUEST_LINE", "REQUEST_METHOD", "REQUEST_PROTOCOL"

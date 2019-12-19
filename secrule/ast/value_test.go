@@ -1,4 +1,4 @@
-package secrule
+package ast
 
 import (
 	"fmt"
@@ -45,7 +45,7 @@ func TestValueEqual(t *testing.T) {
 	var b strings.Builder
 	for i, test := range tests {
 		// Act and assert
-		r := test.a.equal(test.b)
+		r := test.a.Equal(test.b)
 		if r != test.expected {
 			fmt.Fprintf(&b, "Got unexpected result on item %v: %v\n", i, r)
 			continue

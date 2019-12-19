@@ -1,6 +1,10 @@
-package secrule
+package reqscanning
 
 import (
+	sr "azwaf/secrule"
+	ast "azwaf/secrule/ast"
+	tr "azwaf/secrule/transformations"
+
 	"azwaf/encoding"
 	"azwaf/libinjection"
 	"azwaf/waf"
@@ -11,78 +15,33 @@ import (
 	"strings"
 )
 
-// ReqScanner can create NewReqScannerEvaluations, which scans requests for string matches and other properties that the rule engine will be needing to do rule evaluation.
-type ReqScanner interface {
-	NewReqScannerEvaluation(scratchSpace *ReqScannerScratchSpace) ReqScannerEvaluation
-	NewScratchSpace() (scratchSpace *ReqScannerScratchSpace, err error)
-}
-
-// ReqScannerEvaluation is a session of the ReqScanner.
-type ReqScannerEvaluation interface {
-	ScanHeaders(req waf.HTTPRequest, results *ScanResults) (err error)
-	ScanBodyField(contentType waf.FieldContentType, fieldName string, data string, results *ScanResults) error
-}
-
-// Match represents when a match was found during the request scanning phase.
-type Match struct {
-	Data               []byte
-	CaptureGroups      [][]byte
-	EntireFieldContent []byte
-	TargetName         TargetName
-	FieldName          []byte
-}
-
-// ScanResults is the collection of all results found while scanning.
-type ScanResults struct {
-	matches         map[matchKey][]Match
-	targetsCount    map[Target]int
-	requestLine     []byte
-	requestMethod   []byte
-	requestProtocol []byte
-	hostHeader      []byte
-}
-
 // NewScanResults creates a ScanResults struct.
-func NewScanResults() *ScanResults {
-	return &ScanResults{
-		matches:      make(map[matchKey][]Match),
-		targetsCount: make(map[Target]int),
+func NewScanResults() *sr.ScanResults {
+	return &sr.ScanResults{
+		Matches:      make(map[sr.MatchKey][]sr.Match),
+		TargetsCount: make(map[ast.Target]int),
 	}
 }
 
-// ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
-type ReqScannerFactory interface {
-	NewReqScanner(statements []Statement) (r ReqScanner, err error)
-}
-
 // NewReqScannerFactory creates a ReqScannerFactory. The ReqScanners it will create will use multi-regex engines created by the given MultiRegexEngineFactory.
-func NewReqScannerFactory(m waf.MultiRegexEngineFactory) ReqScannerFactory {
+func NewReqScannerFactory(m waf.MultiRegexEngineFactory) sr.ReqScannerFactory {
 	return &reqScannerFactoryImpl{m}
 }
-
-// ReqScannerScratchSpace is a collection of all the scratch spaces a ReqScanner will need. These can be reused for different requests, but cannot be shared concurrently.
-type ReqScannerScratchSpace map[*waf.MultiRegexEngine]waf.MultiRegexEngineScratchSpace
 
 type reqScannerFactoryImpl struct {
 	multiRegexEngineFactory waf.MultiRegexEngineFactory
 }
 
-type matchKey struct {
-	ruleID      int
-	ruleItemIdx int
-	target      Target
-}
-
 type conditionRef struct {
-	rule        *Rule
-	ruleItem    *RuleItem
+	rule        *ast.Rule
+	ruleItem    *ast.RuleItem
 	ruleItemIdx int
-	target      Target
+	target      ast.Target
 }
 
 // Group of conditions that can be scanned together, because they are for the same target and with the same transformations.
 type scanGroup struct {
-	transformations []Transformation
+	transformations []ast.Transformation
 	rxEngine        waf.MultiRegexEngine
 	conditions      []conditionRef
 	backRefs        []conditionRef
@@ -90,33 +49,33 @@ type scanGroup struct {
 
 type reqScannerImpl struct {
 	allScanGroups                       []*scanGroup
-	scanGroupsForTarget                 map[Target][]*scanGroup
-	targetsSimple                       map[Target]bool
-	targetsRegexSelector                map[TargetName][]*targetsRegexSelectorWithSameTargetName
+	scanGroupsForTarget                 map[ast.Target][]*scanGroup
+	targetsSimple                       map[ast.Target]bool
+	targetsRegexSelector                map[ast.TargetName][]*targetsRegexSelectorWithSameTargetName
 	exceptTargetsRegexSelectorsCompiled map[string]*regexp.Regexp
 }
 
 type reqScannerEvaluationImpl struct {
 	reqScanner   *reqScannerImpl
-	scratchSpace *ReqScannerScratchSpace
+	scratchSpace *sr.ReqScannerScratchSpace
 }
 
 type targetsRegexSelectorWithSameTargetName struct {
-	target                Target
+	target                ast.Target
 	regexSelectorCompiled *regexp.Regexp
 }
 
 // NewReqScanner creates a ReqScanner.
-func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScanner, err error) {
+func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement) (r sr.ReqScanner, err error) {
 	var allScanGroups []*scanGroup
-	scanGroupsForTarget := make(map[Target][]*scanGroup)
-	targetsSimple := make(map[Target]bool)
-	targetsRegexSelector := make(map[TargetName][]*targetsRegexSelectorWithSameTargetName)
+	scanGroupsForTarget := make(map[ast.Target][]*scanGroup)
+	targetsSimple := make(map[ast.Target]bool)
+	targetsRegexSelector := make(map[ast.TargetName][]*targetsRegexSelectorWithSameTargetName)
 	exceptTargetsRegexSelectorsCompiled := make(map[string]*regexp.Regexp)
 
 	// Construct a inverted view of the rules that maps from targets+selectors, to rule conditions
 	for _, curStmt := range statements {
-		curRule, ok := curStmt.(*Rule)
+		curRule, ok := curStmt.(*ast.Rule)
 		if !ok {
 			// This statement was not a rule
 			continue
@@ -154,7 +113,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 				// This target+selector can have multiple different transformations. Find the right one or create one.
 				var curScanGroup *scanGroup
 				for _, sg := range scanGroupsForTarget[target] {
-					if transformationListEquals(sg.transformations, curRuleItem.Transformations) {
+					if tr.TransformationListEquals(sg.transformations, curRuleItem.Transformations) {
 						curScanGroup = sg
 						break
 					}
@@ -193,9 +152,9 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 		patterns := []waf.MultiRegexEnginePattern{}
 		for _, p := range sg.conditions {
 			switch p.ruleItem.Predicate.Op {
-			case Rx, Pm, Pmf, PmFromFile, BeginsWith, EndsWith, Contains, ContainsWord, Streq, Strmatch, Within:
+			case ast.Rx, ast.Pm, ast.Pmf, ast.PmFromFile, ast.BeginsWith, ast.EndsWith, ast.Contains, ast.ContainsWord, ast.Streq, ast.Strmatch, ast.Within:
 				// The value can have macros that cannot be expanded at this time.
-				if p.ruleItem.Predicate.Val.hasMacros() {
+				if p.ruleItem.Predicate.Val.HasMacros() {
 					continue
 				}
 
@@ -233,7 +192,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []Statement) (r ReqScan
 	return
 }
 
-func (r *reqScannerImpl) getTargets(targetName TargetName, fieldName string) (targets []Target) {
+func (r *reqScannerImpl) getTargets(targetName ast.TargetName, fieldName string) (targets []ast.Target) {
 	// Also get targets that do not specify field names. Example: ARGS vs. ARGS:somefield.
 	if fieldName != "" {
 		targets = append(targets, r.getTargets(targetName, "")...)
@@ -242,13 +201,13 @@ func (r *reqScannerImpl) getTargets(targetName TargetName, fieldName string) (ta
 	fieldNameLower := strings.ToLower(fieldName)
 
 	// Are we looking for this simple target?
-	t := Target{Name: targetName, Selector: fieldNameLower}
+	t := ast.Target{Name: targetName, Selector: fieldNameLower}
 	if r.targetsSimple[t] {
 		targets = append(targets, t)
 	}
 
 	// Are we looking for this simple count target?
-	t = Target{Name: targetName, Selector: fieldNameLower, IsCount: true}
+	t = ast.Target{Name: targetName, Selector: fieldNameLower, IsCount: true}
 	if r.targetsSimple[t] {
 		targets = append(targets, t)
 	}
@@ -263,7 +222,7 @@ func (r *reqScannerImpl) getTargets(targetName TargetName, fieldName string) (ta
 	return
 }
 
-func (r *reqScannerImpl) matchesExceptTargets(targetName TargetName, fieldName string, exceptTargets []Target) bool {
+func (r *reqScannerImpl) matchesExceptTargets(targetName ast.TargetName, fieldName string, exceptTargets []ast.Target) bool {
 	for _, et := range exceptTargets {
 		// Is this exceptTarget a simple target?
 		if !et.IsRegexSelector {
@@ -284,7 +243,7 @@ func (r *reqScannerImpl) matchesExceptTargets(targetName TargetName, fieldName s
 	return false
 }
 
-func (r *reqScannerImpl) NewReqScannerEvaluation(scratchSpace *ReqScannerScratchSpace) ReqScannerEvaluation {
+func (r *reqScannerImpl) NewReqScannerEvaluation(scratchSpace *sr.ReqScannerScratchSpace) sr.ReqScannerEvaluation {
 	return &reqScannerEvaluationImpl{
 		reqScanner:   r,
 		scratchSpace: scratchSpace,
@@ -292,8 +251,8 @@ func (r *reqScannerImpl) NewReqScannerEvaluation(scratchSpace *ReqScannerScratch
 }
 
 // NewScratchSpace creates an instance of all the scratch spaces this ReqScanner will need.
-func (r *reqScannerImpl) NewScratchSpace() (scratchSpace *ReqScannerScratchSpace, err error) {
-	s := make(ReqScannerScratchSpace)
+func (r *reqScannerImpl) NewScratchSpace() (scratchSpace *sr.ReqScannerScratchSpace, err error) {
+	s := make(sr.ReqScannerScratchSpace)
 
 	for _, sg := range r.allScanGroups {
 		if sg.rxEngine == nil {
@@ -311,14 +270,7 @@ func (r *reqScannerImpl) NewScratchSpace() (scratchSpace *ReqScannerScratchSpace
 	return
 }
 
-// Close frees all scratch spaces this ReqScannerScratchSpace held.
-func (s ReqScannerScratchSpace) Close() {
-	for _, v := range s {
-		v.Close()
-	}
-}
-
-func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *sr.ScanResults) (err error) {
 	// We currently don't actually have the raw request line, because it's been parsed by Nginx and send in a struct to us.
 	// TODO consider passing the raw request line from Nginx if available.
 	protocol := req.Protocol()
@@ -328,22 +280,22 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *Sca
 	reqLine.WriteString(req.URI())
 	reqLine.WriteString(" ")
 	reqLine.WriteString(protocol)
-	err = r.scanField(TargetRequestLine, "", reqLine.String(), results)
+	err = r.scanField(ast.TargetRequestLine, "", reqLine.String(), results)
 	if err != nil {
 		return
 	}
 
-	results.requestLine = reqLine.Bytes()
-	results.requestProtocol = []byte(protocol)
+	results.RequestLine = reqLine.Bytes()
+	results.RequestProtocol = []byte(protocol)
 
-	err = r.scanField(TargetRemoteAddr, "", req.RemoteAddr(), results)
+	err = r.scanField(ast.TargetRemoteAddr, "", req.RemoteAddr(), results)
 	if err != nil {
 		return
 	}
 
 	method := req.Method()
-	results.requestMethod = []byte(method)
-	err = r.scanField(TargetRequestMethod, "", method, results)
+	results.RequestMethod = []byte(method)
+	err = r.scanField(ast.TargetRequestMethod, "", method, results)
 	if err != nil {
 		return
 	}
@@ -353,7 +305,7 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *Sca
 		return
 	}
 
-	err = r.scanField(TargetRequestProtocol, "", req.Protocol(), results)
+	err = r.scanField(ast.TargetRequestProtocol, "", req.Protocol(), results)
 	if err != nil {
 		return
 	}
@@ -364,20 +316,19 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *Sca
 		v := h.Value()
 
 		if strings.EqualFold(k, "host") {
-			results.hostHeader = []byte(v)
+			results.HostHeader = []byte(v)
 		}
 
 		if strings.EqualFold(k, "cookie") {
 			r.scanCookies(v, results)
 		}
 
-		err = r.scanField(TargetRequestHeadersNames, "", k, results)
+		err = r.scanField(ast.TargetRequestHeadersNames, "", k, results)
 		if err != nil {
 			return
 		}
 
-		// TODO selector probably should not be case sensitive
-		err = r.scanField(TargetRequestHeaders, k, v, results)
+		err = r.scanField(ast.TargetRequestHeaders, k, v, results)
 		if err != nil {
 			return
 		}
@@ -387,52 +338,52 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *Sca
 	return
 }
 
-func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string, results *sr.ScanResults) (err error) {
 	// TODO pass on certain content types that modsec doesnt handle?
 
 	switch contentType {
 
 	case waf.MultipartFormDataContent, waf.URLEncodedContent:
-		err = r.scanField(TargetArgsNames, "", fieldName, results)
+		err = r.scanField(ast.TargetArgsNames, "", fieldName, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField(TargetArgs, fieldName, data, results)
+		err = r.scanField(ast.TargetArgs, fieldName, data, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField(TargetArgsPost, fieldName, data, results)
+		err = r.scanField(ast.TargetArgsPost, fieldName, data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.MultipartFormDataFileNames:
-		err = r.scanField(TargetFilesNames, "", fieldName, results)
+		err = r.scanField(ast.TargetFilesNames, "", fieldName, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField(TargetFiles, "", data, results)
+		err = r.scanField(ast.TargetFiles, "", data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.JSONContent:
-		err = r.scanField(TargetArgs, "", data, results)
+		err = r.scanField(ast.TargetArgs, "", data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.XMLContent:
-		err = r.scanField(TargetXML, "/*", data, results)
+		err = r.scanField(ast.TargetXML, "/*", data, results)
 		if err != nil {
 			return
 		}
 
 	case waf.FullRawRequestBody:
-		err = r.scanField(TargetRequestBody, "", data, results)
+		err = r.scanField(ast.TargetRequestBody, "", data, results)
 		if err != nil {
 			return
 		}
@@ -445,21 +396,14 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.FieldContentTyp
 	return
 }
 
-// GetResultsFor returns any results for matches that were done during the request scanning.
-func (r *ScanResults) GetResultsFor(ruleID int, ruleItemIdx int, target Target) (mm []Match, ok bool) {
-	// TODO rename this function to just GetResultsFor
-	mm, ok = r.matches[matchKey{ruleID: ruleID, ruleItemIdx: ruleItemIdx, target: target}]
-	return
-}
-
-func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName string, content string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanField(targetName ast.TargetName, fieldName string, content string, results *sr.ScanResults) (err error) {
 	// TODO cache if a scan was already done for a given piece of content (consider Murmur hash: https://github.com/twmb/murmur3) and target name, and save time by skipping transforming and scanning it in that case. This could happen with repetitive JSON or XML bodies for example.
 	// TODO this cache could even persist across requests, with some LRU purging approach. We could even hash and cache entire request bodies. Wow.
 
 	var scanGroups []*scanGroup
 	targets := r.reqScanner.getTargets(targetName, fieldName)
 	for _, target := range targets {
-		results.targetsCount[target] = results.targetsCount[target] + 1
+		results.TargetsCount[target] = results.TargetsCount[target] + 1
 		scanGroups = append(scanGroups, r.reqScanner.scanGroupsForTarget[target]...)
 	}
 
@@ -468,7 +412,7 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 	}
 
 	for _, sg := range scanGroups {
-		contentTransformed := applyTransformations(content, sg.transformations)
+		contentTransformed := tr.ApplyTransformations(content, sg.transformations)
 
 		// Handle all conditions in this scan group that the regex engine can handle
 		if sg.rxEngine != nil {
@@ -488,8 +432,8 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 				}
 
 				// Store the match for fast retrieval in the eval phase
-				key := matchKey{p.rule.ID, p.ruleItemIdx, p.target}
-				results.matches[key] = append(results.matches[key], Match{
+				key := sr.MatchKey{p.rule.ID, p.ruleItemIdx, p.target}
+				results.Matches[key] = append(results.Matches[key], sr.Match{
 					Data:               m.Data,
 					CaptureGroups:      m.CaptureGroups,
 					EntireFieldContent: []byte(content),
@@ -501,8 +445,8 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 
 		storeEntireContentAsMatch := func(cr conditionRef) {
 			// Store entire content as match for fast retrieval in the eval phase
-			key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
-			results.matches[key] = append(results.matches[key], Match{
+			key := sr.MatchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
+			results.Matches[key] = append(results.Matches[key], sr.Match{
 				CaptureGroups:      [][]byte{[]byte(content)},
 				Data:               []byte(content),
 				EntireFieldContent: []byte(content),
@@ -519,19 +463,19 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 
 			switch cr.ruleItem.Predicate.Op {
 
-			case DetectXSS:
+			case ast.DetectXSS:
 				if libinjection.IsXSS(contentTransformed) {
 					storeEntireContentAsMatch(cr)
 				}
 
-			case DetectSQLi:
+			case ast.DetectSQLi:
 				found, fingerprint := libinjection.IsSQLi(contentTransformed)
 				if found {
 					// TODO investigate if this "fingerprint" is actually meaningful to log. ModSec logs it, but I cannot make sense of the values.
 
 					// Store the match for fast retrieval in the eval phase
-					key := matchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
-					results.matches[key] = append(results.matches[key], Match{
+					key := sr.MatchKey{cr.rule.ID, cr.ruleItemIdx, cr.target}
+					results.Matches[key] = append(results.Matches[key], sr.Match{
 						Data:               []byte([]byte(fingerprint)),
 						CaptureGroups:      [][]byte{[]byte(fingerprint)},
 						EntireFieldContent: []byte(content),
@@ -540,18 +484,18 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 					})
 				}
 
-			case ValidateURLEncoding:
+			case ast.ValidateURLEncoding:
 				if !encoding.IsValidURLEncoding(contentTransformed) {
 					storeEntireContentAsMatch(cr)
 				}
 
-			case ValidateByteRange:
+			case ast.ValidateByteRange:
 				// It is safe to assume there is just one element in Val due to validation in the parser.
-				vbrt := cr.ruleItem.Predicate.Val[0].(ValidateByteRangeToken)
+				vbrt := cr.ruleItem.Predicate.Val[0].(ast.ValidateByteRangeToken)
 
-				// ValidateByteRangeToken.allowedBytes is a fixed [256]bool, where the index represents a byte value.
+				// ValidateByteRangeToken.AllowedBytes is a fixed [256]bool, where the index represents a byte value.
 				for i := 0; i < len(contentTransformed); i++ {
-					if !vbrt.allowedBytes[contentTransformed[i]] {
+					if !vbrt.AllowedBytes[contentTransformed[i]] {
 						storeEntireContentAsMatch(cr)
 						break
 					}
@@ -563,29 +507,29 @@ func (r *reqScannerEvaluationImpl) scanField(targetName TargetName, fieldName st
 	return
 }
 
-func getRxExprs(ruleItem *RuleItem) []string {
-	s := ruleItem.Predicate.Val.string()
+func getRxExprs(ruleItem *ast.RuleItem) []string {
+	s := ruleItem.Predicate.Val.String()
 	quoted := regexp.QuoteMeta(s)
 	switch ruleItem.Predicate.Op {
-	case Rx:
+	case ast.Rx:
 		return []string{s}
-	case Pm, Pmf, PmFromFile:
+	case ast.Pm, ast.Pmf, ast.PmFromFile:
 		var phrases []string
 		for _, p := range ruleItem.PmPhrases {
 			phrases = append(phrases, "(?i:"+regexp.QuoteMeta(p)+")")
 		}
 		return phrases
-	case BeginsWith:
+	case ast.BeginsWith:
 		return []string{"^" + quoted}
-	case EndsWith:
+	case ast.EndsWith:
 		return []string{quoted + "$"}
-	case Contains, Strmatch:
+	case ast.Contains, ast.Strmatch:
 		return []string{quoted}
-	case ContainsWord:
+	case ast.ContainsWord:
 		return []string{`\b` + quoted + `\b`}
-	case Streq:
+	case ast.Streq:
 		return []string{"^" + quoted + "$"}
-	case Within:
+	case ast.Within:
 		var words []string
 		var parameterStrings = strings.Split(s, " ")
 		for _, p := range parameterStrings {
@@ -597,13 +541,13 @@ func getRxExprs(ruleItem *RuleItem) []string {
 	return nil
 }
 
-func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (err error) {
-	err = r.scanField(TargetRequestURI, "", URI, results)
+func (r *reqScannerEvaluationImpl) scanURI(URI string, results *sr.ScanResults) (err error) {
+	err = r.scanField(ast.TargetRequestURI, "", URI, results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanField(TargetRequestURIRaw, "", URI, results)
+	err = r.scanField(ast.TargetRequestURIRaw, "", URI, results)
 	if err != nil {
 		return
 	}
@@ -619,7 +563,7 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 
 	reqFilename = encoding.WeakURLUnescape(reqFilename)
 
-	err = r.scanField(TargetRequestFilename, "", reqFilename, results)
+	err = r.scanField(ast.TargetRequestFilename, "", reqFilename, results)
 	if err != nil {
 		return
 	}
@@ -630,12 +574,12 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 		reqBasename = reqFilename[n+1:]
 	}
 
-	err = r.scanField(TargetRequestBasename, "", reqBasename, results)
+	err = r.scanField(ast.TargetRequestBasename, "", reqBasename, results)
 	if err != nil {
 		return
 	}
 
-	err = r.scanField(TargetQueryString, "", queryString, results)
+	err = r.scanField(ast.TargetQueryString, "", queryString, results)
 	if err != nil {
 		return
 	}
@@ -649,12 +593,12 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	scannedKey := make(map[string]bool)
 	for _, qval := range qvals {
 		if !scannedKey[qval.key] {
-			err = r.scanField(TargetArgsNames, "", qval.key, results)
+			err = r.scanField(ast.TargetArgsNames, "", qval.key, results)
 			if err != nil {
 				return
 			}
 
-			err = r.scanField(TargetArgsGetNames, "", qval.key, results)
+			err = r.scanField(ast.TargetArgsGetNames, "", qval.key, results)
 			if err != nil {
 				return
 			}
@@ -662,12 +606,12 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 			scannedKey[qval.key] = true
 		}
 
-		err = r.scanField(TargetArgs, qval.key, qval.val, results)
+		err = r.scanField(ast.TargetArgs, qval.key, qval.val, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField(TargetArgsGet, qval.key, qval.val, results)
+		err = r.scanField(ast.TargetArgsGet, qval.key, qval.val, results)
 		if err != nil {
 			return
 		}
@@ -676,18 +620,18 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *ScanResults) (er
 	return
 }
 
-func (r *reqScannerEvaluationImpl) scanCookies(c string, results *ScanResults) (err error) {
+func (r *reqScannerEvaluationImpl) scanCookies(c string, results *sr.ScanResults) (err error) {
 	// Use Go's http.Request to parse the cookies.
 	goReq := &http.Request{Header: http.Header{"Cookie": []string{c}}}
 	cookies := goReq.Cookies()
 	for _, cookie := range cookies {
 
-		err = r.scanField(TargetRequestCookiesNames, "", cookie.Name, results)
+		err = r.scanField(ast.TargetRequestCookiesNames, "", cookie.Name, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField(TargetRequestCookies, cookie.Name, cookie.Value, results)
+		err = r.scanField(ast.TargetRequestCookies, cookie.Name, cookie.Value, results)
 		if err != nil {
 			return
 		}

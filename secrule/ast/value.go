@@ -1,36 +1,12 @@
-package secrule
+package ast
 
 import (
 	"bytes"
 	"strconv"
 )
 
-func (v Value) expandMacros(env *environment) (output Value) {
-	output = make(Value, 0, len(v)) // Output will contain at max the same number of tokens as input.
-
-	for _, token := range v {
-		// Replace with value from env if macro-token.
-		if mt, ok := token.(MacroToken); ok {
-
-			v := env.get(mt.Name, mt.Selector)
-			if v != nil {
-				output = append(output, v...)
-			} else {
-				// Macros that could not be resolved will result in blanks.
-			}
-
-			continue
-
-		}
-
-		// This was not a macro token, so just keep it as is.
-		output = append(output, token)
-	}
-
-	return
-}
-
-func (v Value) equal(other Value) bool {
+// Equal evaluates whether two Values are equivalent. Multiple string tokens on one side can correspond to a single string token on the other side.
+func (v Value) Equal(other Value) bool {
 	// A two-pointer algorithm to compare values.
 	// This is non-trivial, because multiple string tokens on one side could correspond to a single string token on the other side.
 
@@ -152,7 +128,8 @@ func (v Value) equal(other Value) bool {
 	}
 }
 
-func (v Value) bytes() []byte {
+// Bytes flattens a Value into a []byte.
+func (v Value) Bytes() []byte {
 	// Shortcut to avoid allocating a bytes.Buffer if this is just a simple single token.
 	if len(v) == 1 {
 		switch token := v[0].(type) {
@@ -185,7 +162,8 @@ func (v Value) bytes() []byte {
 	return buf.Bytes()
 }
 
-func (v Value) string() string {
+// String flattens a Value into a string.
+func (v Value) String() string {
 	// Shortcut to avoid allocating a bytes.Buffer if this is just a simple single token.
 	if len(v) == 1 {
 		if n, ok := v[0].(IntToken); ok {
@@ -193,10 +171,11 @@ func (v Value) string() string {
 		}
 	}
 
-	return string(v.bytes())
+	return string(v.Bytes())
 }
 
-func (v Value) int() (n int, ok bool) {
+// Int gets the Value as an integer if it contains just a single integer value.
+func (v Value) Int() (n int, ok bool) {
 	if len(v) == 1 {
 		if n, ok := v[0].(IntToken); ok {
 			return int(n), ok
@@ -205,7 +184,8 @@ func (v Value) int() (n int, ok bool) {
 	return 0, false
 }
 
-func (v Value) hasMacros() bool {
+// HasMacros returns whether the Value contains macros.
+func (v Value) HasMacros() bool {
 	for _, t := range v {
 		if _, ok := t.(MacroToken); ok {
 			return true

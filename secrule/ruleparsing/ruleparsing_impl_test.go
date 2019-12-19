@@ -1,4 +1,4 @@
-package secrule
+package ruleparsing
 
 import (
 	"fmt"

@@ -23,10 +23,14 @@ package main
 import "C"
 
 import (
+	sreng "azwaf/secrule/engine"
+	srrs "azwaf/secrule/reqscanning"
+	srre "azwaf/secrule/ruleevaluation"
+	srrp "azwaf/secrule/ruleparsing"
+
 	"azwaf/bodyparsing"
 	"azwaf/hyperscan"
 	"azwaf/logging"
-	"azwaf/secrule"
 	"azwaf/waf"
 	"io"
 	"os"
@@ -79,21 +83,21 @@ func getInstance(secruleconf string) waf.Server {
 	}
 
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
-	p := secrule.NewRuleParser()
-	rlfs := secrule.NewRuleLoaderFileSystem()
+	p := srrp.NewRuleParser()
+	rlfs := srrp.NewRuleLoaderFileSystem()
 	hsfs := hyperscan.NewCacheFileSystem()
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
+	rsf := srrs.NewReqScannerFactory(mref)
+	ref := srre.NewRuleEvaluatorFactory()
 
-	srl := secrule.NewStandaloneRuleLoader(p, rlfs, secruleconf)
+	srl := srrp.NewStandaloneRuleLoader(p, rlfs, secruleconf)
 	stmts, err := srl.Rules()
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while loading rules")
 	}
 
-	sre, err := secrule.NewEngine(stmts, rsf, ref, "")
+	sre, err := sreng.NewEngine(stmts, rsf, ref, "")
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 	}

@@ -1,6 +1,8 @@
-package secrule
+package ruleparsing
 
 import (
+	. "azwaf/secrule/ast"
+
 	"fmt"
 	"strings"
 	"testing"
@@ -515,17 +517,17 @@ func TestSecRuleTargetErrors(t *testing.T) {
 func TestSecRuleOperators(t *testing.T) {
 	// Arrange
 	var vbrt1, vbrt2, vbrt3, vbrt4 ValidateByteRangeToken
-	vbrt1.allowedBytes[50] = true
-	vbrt2.allowedBytes[50] = true
-	vbrt2.allowedBytes[100] = true
+	vbrt1.AllowedBytes[50] = true
+	vbrt2.AllowedBytes[50] = true
+	vbrt2.AllowedBytes[100] = true
 	for i := 50; i <= 100; i++ {
-		vbrt3.allowedBytes[i] = true
+		vbrt3.AllowedBytes[i] = true
 	}
 	for i := 5; i <= 10; i++ {
-		vbrt4.allowedBytes[i] = true
+		vbrt4.AllowedBytes[i] = true
 	}
 	for i := 50; i <= 100; i++ {
-		vbrt4.allowedBytes[i] = true
+		vbrt4.AllowedBytes[i] = true
 	}
 	p := NewRuleParser()
 	type testcase struct {
@@ -599,7 +601,7 @@ func TestSecRuleOperators(t *testing.T) {
 			continue
 		}
 
-		if !r.Items[0].Predicate.Val.equal(test.val) {
+		if !r.Items[0].Predicate.Val.Equal(test.val) {
 			fmt.Fprintf(&b, "Wrong value: %v. Expected: %v. Tested input: %s\n", r.Items[0].Predicate.Val, test.val, test.input)
 			continue
 		}
@@ -637,16 +639,16 @@ func TestSecRuleActions(t *testing.T) {
 		{`"id:'950902',deny,msg:'Hello World Attack'"`, 950902, []Action{&DenyAction{}, &MsgAction{Msg: Value{StringToken("Hello World Attack")}}}},
 		{`"id:950902,setvar:tx.sql_injection_score=+%{tx.critical_anomaly_score}"`, 950902, []Action{
 			&SetVarAction{
-				variable: Value{StringToken("tx.sql_injection_score")},
-				operator: increment,
-				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
+				Variable: Value{StringToken("tx.sql_injection_score")},
+				Operator: Increment,
+				Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		}},
 		{`"id:'950902',setvar:'tx.sql_injection_score=+%{tx.critical_anomaly_score}'"`, 950902, []Action{
 			&SetVarAction{
-				variable: Value{StringToken("tx.sql_injection_score")},
-				operator: increment,
-				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
+				Variable: Value{StringToken("tx.sql_injection_score")},
+				Operator: Increment,
+				Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		}},
 		{`"id:'950902',logdata:'Matched Data: %{TX.0} found within %{MATCHED_VAR_NAME}: %{MATCHED_VAR}'"`, 950902, []Action{
@@ -746,7 +748,7 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if !a.Msg.equal(expectedVal.Msg) {
+			if !a.Msg.Equal(expectedVal.Msg) {
 				fmt.Fprintf(b, "Unexpected Msg: %v", a.Msg)
 				continue
 			}
@@ -758,7 +760,7 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if !a.LogData.equal(expectedVal.LogData) {
+			if !a.LogData.Equal(expectedVal.LogData) {
 				fmt.Fprintf(b, "Unexpected LogData: %v. Expected: %v.", a.LogData, expectedVal.LogData)
 				continue
 			}
@@ -770,18 +772,18 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if !a.variable.equal(expectedVal.variable) {
-				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.variable, rawinput)
+			if !a.Variable.Equal(expectedVal.Variable) {
+				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.Variable, rawinput)
 				continue
 			}
 
-			if a.operator != expectedVal.operator {
-				fmt.Fprintf(b, "Wrong operator: %v. Tested input: %v\n", a.operator, rawinput)
+			if a.Operator != expectedVal.Operator {
+				fmt.Fprintf(b, "Wrong operator: %v. Tested input: %v\n", a.Operator, rawinput)
 				continue
 			}
 
-			if !a.value.equal(expectedVal.value) {
-				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
+			if !a.Value.Equal(expectedVal.Value) {
+				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.Value, rawinput)
 				continue
 			}
 
@@ -813,13 +815,13 @@ func compareActions(expectedActions []Action, actualActions []Action, b *strings
 				continue
 			}
 
-			if a.setting != expectedVal.setting {
-				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.setting, rawinput)
+			if a.Setting != expectedVal.Setting {
+				fmt.Fprintf(b, "Wrong variable: %v. Tested input: %v\n", a.Setting, rawinput)
 				continue
 			}
 
-			if !a.value.equal(expectedVal.value) {
-				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.value, rawinput)
+			if !a.Value.Equal(expectedVal.Value) {
+				fmt.Fprintf(b, "Wrong value: %v. Tested input: %v\n", a.Value, rawinput)
 				continue
 			}
 
@@ -908,9 +910,9 @@ func TestSecAction900990(t *testing.T) {
 		&NoLogAction{},
 		&RawAction{`pass`, ``},
 		&SetVarAction{
-			variable: Value{StringToken("tx.crs_setup_version")},
-			operator: set,
-			value:    Value{IntToken(300)},
+			Variable: Value{StringToken("tx.crs_setup_version")},
+			Operator: Set,
+			Value:    Value{IntToken(300)},
 		},
 	}
 	var b strings.Builder
@@ -1005,7 +1007,7 @@ func TestRule942320(t *testing.T) {
 	}
 
 	expectedVal := Value{StringToken(`(?i:(?:procedure\s+analyse\s*?\()|(?:;\s*?(declare|open)\s+[\w-]+)|(?:create\s+(procedure|function)\s*?\w+\s*?\(\s*?\)\s*?-)|(?:declare[^\w]+[@#]\s*?\w+)|(exec\s*?\(\s*?@))`)}
-	if !r.Predicate.Val.equal(expectedVal) {
+	if !r.Predicate.Val.Equal(expectedVal) {
 		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Predicate.Val, expectedVal)
 	}
 
@@ -1040,25 +1042,25 @@ func TestRule942320(t *testing.T) {
 			MacroToken{Name: EnvVarMatchedVar}}},
 		&RawAction{`severity`, `CRITICAL`},
 		&SetVarAction{
-			variable: Value{StringToken("tx.msg")},
-			operator: set,
-			value:    Value{MacroToken{Name: EnvVarRule, Selector: "msg"}},
+			Variable: Value{StringToken("tx.msg")},
+			Operator: Set,
+			Value:    Value{MacroToken{Name: EnvVarRule, Selector: "msg"}},
 		},
 		&SetVarAction{
-			variable: Value{StringToken("tx.sql_injection_score")},
-			operator: increment,
-			value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
+			Variable: Value{StringToken("tx.sql_injection_score")},
+			Operator: Increment,
+			Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 		},
 		&SetVarAction{
-			variable: Value{StringToken("tx.anomaly_score")},
-			operator: increment,
-			value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
+			Variable: Value{StringToken("tx.anomaly_score")},
+			Operator: Increment,
+			Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 		},
 
 		&SetVarAction{
-			variable: Value{StringToken("tx."), MacroToken{Name: EnvVarRule, Selector: "id"}, StringToken("-OWASP_CRS/WEB_ATTACK/SQLI-"), MacroToken{Name: EnvVarMatchedVarName}},
-			operator: set,
-			value:    Value{MacroToken{Name: EnvVarTx, Selector: "0"}},
+			Variable: Value{StringToken("tx."), MacroToken{Name: EnvVarRule, Selector: "id"}, StringToken("-OWASP_CRS/WEB_ATTACK/SQLI-"), MacroToken{Name: EnvVarMatchedVarName}},
+			Operator: Set,
+			Value:    Value{MacroToken{Name: EnvVarTx, Selector: "0"}},
 		},
 	}
 
@@ -1136,7 +1138,7 @@ func TestRule901001(t *testing.T) {
 	}
 
 	expectedVal := Value{IntToken(0)}
-	if !r.Predicate.Val.equal(expectedVal) {
+	if !r.Predicate.Val.Equal(expectedVal) {
 		t.Fatalf("Unexpected Operator value. Actual: %s. Expected: %s", r.Predicate.Val, expectedVal)
 	}
 
@@ -1469,57 +1471,57 @@ func TestParseSetVar(t *testing.T) {
 		{
 			`tx.anomaly_score=123`,
 			SetVarAction{
-				variable: Value{StringToken("tx.anomaly_score")},
-				operator: set,
-				value:    Value{IntToken(123)},
+				Variable: Value{StringToken("tx.anomaly_score")},
+				Operator: Set,
+				Value:    Value{IntToken(123)},
 			},
 		},
 		{
 			`tx.anomaly_score=+123`,
 			SetVarAction{
-				variable: Value{StringToken("tx.anomaly_score")},
-				operator: increment,
-				value:    Value{IntToken(123)},
+				Variable: Value{StringToken("tx.anomaly_score")},
+				Operator: Increment,
+				Value:    Value{IntToken(123)},
 			},
 		},
 		{
 			`tx.anomaly_score=-123`,
 			SetVarAction{
-				variable: Value{StringToken("tx.anomaly_score")},
-				operator: decrement,
-				value:    Value{IntToken(123)},
+				Variable: Value{StringToken("tx.anomaly_score")},
+				Operator: Decrement,
+				Value:    Value{IntToken(123)},
 			},
 		},
 		{
 			`!tx.anomaly_score`,
 			SetVarAction{
-				variable: Value{StringToken("tx.anomaly_score")},
-				operator: deleteVar,
-				value:    Value{IntToken(1)},
+				Variable: Value{StringToken("tx.anomaly_score")},
+				Operator: DeleteVar,
+				Value:    Value{IntToken(1)},
 			},
 		},
 		{
 			`tx.anomaly_score=+%{tx.critical_anomaly_score}`,
 			SetVarAction{
-				variable: Value{StringToken("tx.anomaly_score")},
-				operator: increment,
-				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
+				Variable: Value{StringToken("tx.anomaly_score")},
+				Operator: Increment,
+				Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		},
 		{
 			`tx.anomaly_score=%{tx.critical_anomaly_score} %{tx.something}`,
 			SetVarAction{
-				variable: Value{StringToken("tx.anomaly_score")},
-				operator: set,
-				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}, StringToken(" "), MacroToken{Name: EnvVarTx, Selector: "something"}},
+				Variable: Value{StringToken("tx.anomaly_score")},
+				Operator: Set,
+				Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}, StringToken(" "), MacroToken{Name: EnvVarTx, Selector: "something"}},
 			},
 		},
 		{
 			`%{tx.something}=+%{tx.critical_anomaly_score}`,
 			SetVarAction{
-				variable: Value{MacroToken{Name: EnvVarTx, Selector: "something"}},
-				operator: increment,
-				value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
+				Variable: Value{MacroToken{Name: EnvVarTx, Selector: "something"}},
+				Operator: Increment,
+				Value:    Value{MacroToken{Name: EnvVarTx, Selector: "critical_anomaly_score"}},
 			},
 		},
 	}
@@ -1572,8 +1574,8 @@ func TestCtlAction(t *testing.T) {
 	r := rc.Items[0]
 	expectedActions := []Action{
 		&CtlAction{
-			setting: ForceRequestBodyVariable,
-			value:   Value{StringToken("On")},
+			Setting: ForceRequestBodyVariable,
+			Value:   Value{StringToken("On")},
 		},
 	}
 
@@ -1628,7 +1630,7 @@ func TestParseValue(t *testing.T) {
 			continue
 		}
 
-		if !test.expected.equal(msgAction.Msg) {
+		if !test.expected.Equal(msgAction.Msg) {
 			t.Fatalf("Unexpected msgAction.Msg: %v", msgAction.Msg)
 			continue
 		}
@@ -1644,7 +1646,7 @@ func TestTargetNamesStructsInSync(t *testing.T) {
 		t.Fatalf("len(TargetNamesFromStr) != len(targetNamesToStr)-1")
 	}
 
-	if int(_lastTarget) != len(TargetNamesStrings) {
+	if int(LastTarget) != len(TargetNamesStrings) {
 		t.Fatalf("int(_lastTarget) != len(TargetNamesStrings)")
 	}
 

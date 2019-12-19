@@ -1,9 +1,10 @@
 package hyperscan
 
 import (
-	hs "github.com/flier/gohs/hyperscan"
 	"os"
 	"testing"
+
+	hs "github.com/flier/gohs/hyperscan"
 )
 
 func TestDbCacheLoadSave(t *testing.T) {

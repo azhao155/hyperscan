@@ -1,7 +1,9 @@
-package secrule
+package ruleparsing
 
 import (
-	"azwaf/waf"
+	. "azwaf/secrule"
+	. "azwaf/secrule/ast"
+
 	"strings"
 	"testing"
 )
@@ -57,7 +59,7 @@ func TestStandaloneRuleLoaderCycle(t *testing.T) {
 
 type mockRuleParser struct{}
 
-func (p *mockRuleParser) Parse(input string, pf phraseLoaderCb, ilcb includeLoaderCb) (statements []Statement, err error) {
+func (p *mockRuleParser) Parse(input string, pf PhraseLoaderCb, ilcb IncludeLoaderCb) (statements []Statement, err error) {
 	return
 }
 
@@ -80,52 +82,3 @@ func (f *mockRuleLoaderFileSystem) ReadFile(filename string) ([]byte, error) {
 }
 func (f *mockRuleLoaderFileSystem) Abs(path string) (string, error)          { return path, nil }
 func (f *mockRuleLoaderFileSystem) EvalSymlinks(path string) (string, error) { return path, nil }
-
-func newMockRuleLoader() RuleLoader {
-	return &mockRuleLoader{}
-}
-
-type mockRuleLoader struct{}
-
-func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err error) {
-	statements = []Statement{
-		&Rule{
-			ID: 100,
-			Items: []RuleItem{
-				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("ab+c")}},
-				},
-			},
-		},
-		&Rule{
-			ID: 200,
-			Items: []RuleItem{
-				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("abc+")}},
-				},
-				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: TargetArgs}}, Op: Rx, Val: Value{StringToken("xyz")}},
-					Transformations: []Transformation{Lowercase},
-				},
-			},
-		},
-		&Rule{
-			ID: 300,
-			Items: []RuleItem{
-				{
-					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestURIRaw}}, Op: Rx, Val: Value{StringToken("a+bc")}},
-					Transformations: []Transformation{Lowercase, RemoveWhitespace},
-				},
-			},
-		},
-		&Rule{
-			ID: 400,
-			Items: []RuleItem{
-				{
-					Predicate: RulePredicate{Targets: []Target{{Name: TargetXML, Selector: "/*"}}, Op: Rx, Val: Value{StringToken("abc+")}},
-				},
-			},
-		}}
-
-	return
-}

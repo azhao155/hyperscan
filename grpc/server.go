@@ -1,13 +1,17 @@
 package grpc
 
 import (
+	sreng "azwaf/secrule/engine"
+	srrs "azwaf/secrule/reqscanning"
+	srre "azwaf/secrule/ruleevaluation"
+	srrp "azwaf/secrule/ruleparsing"
+
 	"azwaf/bodyparsing"
 	"azwaf/customrule"
 	"azwaf/geodb"
 	"azwaf/hyperscan"
 	"azwaf/ipreputation"
 	"azwaf/logging"
-	"azwaf/secrule"
 	"azwaf/waf"
 
 	"github.com/rs/zerolog"
@@ -22,26 +26,26 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 	}
 
 	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
-	p := secrule.NewRuleParser()
-	rlfs := secrule.NewRuleLoaderFileSystem()
+	p := srrp.NewRuleParser()
+	rlfs := srrp.NewRuleLoaderFileSystem()
 	hsfs := hyperscan.NewCacheFileSystem()
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
+	rsf := srrs.NewReqScannerFactory(mref)
+	ref := srre.NewRuleEvaluatorFactory()
 
 	// Initialize a WAF server, either via config manager, or standalone just with a SecRule engine
 	var wafServer waf.Server
 	if standaloneSecruleServer {
 		logger.Info().Str("secruleconf", secruleconf).Msg("Creating a standalone WAF with a SecRule engine")
 
-		srl := secrule.NewStandaloneRuleLoader(p, rlfs, secruleconf)
+		srl := srrp.NewStandaloneRuleLoader(p, rlfs, secruleconf)
 		stmts, err := srl.Rules()
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while loading rules")
 		}
 
-		sre, err := secrule.NewEngine(stmts, rsf, ref, "") // TODO some sensible ruleSetID?
+		sre, err := sreng.NewEngine(stmts, rsf, ref, "") // TODO some sensible ruleSetID?
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 		}
@@ -60,8 +64,8 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 		gfs := geodb.NewGeoIPFileSystem(logger)
 		geoDB := geodb.NewGeoDB(logger, gfs)
 		cref := customrule.NewEngineFactory(mref, geoDB)
-		rl := secrule.NewCrsRuleLoader(p, rlfs)
-		sref := secrule.NewEngineFactory(logger, rl, rsf, ref)
+		rl := srrp.NewCrsRuleLoader(p, rlfs)
+		sref := sreng.NewEngineFactory(logger, rl, rsf, ref)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
 		wafServer, err = waf.NewServer(logger, cm, c, rlf, sref, rbp, cref, ire, geoDB)

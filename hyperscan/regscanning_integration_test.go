@@ -1,7 +1,10 @@
 package hyperscan
 
 import (
-	"azwaf/secrule"
+	ast "azwaf/secrule/ast"
+	srrs "azwaf/secrule/reqscanning"
+	srrp "azwaf/secrule/ruleparsing"
+
 	"azwaf/waf"
 	"bytes"
 	"io"
@@ -11,8 +14,8 @@ import (
 func TestReqScannerSimpleRules(t *testing.T) {
 	// Arrange
 	mf := NewMultiRegexEngineFactory(nil)
-	rf := secrule.NewReqScannerFactory(mf)
-	rules, _ := secrule.NewRuleParser().Parse(`
+	rf := srrs.NewReqScannerFactory(mf)
+	rules, _ := srrp.NewRuleParser().Parse(`
 		SecRule ARGS "ab+c" "id:100"
 		SecRule ARGS "abc+" "id:200,chain"
 			SecRule ARGS "xyz" "t:lowercase"
@@ -25,7 +28,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 	rs, err1 := rf.NewReqScanner(rules)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr := secrule.NewScanResults()
+	sr := srrs.NewScanResults()
 	err3 := rse.ScanHeaders(req, sr)
 
 	// Assert
@@ -39,7 +42,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(300, 0, secrule.Target{Name: secrule.TargetRequestURIRaw})
+	m, ok := sr.GetResultsFor(300, 0, ast.Target{Name: ast.TargetRequestURIRaw})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -47,7 +50,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
-	m, ok = sr.GetResultsFor(200, 0, secrule.Target{Name: secrule.TargetArgs})
+	m, ok = sr.GetResultsFor(200, 0, ast.Target{Name: ast.TargetArgs})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -58,7 +61,7 @@ func TestReqScannerSimpleRules(t *testing.T) {
 		t.Fatalf("Unexpected match data: %s", string(m[0].Data))
 	}
 
-	m, ok = sr.GetResultsFor(200, 1, secrule.Target{Name: secrule.TargetArgs})
+	m, ok = sr.GetResultsFor(200, 1, ast.Target{Name: ast.TargetArgs})
 	if ok {
 		t.Fatalf("Unexpected match found")
 	}
@@ -67,8 +70,8 @@ func TestReqScannerSimpleRules(t *testing.T) {
 func TestReqScannerPmfRule(t *testing.T) {
 	// Arrange
 	mf := NewMultiRegexEngineFactory(nil)
-	rf := secrule.NewReqScannerFactory(mf)
-	rules, _ := secrule.NewRuleParser().Parse(`
+	rf := srrs.NewReqScannerFactory(mf)
+	rules, _ := srrp.NewRuleParser().Parse(`
 		SecRule REQUEST_URI_RAW "@pmf test.data" "id:100"
 		`,
 		func(fileName string) (phrases []string, err error) {
@@ -82,7 +85,7 @@ func TestReqScannerPmfRule(t *testing.T) {
 	rs, err1 := rf.NewReqScanner(rules)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr := secrule.NewScanResults()
+	sr := srrs.NewScanResults()
 	err3 := rse.ScanHeaders(req, sr)
 
 	// Assert
@@ -96,7 +99,7 @@ func TestReqScannerPmfRule(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(100, 0, secrule.Target{Name: secrule.TargetRequestURIRaw})
+	m, ok := sr.GetResultsFor(100, 0, ast.Target{Name: ast.TargetRequestURIRaw})
 	if !ok {
 		t.Fatalf("Match not found")
 	}
@@ -111,8 +114,8 @@ func TestReqScannerPmfRule(t *testing.T) {
 func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 	// Arrange
 	mf := NewMultiRegexEngineFactory(nil)
-	rf := secrule.NewReqScannerFactory(mf)
-	rules, _ := secrule.NewRuleParser().Parse(`
+	rf := srrs.NewReqScannerFactory(mf)
+	rules, _ := srrp.NewRuleParser().Parse(`
 		SecRule REQUEST_URI_RAW "@pmf test.data" "id:100"
 		`,
 		func(fileName string) (phrases []string, err error) {
@@ -126,7 +129,7 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 	rs, err1 := rf.NewReqScanner(rules)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
-	sr := secrule.NewScanResults()
+	sr := srrs.NewScanResults()
 	err3 := rse.ScanHeaders(req, sr)
 
 	// Assert
@@ -140,7 +143,7 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	m, ok := sr.GetResultsFor(100, 0, secrule.Target{Name: secrule.TargetRequestURIRaw})
+	m, ok := sr.GetResultsFor(100, 0, ast.Target{Name: ast.TargetRequestURIRaw})
 	if !ok {
 		t.Fatalf("Match not found")
 	}

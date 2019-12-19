@@ -1,9 +1,14 @@
 package integrationtesting
 
 import (
+	sreng "azwaf/secrule/engine"
+	srrs "azwaf/secrule/reqscanning"
+	srre "azwaf/secrule/ruleevaluation"
+	srrp "azwaf/secrule/ruleparsing"
+
 	"azwaf/bodyparsing"
 	"azwaf/hyperscan"
-	"azwaf/secrule"
+
 	"azwaf/testutils"
 	"azwaf/waf"
 	"flag"
@@ -70,16 +75,16 @@ func TestCrsRules(t *testing.T) {
 	assert := assert.New(t)
 
 	logger = logger.Level(zerolog.ErrorLevel)
-	p := secrule.NewRuleParser()
-	rlfs := secrule.NewRuleLoaderFileSystem()
-	rl := secrule.NewCrsRuleLoader(p, rlfs)
+	p := srrp.NewRuleParser()
+	rlfs := srrp.NewRuleLoaderFileSystem()
+	rl := srrp.NewCrsRuleLoader(p, rlfs)
 	hsfs := hyperscan.NewCacheFileSystem()
 	hscache := hyperscan.NewDbCache(hsfs)
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
-	rsf := secrule.NewReqScannerFactory(mref)
-	ref := secrule.NewRuleEvaluatorFactory()
+	rsf := srrs.NewReqScannerFactory(mref)
+	ref := srre.NewRuleEvaluatorFactory()
 	resLog := newMockResultsLogger()
-	ef := secrule.NewEngineFactory(logger, rl, rsf, ref)
+	ef := sreng.NewEngineFactory(logger, rl, rsf, ref)
 	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
 	rlf := &mockResultsLoggerFactory{mockResultsLogger: resLog}
 

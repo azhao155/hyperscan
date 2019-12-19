@@ -1,6 +1,8 @@
-package secrule
+package ruleparsing
 
 import (
+	. "azwaf/secrule/ast"
+
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -141,7 +143,7 @@ func parseAndCompareRuleCounts(t *testing.T, testrulefiles []testrulefile) {
 	p := NewRuleParser()
 
 	_, filename, _, _ := runtime.Caller(0)
-	dir := filepath.Join(filepath.Dir(filename), "rulesetfiles/")
+	dir := filepath.Join(filepath.Dir(filename), "..", "rulesetfiles/")
 
 	for _, trf := range testrulefiles {
 		fullPath := filepath.Join(dir, trf.filename)

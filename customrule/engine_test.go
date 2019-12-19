@@ -4,9 +4,10 @@ import (
 	"azwaf/testutils"
 	"azwaf/waf"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStringOperators(t *testing.T) {

@@ -1,6 +1,11 @@
-package secrule
+package engine
 
 import (
+	sr "azwaf/secrule"
+	ast "azwaf/secrule/ast"
+	rs "azwaf/secrule/reqscanning"
+	re "azwaf/secrule/ruleevaluation"
+
 	"azwaf/waf"
 	"regexp"
 
@@ -8,24 +13,24 @@ import (
 )
 
 type engineImpl struct {
-	statements                     []Statement
-	reqScanner                     ReqScanner
-	scratchSpaceNext               chan *ReqScannerScratchSpace
-	ruleEvaluatorFactory           RuleEvaluatorFactory
+	statements                     []ast.Statement
+	reqScanner                     sr.ReqScanner
+	scratchSpaceNext               chan *sr.ReqScannerScratchSpace
+	ruleEvaluatorFactory           sr.RuleEvaluatorFactory
 	usesFullRawRequestBody         bool
 	ruleSetID                      waf.RuleSetID
 	txTargetRegexSelectorsCompiled map[string]*regexp.Regexp
 }
 
 // NewEngine creates a SecRule engine from statements
-func NewEngine(statements []Statement, rsf ReqScannerFactory, ref RuleEvaluatorFactory, ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
+func NewEngine(statements []ast.Statement, rsf sr.ReqScannerFactory, ref sr.RuleEvaluatorFactory, ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
 	reqScanner, err := rsf.NewReqScanner(statements)
 	if err != nil {
 		return
 	}
 
 	// Buffered channel used for reuse of scratch spaces between requests, while not letting concurrent requests share the same scratch space.
-	scratchSpaceNext := make(chan *ReqScannerScratchSpace, 100000)
+	scratchSpaceNext := make(chan *sr.ReqScannerScratchSpace, 100000)
 	s, err := reqScanner.NewScratchSpace()
 	if err != nil {
 		panic(err)
@@ -35,7 +40,7 @@ func NewEngine(statements []Statement, rsf ReqScannerFactory, ref RuleEvaluatorF
 	usesFullRawRequestBody := usesRequestBodyTarget(statements)
 
 	// CRS has a few rules that uses regex selectors on TX-targets such as "SecRule TX:/^HEADER_NAME_/ ...", so we will precompile these regexes.
-	txTargetRegexSelectorsCompiled, err := getTxTargetRegexSelectorsCompiled(statements)
+	txTargetRegexSelectorsCompiled, err := re.GetTxTargetRegexSelectorsCompiled(statements)
 	if err != nil {
 		return
 	}
@@ -59,22 +64,22 @@ type secRuleEvaluationImpl struct {
 	engine               *engineImpl
 	request              waf.HTTPRequest
 	reqBodyType          waf.ReqBodyType
-	scanResults          *ScanResults
-	ruleTriggeredCb      func(stmt Statement, decision waf.Decision, msg string, logData string)
-	reqScannerEvaluation ReqScannerEvaluation
-	scratchSpaceNext     chan *ReqScannerScratchSpace
-	scratchSpace         *ReqScannerScratchSpace
-	ruleEvaluator        RuleEvaluator
-	env                  *environment
+	scanResults          *sr.ScanResults
+	ruleTriggeredCb      func(stmt ast.Statement, decision waf.Decision, msg string, logData string)
+	reqScannerEvaluation sr.ReqScannerEvaluation
+	scratchSpaceNext     chan *sr.ReqScannerScratchSpace
+	scratchSpace         *sr.ReqScannerScratchSpace
+	ruleEvaluator        sr.RuleEvaluator
+	env                  sr.Environment
 }
 
 func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecRuleResultsLogger, req waf.HTTPRequest, reqBodyType waf.ReqBodyType) waf.SecRuleEvaluation {
-	ruleTriggeredCb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
+	ruleTriggeredCb := func(stmt ast.Statement, decision waf.Decision, msg string, logData string) {
 		var ruleID int
 		switch stmt := stmt.(type) {
-		case *Rule:
+		case *ast.Rule:
 			ruleID = stmt.ID
-		case *ActionStmt:
+		case *ast.ActionStmt:
 			ruleID = stmt.ID
 		}
 
@@ -92,7 +97,7 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 	}
 
 	// Reuse a scratch space, or create a new one if there are none available
-	var scratchSpace *ReqScannerScratchSpace
+	var scratchSpace *sr.ReqScannerScratchSpace
 	if len(s.scratchSpaceNext) > 0 {
 		scratchSpace = <-s.scratchSpaceNext
 	} else {
@@ -105,14 +110,14 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 
 	reqScannerEvaluation := s.reqScanner.NewReqScannerEvaluation(scratchSpace)
 
-	env := newEnvironment(s.txTargetRegexSelectorsCompiled)
+	env := re.NewEnvironment(s.txTargetRegexSelectorsCompiled)
 
 	// This is needed in the env to later populate the REQBODY_PROCESSOR target.
 	if int(reqBodyType) < len(reqbodyProcessorValues) {
-		env.set(EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType])
+		env.Set(ast.EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType])
 	}
 
-	scanResults := NewScanResults()
+	scanResults := rs.NewScanResults()
 
 	ruleEvaluator := s.ruleEvaluatorFactory.NewRuleEvaluator(logger, env, s.statements, scanResults, ruleTriggeredCb)
 
@@ -152,10 +157,10 @@ func (s *secRuleEvaluationImpl) ScanHeaders() (err error) {
 		return
 	}
 
-	s.env.set(EnvVarRequestLine, "", Value{StringToken(s.scanResults.requestLine)})
-	s.env.set(EnvVarRequestMethod, "", Value{StringToken(s.scanResults.requestMethod)})
-	s.env.set(EnvVarRequestProtocol, "", Value{StringToken(s.scanResults.requestProtocol)})
-	s.env.set(EnvVarRequestHeaders, "host", Value{StringToken(s.scanResults.hostHeader)})
+	s.env.Set(ast.EnvVarRequestLine, "", ast.Value{ast.StringToken(s.scanResults.RequestLine)})
+	s.env.Set(ast.EnvVarRequestMethod, "", ast.Value{ast.StringToken(s.scanResults.RequestMethod)})
+	s.env.Set(ast.EnvVarRequestProtocol, "", ast.Value{ast.StringToken(s.scanResults.RequestProtocol)})
+	s.env.Set(ast.EnvVarRequestHeaders, "host", ast.Value{ast.StringToken(s.scanResults.HostHeader)})
 
 	return
 }
@@ -166,13 +171,13 @@ func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, 
 
 func (s *secRuleEvaluationImpl) EvalRules(phase int) (wafDecision waf.Decision) {
 	if s.logger.Debug() != nil {
-		for key, matches := range s.scanResults.matches {
+		for key, matches := range s.scanResults.Matches {
 			for _, match := range matches {
 				s.logger.Debug().
-					Int("ruleID", key.ruleID).
-					Int("ruleItemIdx", key.ruleItemIdx).
-					Str("targetName", TargetNamesStrings[key.target.Name]).
-					Str("targetSelector", key.target.Selector).
+					Int("ruleID", key.RuleID).
+					Int("ruleItemIdx", key.RuleItemIdx).
+					Str("targetName", ast.TargetNamesStrings[key.Target.Name]).
+					Str("targetSelector", key.Target.Selector).
 					Str("matchedData", string(match.Data)).
 					Msg("Request scanning found a match")
 			}
@@ -190,13 +195,13 @@ func (s *secRuleEvaluationImpl) Close() {
 	s.scratchSpaceNext <- s.scratchSpace
 }
 
-func usesRequestBodyTarget(statements []Statement) bool {
+func usesRequestBodyTarget(statements []ast.Statement) bool {
 	for _, stmt := range statements {
 		switch stmt := stmt.(type) {
-		case *Rule:
+		case *ast.Rule:
 			for _, ruleItem := range stmt.Items {
 				for _, target := range ruleItem.Predicate.Targets {
-					if target.Name == TargetRequestBody {
+					if target.Name == ast.TargetRequestBody {
 						return true
 					}
 				}
@@ -207,10 +212,10 @@ func usesRequestBodyTarget(statements []Statement) bool {
 	return false
 }
 
-var reqbodyProcessorValues = []Value{
-	Value{},
-	Value{StringToken("MULTIPART")},
-	Value{StringToken("URLENCODED")},
-	Value{StringToken("XML")},
-	Value{StringToken("JSON")},
+var reqbodyProcessorValues = []ast.Value{
+	ast.Value{},
+	ast.Value{ast.StringToken("MULTIPART")},
+	ast.Value{ast.StringToken("URLENCODED")},
+	ast.Value{ast.StringToken("XML")},
+	ast.Value{ast.StringToken("JSON")},
 }

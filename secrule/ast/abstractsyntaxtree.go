@@ -1,4 +1,4 @@
-package secrule
+package ast
 
 // Statement is a SecRule-lang statement, such as SecRule, SecAction, SecMarker, etc.
 type Statement interface{}
@@ -47,7 +47,7 @@ type MacroToken struct {
 
 // ValidateByteRangeToken is an element in a Value-string that represents the allowed bytes for a @validateByteRange operator.
 type ValidateByteRangeToken struct {
-	allowedBytes [256]bool
+	AllowedBytes [256]bool
 }
 
 // EnvVarName describes an environment variable that SecRules can use for example in macros.
@@ -149,8 +149,54 @@ const (
 	TargetUniqueID
 	TargetWebserverErrorLog
 	TargetXML
-	_lastTarget
+	LastTarget
 )
+
+// TargetNamesStrings gets strings from the int value of TargetName enums. Ensure this is in sync with TargetNamesFromStr and the TargetName const iota block.
+var TargetNamesStrings = []string{
+	"",
+	"ARGS",
+	"ARGS_COMBINED_SIZE",
+	"ARGS_GET",
+	"ARGS_GET_NAMES",
+	"ARGS_NAMES",
+	"ARGS_POST",
+	"DURATION",
+	"FILES",
+	"FILES_COMBINED_SIZE",
+	"FILES_NAMES",
+	"GEO",
+	"IP",
+	"MATCHED_VAR",
+	"MATCHED_VAR_NAME",
+	"MATCHED_VARS",
+	"MATCHED_VARS_NAMES",
+	"MULTIPART_STRICT_ERROR",
+	"MULTIPART_UNMATCHED_BOUNDARY",
+	"QUERY_STRING",
+	"REMOTE_ADDR",
+	"REQBODY_ERROR",
+	"REQBODY_PROCESSOR",
+	"REQUEST_BASENAME",
+	"REQUEST_BODY",
+	"REQUEST_COOKIES",
+	"REQUEST_COOKIES_NAMES",
+	"REQUEST_FILENAME",
+	"REQUEST_HEADERS",
+	"REQUEST_HEADERS_NAMES",
+	"REQUEST_LINE",
+	"REQUEST_METHOD",
+	"REQUEST_PROTOCOL",
+	"REQUEST_URI",
+	"REQUEST_URI_RAW",
+	"RESOURCE",
+	"RESPONSE_BODY",
+	"RESPONSE_STATUS",
+	"TX",
+	"UNIQUE_ID",
+	"WEBSERVER_ERROR_LOG",
+	"XML",
+}
 
 // Action is any of the items in the actions-block of a SecRule or SecAction.
 type Action interface{}
@@ -193,18 +239,29 @@ type SkipAfterAction struct {
 
 // SetVarAction is the action that modifies variables in the per-request environment.
 type SetVarAction struct {
-	variable Value
-	operator setvarActionOperator
-	value    Value
+	Variable Value
+	Operator SetVarActionOperator
+	Value    Value
 }
+
+// SetVarActionOperator describes what operation the setvar action should do.
+type SetVarActionOperator int
+
+// SetVarActionOperators available.
+const (
+	Set SetVarActionOperator = iota
+	Increment
+	Decrement
+	DeleteVar
+)
 
 // CaptureAction makes the engine save regex groups to tx.0, tx.1, etc.
 type CaptureAction struct{}
 
 // CtlAction is the action that modifies configuration during run time
 type CtlAction struct {
-	setting CtlActionSetting
-	value   Value
+	Setting CtlActionSetting
+	Value   Value
 }
 
 // CtlActionSetting that the CtlAction will set.
