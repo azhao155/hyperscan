@@ -110,7 +110,7 @@ func lessThanOperatorEval(target ast.Value, value ast.Value) (bool, string, erro
 		return false, "", nil
 	}
 
-	return targetInt <= valueInt, "", nil
+	return targetInt < valueInt, "", nil
 }
 
 func beginsWithOperatorEval(target ast.Value, value ast.Value) (bool, string, error) {

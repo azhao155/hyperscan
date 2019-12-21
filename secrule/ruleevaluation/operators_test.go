@@ -60,6 +60,10 @@ func TestGreaterThanOperatorEval(t *testing.T) {
 	assert.Nil(err)
 	assert.True(result)
 
+	result, _, err = greaterThanOperatorEval(Value{IntToken(7)}, Value{IntToken(7)})
+	assert.Nil(err)
+	assert.False(result)
+
 	result, _, err = greaterThanOperatorEval(Value{IntToken(4)}, Value{IntToken(5)})
 	assert.Nil(err)
 	assert.False(result)
@@ -87,6 +91,10 @@ func TestLessThanOperatorEval(t *testing.T) {
 	result, _, err := lessThanOperatorEval(Value{IntToken(3)}, Value{IntToken(5)})
 	assert.Nil(err)
 	assert.True(result)
+
+	result, _, err = lessThanOperatorEval(Value{IntToken(7)}, Value{IntToken(7)})
+	assert.Nil(err)
+	assert.False(result)
 
 	result, _, err = lessThanOperatorEval(Value{IntToken(7)}, Value{IntToken(5)})
 	assert.Nil(err)
