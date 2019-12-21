@@ -51,7 +51,7 @@ func TestRuleEvaluatorNonDisruptiveAction(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -88,7 +88,7 @@ func TestRuleEvaluatorDisruptiveAction(t *testing.T) {
 	}
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(1, cbCalled)
 }
@@ -132,7 +132,7 @@ func TestRuleEvaluatorAllowAction(t *testing.T) {
 	}
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 	assert.Equal(waf.Allow, decision)
 	assert.Equal(1, cbCalled)
 }
@@ -169,7 +169,7 @@ func TestRuleEvaluatorNumericalOperator(t *testing.T) {
 
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 	assert.Equal(waf.Block, decision)
 	assert.Equal(1, cbCalled)
 }
@@ -206,7 +206,7 @@ func TestRuleEvaluatorChain(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -244,7 +244,7 @@ func TestRuleEvaluatorChainNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -282,7 +282,7 @@ func TestRuleEvaluatorChainActionInFirstItemNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -325,7 +325,7 @@ func TestRuleEvaluatorChainDisruptiveInFirstItemAllItemsRun(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -368,7 +368,7 @@ func TestRuleEvaluatorChainSetVarInFirstItem(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -397,7 +397,7 @@ func TestRuleEvaluatorSecAction(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -430,7 +430,7 @@ func TestRuleEvaluatorSetVarString(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -460,7 +460,7 @@ func TestRuleEvaluatorSecActionWithIncrement(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -496,7 +496,7 @@ func TestRuleEvaluatorMultiTarget1(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -531,7 +531,7 @@ func TestRuleEvaluatorMultiTarget2(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -572,7 +572,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimes(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -622,7 +622,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChained(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -673,7 +673,7 @@ func TestRuleEvaluatorMultiTargetRunsActionsMultipleTimesChainedNegate(t *testin
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -710,7 +710,7 @@ func TestRuleEvaluatorNolog(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(0, cbCalled)
@@ -745,7 +745,7 @@ func TestRuleEvaluatorNologOverride(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(1, cbCalled)
@@ -797,7 +797,7 @@ func TestRuleEvaluatorNologChain(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(0, cbCalled)
@@ -831,7 +831,7 @@ func TestRuleEvaluatorNologNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(1, cbCalled)
@@ -861,7 +861,7 @@ func TestRuleEvaluatorPhases(t *testing.T) {
 
 	// Act
 	re.ProcessPhase(1)
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(10)}, env.Get(EnvVarTx, "somevar"))
@@ -892,7 +892,7 @@ func TestRuleEvaluatorDefaultPhase(t *testing.T) {
 
 	// Act
 	re.ProcessPhase(1)
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(10)}, env.Get(EnvVarTx, "somevar"))
@@ -925,7 +925,7 @@ func TestSkipAfter(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(10)}, env.Get(EnvVarTx, "somevar"))
@@ -961,7 +961,7 @@ func TestSkipAfterWithinPhase(t *testing.T) {
 
 	// Act
 	re.ProcessPhase(1)
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(20)}, env.Get(EnvVarTx, "somevar"))
@@ -991,7 +991,7 @@ func TestMarkerCaseSensitive(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Nil(env.Get(EnvVarTx, "somevar"))
@@ -1021,7 +1021,7 @@ func TestSkipAfterRunsSetvarAnyway(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(10)}, env.Get(EnvVarTx, "somevar"))
@@ -1056,7 +1056,7 @@ func TestRuleEvaluatorNegate(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1090,7 +1090,7 @@ func TestRuleEvaluatorNegateNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -1127,7 +1127,7 @@ func TestRuleEvaluatorNegateMultiTargets(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1167,7 +1167,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatched(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(2)}, env.Get(EnvVarTx, "somevar"))
@@ -1206,7 +1206,7 @@ func TestRuleEvaluatorMultiTargetsFoundNegateNotMatchedNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, env, rules, sr, cb)
 
 	// Act
-	re.ProcessPhase(2)
+	re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(Value{IntToken(1)}, env.Get(EnvVarTx, "somevar"))
@@ -1243,7 +1243,7 @@ func TestRuleEvaluatorNegateMultiTxTargets(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1278,7 +1278,7 @@ func TestRuleEvaluatorNegateMultiTargetsNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1313,7 +1313,7 @@ func TestRuleEvaluatorNegateMultiTxTargetsNegative(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1348,7 +1348,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget1(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1383,7 +1383,7 @@ func TestRuleEvaluatorNegateMultiTargetsMissingTarget2(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1420,9 +1420,9 @@ func TestRuleEvaluatorCountArgsTarget(t *testing.T) {
 
 	// Act
 	re1 := ref.NewRuleEvaluator(logger, em, rules, sr1, cb)
-	decision1 := re1.ProcessPhase(2)
+	decision1 := re1.ProcessPhase(defaultPhase)
 	re2 := ref.NewRuleEvaluator(logger, em, rules, sr2, cb)
-	decision2 := re2.ProcessPhase(2)
+	decision2 := re2.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision1)
@@ -1458,7 +1458,7 @@ func TestRuleEvaluatorCountTxTargetSet(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr1, cb)
 
 	// Act
-	decision1 := re.ProcessPhase(2)
+	decision1 := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision1)
@@ -1491,7 +1491,7 @@ func TestRuleEvaluatorCountTxTargetNotSet(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr1, cb)
 
 	// Act
-	decision1 := re.ProcessPhase(2)
+	decision1 := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision1)
@@ -1535,7 +1535,7 @@ func TestRuleEvaluatorLateScanTarget(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -1586,7 +1586,7 @@ func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -1641,7 +1641,7 @@ func TestRuleEvaluatorLateScanTargetAndValue(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -1696,7 +1696,7 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -1765,7 +1765,7 @@ func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1790,7 +1790,7 @@ func TestRuleEvaluatorCtlActionForceRequestBodyScanning(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1816,7 +1816,7 @@ func TestRuleEvaluatorCtlActionForceRequestBodyScanningNegative1(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1842,7 +1842,7 @@ func TestRuleEvaluatorCtlActionForceRequestBodyScanningNegative2(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, NewEnvironment(nil), rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Pass, decision)
@@ -1904,7 +1904,7 @@ func TestRuleEvaluatorMatchedVarRightSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -1965,7 +1965,7 @@ func TestRuleEvaluatorMatchedVarLeftSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2034,7 +2034,7 @@ func TestRuleEvaluatorMatchedVarLeftSideUpdatesEnv(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2093,7 +2093,7 @@ func TestRuleEvaluatorMatchedVarNameLeftSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2154,7 +2154,7 @@ func TestRuleEvaluatorMatchedVarNumeric(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2223,7 +2223,7 @@ func TestRuleEvaluatorMatchedVarsCollection(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2291,7 +2291,7 @@ func TestRuleEvaluatorMatchedVarsCollectionPersistThroughEntireChain(t *testing.
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2363,7 +2363,7 @@ func TestRuleEvaluatorMatchedVarsNameCollection(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2402,7 +2402,7 @@ func TestRuleEvaluatorLateScanRequestLineRightSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2441,7 +2441,7 @@ func TestRuleEvaluatorLateScanRequestMethodRightSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2480,7 +2480,7 @@ func TestRuleEvaluatorLateScanRequestProtocolRightSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2519,7 +2519,7 @@ func TestRuleEvaluatorLateScanHostHeaderRightSide(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)
@@ -2564,7 +2564,7 @@ func TestRuleEvaluatorTxVarRegexSelector(t *testing.T) {
 	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
 
 	// Act
-	decision := re.ProcessPhase(2)
+	decision := re.ProcessPhase(defaultPhase)
 
 	// Assert
 	assert.Equal(waf.Block, decision)

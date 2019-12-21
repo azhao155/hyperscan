@@ -28,6 +28,8 @@ type ruleEvaluatorImpl struct {
 	forceRequestBodyScanning bool
 }
 
+const defaultPhase = 2
+
 func (re *ruleEvaluatorImpl) ProcessPhase(phase int) (decision waf.Decision) {
 	re.phase = phase
 	re.decision = waf.Pass
@@ -242,7 +244,7 @@ func checkPhaseShouldContinue(phase int, stmt ast.Statement) bool {
 		stmtPhase = stmt.Phase
 	}
 	if stmtPhase == 0 {
-		stmtPhase = 2 // Phase 2 is the default phase
+		stmtPhase = defaultPhase
 	}
 	if stmtPhase != phase {
 		// TODO potential small optimization: pre-arrange statements into phases before passing them to processPhase
