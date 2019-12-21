@@ -140,6 +140,7 @@ func JsUnescape(input string) string {
 	for i := 0; i < len(input); i++ {
 		c := input[i]
 		switch state {
+
 		case notInEscape:
 			if c == '\\' {
 				state = char1InEscape
@@ -147,6 +148,7 @@ func JsUnescape(input string) string {
 			} else {
 				buf.WriteByte(c)
 			}
+
 		case char1InEscape:
 			switch c {
 			case '\'', '"', '\\':
@@ -174,72 +176,72 @@ func JsUnescape(input string) string {
 				state = char1InHexEscape
 			case 'u':
 				state = char1InUnicodeHexEscape
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
-				state = char2InOctalEscape
 			default:
-				buf.WriteByte(c) // Fallback to just writing the input without the \.
-				state = notInEscape
+				if '0' <= c && c <= '7' {
+					state = char2InOctalEscape
+				} else {
+					buf.WriteByte(c) // Fallback to just writing the input without the \.
+					state = notInEscape
+				}
 			}
+
 		case char1InHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
+			if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
 				state = char2InHexEscape
-			default:
+			} else {
 				buf.WriteString(input[i-1 : i+1]) // Fallback to just writing the input without the \.
 				state = notInEscape
 			}
+
 		case char2InHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
+			if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
 				b, _ := strconv.ParseInt(input[i-1:i+1], 16, 64)
 				buf.WriteByte(byte(b))
 				state = notInEscape
-			default:
+			} else {
 				buf.WriteString(input[i-2 : i+1]) // Fallback to just writing the input without the \.
 				state = notInEscape
 			}
+
 		case char1InUnicodeHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
-				state = char2InUnicodeHexEscape
-			case '{':
+			if c == '{' {
 				state = inCurlyBracketUnicodeHexEscape
-			default:
+			} else if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
+				state = char2InUnicodeHexEscape
+			} else {
 				buf.WriteString(input[i-1 : i+1]) // Fallback to just writing the input without the \.
 				state = notInEscape
 			}
+
 		case char2InUnicodeHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
+			if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
 				state = char3InUnicodeHexEscape
-			default:
+			} else {
 				buf.WriteString(input[i-2 : i+1])
 				state = notInEscape
 			}
+
 		case char3InUnicodeHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
+			if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
 				state = char4InUnicodeHexEscape
-			default:
+			} else {
 				buf.WriteString(input[i-3 : i+1])
 				state = notInEscape
 			}
+
 		case char4InUnicodeHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
+			if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
 				r, _ := strconv.ParseInt(input[i-3:i+1], 16, 64) // No err handling needed, because we know the prior four bytes were hex digits.
 				r = UnicodeFullWidthToASCII(r)
 				buf.WriteRune(rune(r))
 				state = notInEscape
-			default:
+			} else {
 				buf.WriteString(input[i-4 : i+1])
 				state = notInEscape
 			}
+
 		case inCurlyBracketUnicodeHexEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'a', 'B', 'b', 'C', 'c', 'D', 'd', 'E', 'e', 'F', 'f':
-				// Stay in same state.
-			case '}':
+			if c == '}' {
 				r, err := strconv.ParseInt(input[escapeStartPos+3:i], 16, 64)
 				if r > 1114111 || err != nil {
 					// Unicode is a 21-bit character set. Max code point is 1114111.
@@ -250,15 +252,17 @@ func JsUnescape(input string) string {
 					buf.WriteRune(rune(r))
 				}
 				state = notInEscape
-			default:
+			} else if ('0' <= c && c <= '9') || ('A' <= c && c <= 'F') || ('a' <= c && c <= 'f') {
+				// Stay in same state.
+			} else {
 				buf.WriteString(input[escapeStartPos+1 : i+1])
 				state = notInEscape
 			}
+
 		case char2InOctalEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			if '0' <= c && c <= '7' {
 				state = char3InOctalEscape
-			default:
+			} else {
 				// Char 2 in the octal escape sequence was not an octal digit.
 				// This means the previous byte was the only one in the octal escape sequence.
 				// Example of such as sequence: \1
@@ -273,16 +277,16 @@ func JsUnescape(input string) string {
 					buf.WriteByte(c)
 				}
 			}
+
 		case char3InOctalEscape:
-			switch c {
-			case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9':
+			if '0' <= c && c <= '7' {
 				// Char 3 in the octal escape sequence was an octal digit.
 				// This means we have arrived at the third and final possible digit of the octal escape sequence.
 				// Example of such as sequence: \001
 				b, _ := strconv.ParseInt(input[i-2:i+1], 8, 64) // No err handling needed, because we know the prior three bytes were octal digits.
 				buf.WriteByte(byte(b))
 				state = notInEscape
-			default:
+			} else {
 				// Char 3 in the octal escape sequence was not an octal digit.
 				// This means just the previous two bytes was in the octal escape sequence.
 				// Example of such as sequence: \01
@@ -297,6 +301,7 @@ func JsUnescape(input string) string {
 					buf.WriteByte(c)
 				}
 			}
+
 		}
 	}
 

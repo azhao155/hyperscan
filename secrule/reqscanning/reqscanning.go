@@ -151,20 +151,34 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement) (r sr.
 
 		patterns := []waf.MultiRegexEnginePattern{}
 		for _, p := range sg.conditions {
-			switch p.ruleItem.Predicate.Op {
-			case ast.Rx, ast.Pm, ast.Pmf, ast.PmFromFile, ast.BeginsWith, ast.EndsWith, ast.Contains, ast.ContainsWord, ast.Streq, ast.Strmatch, ast.Within:
-				// The value can have macros that cannot be expanded at this time.
-				if p.ruleItem.Predicate.Val.HasMacros() {
-					continue
-				}
+			op := p.ruleItem.Predicate.Op
+			isHandledByRegexEngine := op == ast.Rx ||
+				op == ast.Pm ||
+				op == ast.Pmf ||
+				op == ast.PmFromFile ||
+				op == ast.BeginsWith ||
+				op == ast.EndsWith ||
+				op == ast.Contains ||
+				op == ast.ContainsWord ||
+				op == ast.Streq ||
+				op == ast.Strmatch ||
+				op == ast.Within
 
-				exprs := getRxExprs(p.ruleItem)
-				for _, e := range exprs {
-					// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
-					backRefs = append(backRefs, p)
-					patterns = append(patterns, waf.MultiRegexEnginePattern{backRefCurID, e})
-					backRefCurID++
-				}
+			if !isHandledByRegexEngine {
+				continue
+			}
+
+			// The value can have macros that cannot be expanded at this time.
+			if p.ruleItem.Predicate.Val.HasMacros() {
+				continue
+			}
+
+			exprs := getRxExprs(p.ruleItem)
+			for _, e := range exprs {
+				// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
+				backRefs = append(backRefs, p)
+				patterns = append(patterns, waf.MultiRegexEnginePattern{backRefCurID, e})
+				backRefCurID++
 			}
 		}
 

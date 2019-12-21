@@ -1002,16 +1002,23 @@ func checkForUnsupportedFeatures(statements *[]ast.Statement) error {
 		case *ast.Rule:
 			for _, item := range s.Items {
 				for _, t := range item.Predicate.Targets {
-					if t.IsCount || item.Predicate.Op == ast.Ge || item.Predicate.Op == ast.Gt || item.Predicate.Op == ast.Le || item.Predicate.Op == ast.Lt {
+					if t.IsCount ||
+						t.Name == ast.TargetTx ||
+						t.Name == ast.TargetGeo ||
+						item.Predicate.Op == ast.Ge ||
+						item.Predicate.Op == ast.Gt ||
+						item.Predicate.Op == ast.Le ||
+						item.Predicate.Op == ast.Lt {
 						continue
 					}
-					switch t.Name {
-					case ast.TargetArgs, ast.TargetArgsGet, ast.TargetArgsNames, ast.TargetFiles, ast.TargetFilesNames, ast.TargetQueryString, ast.TargetRequestBasename, ast.TargetRequestBody, ast.TargetRequestCookies, ast.TargetRequestCookiesNames, ast.TargetRequestFilename, ast.TargetRequestHeaders, ast.TargetRequestHeadersNames, ast.TargetRequestURI, ast.TargetRequestURIRaw, ast.TargetXML:
-						if item.Predicate.Val.HasMacros() {
-							return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, ast.TargetNamesStrings[t.Name])
-						}
-						// There are a few scan-phase variables that are exempt from this restriction and have workarounds because they are used in CRS:
-						//     "REQUEST_LINE", "REQUEST_METHOD", "REQUEST_PROTOCOL"
+
+					// These scan-phase variables are exempt from the restriction about not having macros, because they are used in CRS. The workaround is to store the values in ScanResults.
+					if t.Name == ast.TargetRequestLine || t.Name == ast.TargetRequestMethod || t.Name == ast.TargetRequestProtocol {
+						continue
+					}
+
+					if item.Predicate.Val.HasMacros() {
+						return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, ast.TargetNamesStrings[t.Name])
 					}
 				}
 			}
