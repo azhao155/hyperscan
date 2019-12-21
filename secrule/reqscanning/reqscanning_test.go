@@ -886,6 +886,108 @@ func TestReqCookies(t *testing.T) {
 	}
 }
 
+func TestReqCookieEmptyVal(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestCookies}}, Op: Streq, Val: Value{StringToken("")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestCookiesNames}}, Op: Streq, Val: Value{StringToken("mycookie1")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1="})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestCookies})
+	if !ok {
+		t.Fatalf("Match 100 not found")
+	}
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetRequestCookiesNames})
+	if !ok {
+		t.Fatalf("Match 200 not found")
+	}
+}
+
+func TestReqCookieMissingEq(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestCookies}}, Op: Streq, Val: Value{StringToken("")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestCookiesNames}}, Op: Streq, Val: Value{StringToken("mycookie1")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+	}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Cookie", v: "mycookie1"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestCookies})
+	if !ok {
+		t.Fatalf("Match 100 not found")
+	}
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetRequestCookiesNames})
+	if !ok {
+		t.Fatalf("Match 200 not found")
+	}
+}
+
 func TestReqCookiesSelectors(t *testing.T) {
 	// Arrange
 	mf := newMockMultiRegexEngineFactory()

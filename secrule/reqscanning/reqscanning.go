@@ -2,7 +2,7 @@ package reqscanning
 
 import (
 	sr "azwaf/secrule"
-	ast "azwaf/secrule/ast"
+	"azwaf/secrule/ast"
 	tr "azwaf/secrule/transformations"
 
 	"azwaf/encoding"
@@ -10,7 +10,6 @@ import (
 	"azwaf/waf"
 	"bytes"
 	"fmt"
-	"net/http"
 	"regexp"
 	"strings"
 )
@@ -635,17 +634,25 @@ func (r *reqScannerEvaluationImpl) scanURI(URI string, results *sr.ScanResults) 
 }
 
 func (r *reqScannerEvaluationImpl) scanCookies(c string, results *sr.ScanResults) (err error) {
-	// Use Go's http.Request to parse the cookies.
-	goReq := &http.Request{Header: http.Header{"Cookie": []string{c}}}
-	cookies := goReq.Cookies()
-	for _, cookie := range cookies {
+	cc := strings.Split(c, ";")
 
-		err = r.scanField(ast.TargetRequestCookiesNames, "", cookie.Name, results)
+	for _, s := range cc {
+		s = strings.Trim(s, " ")
+
+		var k, v string
+		k = s
+		eqPos := strings.IndexByte(s, '=')
+		if eqPos != -1 {
+			k = s[:eqPos]
+			v = s[eqPos+1:]
+		}
+
+		err = r.scanField(ast.TargetRequestCookiesNames, "", k, results)
 		if err != nil {
 			return
 		}
 
-		err = r.scanField(ast.TargetRequestCookies, cookie.Name, cookie.Value, results)
+		err = r.scanField(ast.TargetRequestCookies, k, v, results)
 		if err != nil {
 			return
 		}
