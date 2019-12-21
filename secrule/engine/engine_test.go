@@ -32,10 +32,11 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	r := ev.EvalRules(2)
+	r1 := ev.EvalRulesPhase1()
+	r2 := ev.EvalRulesPhase2to5()
 
 	// Assert
-	if r != waf.Pass {
+	if r1 != waf.Pass || r2 != waf.Pass {
 		t.Fatalf("EvalRequest did not return pass")
 	}
 }

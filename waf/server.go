@@ -173,7 +173,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 
 		// SecRule-lang's phase 1 rule evaluation must be run before body scanning, because it may influence whether to run body scanning or not.
-		decision = secRuleEvaluation.EvalRules(1)
+		decision = secRuleEvaluation.EvalRulesPhase1()
 		if decision == Allow || decision == Block {
 			return
 		}
@@ -243,11 +243,9 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	if secRuleEvaluation != nil {
 		// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
-		for phase := 2; phase <= 5; phase++ {
-			decision = secRuleEvaluation.EvalRules(phase)
-			if decision == Allow || decision == Block {
-				return
-			}
+		decision = secRuleEvaluation.EvalRulesPhase2to5()
+		if decision == Allow || decision == Block {
+			return
 		}
 	}
 

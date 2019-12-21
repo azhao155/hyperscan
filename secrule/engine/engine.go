@@ -169,7 +169,22 @@ func (s *secRuleEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, 
 	return s.reqScannerEvaluation.ScanBodyField(contentType, fieldName, data, s.scanResults)
 }
 
-func (s *secRuleEvaluationImpl) EvalRules(phase int) (wafDecision waf.Decision) {
+func (s *secRuleEvaluationImpl) EvalRulesPhase1() (wafDecision waf.Decision) {
+	return s.evalRules(1)
+}
+
+func (s *secRuleEvaluationImpl) EvalRulesPhase2to5() (wafDecision waf.Decision) {
+	for phase := 2; phase <= 5; phase++ {
+		wafDecision = s.evalRules(phase)
+		if wafDecision == waf.Allow || wafDecision == waf.Block {
+			return
+		}
+	}
+
+	return
+}
+
+func (s *secRuleEvaluationImpl) evalRules(phase int) (wafDecision waf.Decision) {
 	if s.logger.Debug() != nil {
 		for key, matches := range s.scanResults.Matches {
 			for _, match := range matches {
