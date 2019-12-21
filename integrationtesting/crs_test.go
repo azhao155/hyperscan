@@ -132,7 +132,17 @@ func TestCrsRules(t *testing.T) {
 			}
 
 			resLog.ruleMatched = make(map[int]bool)
+
+			if len(tc.Requests) != 1 {
+				panic("len(tc.Requests) != 1")
+			}
+
 			for _, req := range tc.Requests {
+				if strings.Contains(req.URI(), " ") {
+					// If the request line is invalid, the web server would block the request even before it reaches the WAF.
+					continue
+				}
+
 				// Act
 				_, err = wafServer.EvalRequest(req)
 				if err != nil {
