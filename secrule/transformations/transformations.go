@@ -26,6 +26,7 @@ func ApplyTransformations(s string, tt []ast.Transformation) string {
 		// TODO implement all transformations
 		switch t {
 		case ast.CmdLine:
+			s = CmdLineNormalize(s)
 		case ast.CompressWhitespace:
 			if whitespaceRegex.FindStringIndex(s) != nil || strings.Contains(s, "\xa0") {
 				s = strings.Replace(s, "\xa0", " ", -1) // The regex engine seems to have trouble with 0xa0, so doing it separately.
@@ -334,6 +335,41 @@ func UnicodeFullWidthToASCII(r int64) int64 {
 		r = lowestByte + 0x20
 	}
 	return r
+}
+
+// CmdLineNormalize does the various filtering for normalization before searching for Windows command line payload, as described in the ModSecurity reference manual.
+func CmdLineNormalize(input string) string {
+	var buf bytes.Buffer
+	buf.Grow(len(input)) // The filtered version should be smaller than the original, so this pessimistic initial size should avoid making bytes.Buffer having to reallocate.
+
+	var pendingSpace bool
+
+	for _, c := range input {
+		switch c {
+
+		case '\\', '"', '\'', '^':
+			// Dropping these characters.
+
+		case '/', '(':
+			pendingSpace = false
+			buf.WriteRune(c)
+
+		case ',', ';', ' ', '\f', '\t', '\n', '\r', '\v', 0xa0:
+			pendingSpace = true
+
+		default:
+			if pendingSpace {
+				buf.WriteRune(' ')
+				pendingSpace = false
+			}
+
+			buf.WriteRune(c)
+
+		}
+	}
+
+	s := strings.ToLower(buf.String()) // Lower casing separately here instead of in the loop above, to avoid having to deal with Unicode.
+	return s
 }
 
 // TransformationListEquals checks whether two transformation pipelines are equal.

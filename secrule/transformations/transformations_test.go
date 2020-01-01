@@ -117,6 +117,16 @@ func TestTransformations(t *testing.T) {
 
 		{"helloworld", []Transformation{Length}, "10"},
 
+		{"for %variable in (set) do command abc / a\\a\"a'a^a b,b c;c d         d EEE", []Transformation{CmdLine}, "for %variable in(set) do command abc/ aaaaa b b c c d d eee"},
+		{"abc / abc", []Transformation{CmdLine}, "abc/ abc"},
+		{"a\\a\"a'a^a", []Transformation{CmdLine}, "aaaaa"},
+		{"b,b", []Transformation{CmdLine}, "b b"},
+		{"c;c", []Transformation{CmdLine}, "c c"},
+		{"d         d", []Transformation{CmdLine}, "d d"},
+		{"EEE", []Transformation{CmdLine}, "eee"},
+		{"你", []Transformation{CmdLine}, "你"},
+		{"Ø", []Transformation{CmdLine}, "ø"},
+
 		// Combinations
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, `aaaaaaa bccc`},
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, RemoveWhitespace, URLDecodeUni}, `aaaaaaa bccc`}, // Not removing space because URLDecodeUni hasn't yet turned %20 into space
