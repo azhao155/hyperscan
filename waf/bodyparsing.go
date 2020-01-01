@@ -37,7 +37,8 @@ const (
 	MultipartFormDataContent
 	MultipartFormDataFileNames
 	URLEncodedContent
-	XMLContent
+	XMLCharData
+	XMLAttrVal
 	JSONContent
 )
 

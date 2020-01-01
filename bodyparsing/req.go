@@ -262,8 +262,13 @@ func (r *reqBodyParserImpl) scanXMLBody(bodyReader *maxLengthReaderDecorator, cb
 		// TODO consider handing element names, attribute names, attribute values. ModSec currently doesn't...
 		switch v := token.(type) {
 		case xml.CharData:
-			// TODO selectors
-			cb(waf.XMLContent, "", string(v))
+			cb(waf.XMLCharData, "", string(v))
+
+		case xml.StartElement:
+			for _, attr := range v.Attr {
+				cb(waf.XMLAttrVal, "", string(attr.Value))
+			}
+
 		}
 	}
 

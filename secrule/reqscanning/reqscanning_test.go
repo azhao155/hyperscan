@@ -261,7 +261,7 @@ func TestReqScannerBodyFieldXML(t *testing.T) {
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
 	err2 := rse.ScanHeaders(req, sr)
-	err3 := rse.ScanBodyField(waf.XMLContent, "", "aaaaaaabccc", sr)
+	err3 := rse.ScanBodyField(waf.XMLCharData, "", "aaaaaaabccc", sr)
 
 	// Assert
 	if err1 != nil {

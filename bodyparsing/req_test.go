@@ -253,7 +253,7 @@ func TestReqScannerBodyXML1(t *testing.T) {
 	}
 	body := bytes.NewBufferString(`
 		<hello>
-			<world>aaaaaaabccc</world>
+			<world abc="def">aaaaaaabccc</world>
 		</hello>
 	`)
 
@@ -265,13 +265,13 @@ func TestReqScannerBodyXML1(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	contentType := waf.XMLContent
 	expectedCalls := []parsedBodyFieldCbCall{
-		{contentType, "", "\n\t\t"},
-		{contentType, "", "\n\t\t\t"},
-		{contentType, "", "aaaaaaabccc"},
-		{contentType, "", "\n\t\t"},
-		{contentType, "", "\n\t"},
+		{waf.XMLCharData, "", "\n\t\t"},
+		{waf.XMLCharData, "", "\n\t\t\t"},
+		{waf.XMLAttrVal, "", "def"},
+		{waf.XMLCharData, "", "aaaaaaabccc"},
+		{waf.XMLCharData, "", "\n\t\t"},
+		{waf.XMLCharData, "", "\n\t"},
 	}
 
 	if len(calls) != len(expectedCalls) {

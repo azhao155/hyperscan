@@ -1020,6 +1020,12 @@ func checkForUnsupportedFeatures(statements *[]ast.Statement) error {
 					if item.Predicate.Val.HasMacros() {
 						return fmt.Errorf("rule %d is scanning for a macro in the scan-phase variable %s, which is unsupported by this SecRule engine", s.ID, ast.TargetNamesStrings[t.Name])
 					}
+
+					if t.Name == ast.TargetXML {
+						if !(t.Selector == "/*" || t.Selector == "//@*") {
+							return fmt.Errorf("rule %d is using an unsupported XML selector %s", s.ID, t.Selector)
+						}
+					}
 				}
 			}
 		}

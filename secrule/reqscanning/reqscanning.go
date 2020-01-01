@@ -389,8 +389,14 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.FieldContentTyp
 			return
 		}
 
-	case waf.XMLContent:
+	case waf.XMLCharData:
 		err = r.scanField(ast.TargetXML, "/*", data, results)
+		if err != nil {
+			return
+		}
+
+	case waf.XMLAttrVal:
+		err = r.scanField(ast.TargetXML, "//@*", data, results)
 		if err != nil {
 			return
 		}
