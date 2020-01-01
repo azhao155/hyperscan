@@ -32,6 +32,8 @@ var ruleSetPathsMap = map[waf.RuleSetID][]string{
 	"OWASP CRS 3.0 with config for regression tests": {"crs3.0/main.regressiontesting.conf"},
 	"OWASP CRS 3.1": {"crs3.1/main.conf"},
 	"OWASP CRS 3.1 with config for regression tests": {"crs3.1/main.regressiontesting.conf"},
+	"OWASP CRS 3.2": {"crs3.2/main.conf"},
+	"OWASP CRS 3.2 with config for regression tests": {"crs3.2/main.regressiontesting.conf"},
 }
 
 // GetRules loads and parses CRS files from disk.
