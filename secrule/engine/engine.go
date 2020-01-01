@@ -113,9 +113,7 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 	env := re.NewEnvironment(s.txTargetRegexSelectorsCompiled)
 
 	// This is needed in the env to later populate the REQBODY_PROCESSOR target.
-	if int(reqBodyType) < len(reqbodyProcessorValues) {
-		env.Set(ast.EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType])
-	}
+	env.Set(ast.EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType])
 
 	scanResults := rs.NewScanResults()
 

@@ -47,11 +47,6 @@ func TestReqbodyProcessorValues(t *testing.T) {
 		t.Fatalf("Unexpected len(reqbodyProcessorValues). You must update this test if you have changed reqbodyProcessorValues.")
 	}
 
-	// If you change this number, make sure to add the corresponding test below as well.
-	if len(waf.ReqBodyTypeToStr) != 5 {
-		t.Fatalf("Unexpected len(waf.ReqBodyTypeToStr). You must update this test if you have changed waf.ReqBodyTypeToStr.")
-	}
-
 	s := reqbodyProcessorValues[waf.OtherBody].String()
 	if s != "" {
 		t.Fatalf("Unexpected reqbodyProcessorValues[waf.OtherBody]: %v", s)

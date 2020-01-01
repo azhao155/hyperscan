@@ -82,15 +82,6 @@ var ErrTotalBytesLimitExceeded = errors.New("total request length limit exceeded
 // ErrTotalFullRawRequestBodyExceeded is returned when the total request length limit exceeded for full raw request body buffering was exceeded.
 var ErrTotalFullRawRequestBodyExceeded = errors.New("total request length limit exceeded for full raw request body buffering")
 
-// ReqBodyTypeToStr maps from a content-type string to ReqBodyType.
-var ReqBodyTypeToStr = map[string]ReqBodyType{
-	"":                                  OtherBody,
-	"multipart/form-data":               MultipartFormDataBody,
-	"application/x-www-form-urlencoded": URLEncodedBody,
-	"text/xml":                          XMLBody,
-	"application/json":                  JSONBody,
-}
-
 // ReqBodyTypeStrings maps from a ReqBodyType to a content-type string.
 var ReqBodyTypeStrings = []string{
 	"",
@@ -113,10 +104,21 @@ func getLengthAndTypeFromHeaders(req HTTPRequest) (contentLength int, reqBodyTyp
 		}
 
 		if strings.EqualFold("content-type", k) {
-			mediatypeStr, mediaTypeParams, _ := mime.ParseMediaType(v)
+			s, mediaTypeParams, _ := mime.ParseMediaType(v)
+
 			reqBodyType = OtherBody
-			if t, ok := ReqBodyTypeToStr[mediatypeStr]; ok {
-				reqBodyType = t
+			s = strings.ToLower(s)
+			s = strings.TrimSpace(s)
+			if s == "multipart/form-data" {
+				reqBodyType = MultipartFormDataBody
+			} else if s == "application/x-www-form-urlencoded" {
+				reqBodyType = URLEncodedBody
+			} else if s == "application/json" {
+				reqBodyType = JSONBody
+			} else if strings.Contains(s, "application/soap+xml") || // These conditions are equivalent to rule 200000 in modsecurity.conf-recommended
+				strings.Contains(s, "application/xml") ||
+				strings.Contains(s, "text/xml") {
+				reqBodyType = XMLBody
 			}
 
 			if reqBodyType == MultipartFormDataBody {
