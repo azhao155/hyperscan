@@ -3,12 +3,14 @@ package ruleevaluation
 import (
 	sr "azwaf/secrule"
 	ast "azwaf/secrule/ast"
+	tr "azwaf/secrule/transformations"
+	"strconv"
 
 	"fmt"
 	"strings"
 )
 
-func eval(rp ast.RulePredicate, target ast.Target, scanResults *sr.ScanResults, perRequestEnv sr.Environment) (result bool, match sr.Match, err error) {
+func eval(rp ast.RulePredicate, target ast.Target, transformations []ast.Transformation, scanResults *sr.ScanResults, perRequestEnv sr.Environment) (result bool, match sr.Match, err error) {
 	opFunc := toOperatorFunc(rp.Op)
 	if opFunc == nil {
 		return false, sr.Match{}, fmt.Errorf("unsupported operator: %v", rp.Op)
@@ -17,6 +19,7 @@ func eval(rp ast.RulePredicate, target ast.Target, scanResults *sr.ScanResults, 
 	expectedVal := perRequestEnv.ExpandMacros(rp.Val)
 
 	var actualVal ast.Value
+	var actualValCollection []ast.Value
 	if target.Name == ast.TargetTx {
 		if target.IsRegexSelector {
 			vv := perRequestEnv.GetTxVarsViaRegexSelector(target.Selector)
@@ -24,7 +27,7 @@ func eval(rp ast.RulePredicate, target ast.Target, scanResults *sr.ScanResults, 
 			if target.IsCount {
 				actualVal = ast.Value{ast.IntToken(len(vv))}
 			} else {
-				return evalCollection(rp, target, expectedVal, vv, opFunc)
+				actualValCollection = vv
 			}
 		} else {
 			if target.IsCount {
@@ -45,11 +48,11 @@ func eval(rp ast.RulePredicate, target ast.Target, scanResults *sr.ScanResults, 
 	} else if target.Name == ast.TargetMatchedVar {
 		actualVal = perRequestEnv.Get(ast.EnvVarMatchedVar, "")
 	} else if target.Name == ast.TargetMatchedVars {
-		return evalCollection(rp, target, expectedVal, perRequestEnv.GetCollection(ast.EnvVarMatchedVars), opFunc)
+		actualValCollection = perRequestEnv.GetCollection(ast.EnvVarMatchedVars)
 	} else if target.Name == ast.TargetMatchedVarName {
 		actualVal = perRequestEnv.Get(ast.EnvVarMatchedVarName, "")
 	} else if target.Name == ast.TargetMatchedVarsNames {
-		return evalCollection(rp, target, expectedVal, perRequestEnv.GetCollection(ast.EnvVarMatchedVarNames), opFunc)
+		actualValCollection = perRequestEnv.GetCollection(ast.EnvVarMatchedVarNames)
 	} else if target.Name == ast.TargetRequestLine {
 		actualVal = perRequestEnv.Get(ast.EnvVarRequestLine, "")
 	} else if target.Name == ast.TargetRequestMethod {
@@ -62,18 +65,27 @@ func eval(rp ast.RulePredicate, target ast.Target, scanResults *sr.ScanResults, 
 		actualVal = perRequestEnv.Get(ast.EnvVarReqbodyProcessor, "")
 	}
 
-	result, output, err := opFunc(actualVal, expectedVal)
-	if err != nil {
-		result = false
-		return
+	if len(actualValCollection) == 0 {
+		actualValCollection = []ast.Value{actualVal}
 	}
 
-	match = simpleMatchFromString(output, actualVal.Bytes(), target.Name)
-	return
+	return evalCollection(rp, target, expectedVal, actualValCollection, transformations, opFunc)
 }
 
-func evalCollection(rp ast.RulePredicate, target ast.Target, expectedVal ast.Value, values []ast.Value, opFunc operatorFunc) (result bool, match sr.Match, err error) {
+func evalCollection(rp ast.RulePredicate, target ast.Target, expectedVal ast.Value, values []ast.Value, transformations []ast.Transformation, opFunc operatorFunc) (result bool, match sr.Match, err error) {
 	for _, actualVal := range values {
+		// Apply transformations to actualVal if this was not an integer value.
+		_, isInt := actualVal.Int()
+		if !isInt {
+			s := tr.ApplyTransformations(actualVal.String(), transformations)
+			n, atoierr := strconv.Atoi(s)
+			if atoierr == nil {
+				actualVal = ast.Value{ast.IntToken(n)}
+			} else {
+				actualVal = ast.Value{ast.StringToken(s)}
+			}
+		}
+
 		var output string
 		result, output, err = opFunc(actualVal, expectedVal)
 		if err != nil {

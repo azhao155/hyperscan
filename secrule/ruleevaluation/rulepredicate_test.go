@@ -21,12 +21,12 @@ func TestVarCounting(t *testing.T) {
 
 	em := NewEnvironment(nil)
 	sr := &ScanResults{TargetsCount: make(map[Target]int)}
-	result, _, err := eval(rp, target, sr, em)
+	result, _, err := eval(rp, target, nil, sr, em)
 	assert.Nil(err)
 	assert.False(result)
 
 	em.Set(EnvVarTx, "1", Value{StringToken("v1")})
-	result, _, err = eval(rp, target, sr, em)
+	result, _, err = eval(rp, target, nil, sr, em)
 	assert.Nil(err)
 	assert.True(result)
 }
@@ -46,11 +46,11 @@ func TestVarGt(t *testing.T) {
 	sr := &ScanResults{TargetsCount: make(map[Target]int)}
 
 	// Act
-	result1, _, err1 := eval(rp, target, sr, em)
+	result1, _, err1 := eval(rp, target, nil, sr, em)
 	em.Set(EnvVarTx, "somevar", Value{IntToken(3)})
-	result2, _, err2 := eval(rp, target, sr, em)
+	result2, _, err2 := eval(rp, target, nil, sr, em)
 	em.Set(EnvVarTx, "somevar", Value{IntToken(5)})
-	result3, _, err3 := eval(rp, target, sr, em)
+	result3, _, err3 := eval(rp, target, nil, sr, em)
 
 	// Assert
 	assert.NotNil(err1)

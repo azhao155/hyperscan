@@ -1543,6 +1543,106 @@ func TestRuleEvaluatorLateScanTarget(t *testing.T) {
 
 }
 
+func TestRuleEvaluatorLateScanTargetWithTransformation(t *testing.T) {
+	// This test should always trigger regardless of the input request.
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:501,nolog,setvar:tx.myvar=hello1234"
+		SecRule TX:myvar "@streq hello1234" "id:502,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1 := SetVarAction{Variable: Value{StringToken("tx.myvar")}, Operator: Set, Value: Value{StringToken("%48E%4cLO1234")}}
+	rules := []Statement{
+		&ActionStmt{ID: 501, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 502,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "myvar"}}, Op: Streq, Val: Value{StringToken("hello1234")}},
+					Actions:         []Action{&DenyAction{}},
+					Transformations: []Transformation{URLDecode, Lowercase},
+				},
+			},
+		},
+	}
+	em := NewEnvironment(nil)
+	ref := NewRuleEvaluatorFactory()
+
+	m := make(map[MatchKey][]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{TargetsCount: tc, Matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
+		cbCalled++
+	}
+	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
+
+	// Act
+	decision := re.ProcessPhase(defaultPhase)
+
+	// Assert
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
+func TestRuleEvaluatorLateScanTargetWithTransformationInteger(t *testing.T) {
+	// This test should always trigger regardless of the input request.
+	// Verified that this works in ModSecurity with the following config:
+	/*
+		SecAction "id:501,nolog,setvar:tx.myvar=hello1234"
+		SecRule TX:myvar "@streq hello1234" "id:502,deny"
+	*/
+
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	assert := assert.New(t)
+	sv1 := SetVarAction{Variable: Value{StringToken("tx.myvar")}, Operator: Set, Value: Value{StringToken("%31%30")}} // url-encoded "10"
+	rules := []Statement{
+		&ActionStmt{ID: 501, Actions: []Action{&sv1, &NoLogAction{}}},
+		&Rule{
+			ID: 502,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "myvar"}}, Op: Lt, Val: Value{IntToken(5)}}, // 10 is not less than 5, so this rule should not trigger
+					Actions:         []Action{},
+					Transformations: []Transformation{URLDecode, Lowercase},
+				},
+			},
+		},
+		&Rule{
+			ID: 503,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetTx, Selector: "myvar"}}, Op: Lt, Val: Value{IntToken(30)}},
+					Actions:         []Action{&DenyAction{}},
+					Transformations: []Transformation{URLDecode, Lowercase},
+				},
+			},
+		},
+	}
+	em := NewEnvironment(nil)
+	ref := NewRuleEvaluatorFactory()
+
+	m := make(map[MatchKey][]Match)
+	tc := make(map[Target]int)
+	sr := &ScanResults{TargetsCount: tc, Matches: m}
+	var cbCalled int
+	cb := func(stmt Statement, decision waf.Decision, msg string, logData string) {
+		cbCalled++
+	}
+	re := ref.NewRuleEvaluator(logger, em, rules, sr, cb)
+
+	// Act
+	decision := re.ProcessPhase(defaultPhase)
+
+	// Assert
+	assert.Equal(waf.Block, decision)
+	assert.Equal(1, cbCalled)
+}
+
 func TestRuleEvaluatorLateScanCapturedTarget(t *testing.T) {
 	// This test should trigger on ?a=hello1234worlda but not on ?a=hello1111worlda
 	// Verified that this works in ModSecurity with the following config:
@@ -1701,22 +1801,6 @@ func TestRuleEvaluatorLateScanTargetAndCapturedValue(t *testing.T) {
 	// Assert
 	assert.Equal(waf.Block, decision)
 	assert.Equal(1, cbCalled)
-}
-
-func TestRuleEvaluatorLateScanValue(t *testing.T) {
-	t.SkipNow() // Skip until we support scanning of request fields with variables on the right side for the two special cases where we need it
-
-	// This test should trigger on ?a=hello1234worldd
-	// Verified that this works in ModSecurity with the following config:
-	/*
-		SecAction "id:401,nolog,setvar:tx.myvar=hello1234"
-		SecRule ARGS "%{tx.myvar}worldd" "id:402,deny"
-	*/
-
-	// Late-scanning a request field is not supported by Azwaf.
-	// TODO write a test that ensures that we get some kind of error if we try this
-	// TODO there are some special cases (920430, 911100),  where this is needed, but only for certain fields, so let's just keep these fields in scanresults.
-	t.Fail()
 }
 
 func TestRuleEvaluatorCapturedNotAcrossRules(t *testing.T) {

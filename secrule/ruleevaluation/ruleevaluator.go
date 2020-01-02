@@ -312,7 +312,7 @@ func evalPredicateLateScan(env sr.Environment, ruleItem ast.RuleItem, target ast
 	}
 
 	var triggered bool
-	triggered, match, err = eval(ruleItem.Predicate, target, scanResults, env)
+	triggered, match, err = eval(ruleItem.Predicate, target, ruleItem.Transformations, scanResults, env)
 	if triggered {
 		result = returnValIfTrigger
 		return
