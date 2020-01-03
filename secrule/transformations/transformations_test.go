@@ -127,6 +127,11 @@ func TestTransformations(t *testing.T) {
 		{"你", []Transformation{CmdLine}, "你"},
 		{"Ø", []Transformation{CmdLine}, "ø"},
 
+		{"before /*comment*/ after", []Transformation{ReplaceComments}, "before   after"},
+		{"before /* /* inside comment */ */ after", []Transformation{ReplaceComments}, "before   after"},
+		{"before /*comment after", []Transformation{ReplaceComments}, "before  "},
+		{"before comment*/ after", []Transformation{ReplaceComments}, "before comment*/ after"},
+
 		// Combinations
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, `aaaaaaa bccc`},
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, RemoveWhitespace, URLDecodeUni}, `aaaaaaa bccc`}, // Not removing space because URLDecodeUni hasn't yet turned %20 into space
