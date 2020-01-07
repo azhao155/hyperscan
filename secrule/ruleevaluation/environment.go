@@ -17,6 +17,7 @@ type environment struct {
 	matchedVar       ast.Value
 	matchedVarName   ast.Value
 	reqbodyProcessor ast.Value
+	reqbodyProcessorError ast.Value
 	requestLine      ast.Value
 	requestMethod    ast.Value
 	requestProtocol  ast.Value
@@ -51,6 +52,8 @@ func (e *environment) Get(name ast.EnvVarName, selector string) (v ast.Value) {
 		return e.matchedVarName
 	case ast.EnvVarReqbodyProcessor:
 		return e.reqbodyProcessor
+	case ast.EnvVarReqbodyProcessorError:
+		return e.reqbodyProcessorError
 	case ast.EnvVarRequestLine:
 		return e.requestLine
 	case ast.EnvVarRequestMethod:
@@ -93,6 +96,8 @@ func (e *environment) Set(name ast.EnvVarName, collectionKey string, val ast.Val
 		e.matchedVarName = val
 	case ast.EnvVarReqbodyProcessor:
 		e.reqbodyProcessor = val
+	case ast.EnvVarReqbodyProcessorError:
+		e.reqbodyProcessorError = val
 	case ast.EnvVarRequestLine:
 		e.requestLine = val
 	case ast.EnvVarRequestMethod:
@@ -116,6 +121,8 @@ func (e *environment) Delete(name ast.EnvVarName, selector string) {
 		e.matchedVarName = nil
 	case ast.EnvVarReqbodyProcessor:
 		e.reqbodyProcessor = nil
+	case ast.EnvVarReqbodyProcessorError:
+		e.reqbodyProcessorError = nil
 	case ast.EnvVarRequestLine:
 		e.requestLine = nil
 	case ast.EnvVarRequestMethod:

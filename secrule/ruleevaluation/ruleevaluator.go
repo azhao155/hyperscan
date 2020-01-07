@@ -329,7 +329,8 @@ func requiresLateScan(predicate ast.RulePredicate, target ast.Target) bool {
 		target.Name == ast.TargetMatchedVarName ||
 		target.Name == ast.TargetMatchedVarsNames ||
 		target.Name == ast.TargetTx ||
-		target.Name == ast.TargetReqbodyProcessor {
+		target.Name == ast.TargetReqbodyProcessor ||
+		target.Name == ast.TargetReqbodyError {
 		return true
 	}
 

@@ -33,7 +33,7 @@ func TestSecRuleEngineEvalRequest(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 	r1 := ev.EvalRulesPhase1()
-	r2 := ev.EvalRulesPhase2to5()
+	r2 := ev.EvalRulesPhase2to5(0)
 
 	// Assert
 	if r1 != waf.Pass || r2 != waf.Pass {

@@ -171,7 +171,10 @@ func (s *secRuleEvaluationImpl) EvalRulesPhase1() (wafDecision waf.Decision) {
 	return s.evalRules(1)
 }
 
-func (s *secRuleEvaluationImpl) EvalRulesPhase2to5() (wafDecision waf.Decision) {
+func (s *secRuleEvaluationImpl) EvalRulesPhase2to5(bodyParseError int) (wafDecision waf.Decision) {
+
+	s.env.Set(ast.EnvVarReqbodyProcessorError, "", ast.Value{ast.IntToken(bodyParseError)})
+
 	for phase := 2; phase <= 5; phase++ {
 		wafDecision = s.evalRules(phase)
 		if wafDecision == waf.Allow || wafDecision == waf.Block {

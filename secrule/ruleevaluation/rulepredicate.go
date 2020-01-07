@@ -63,6 +63,8 @@ func eval(rp ast.RulePredicate, target ast.Target, transformations []ast.Transfo
 		actualVal = perRequestEnv.Get(ast.EnvVarRequestHeaders, "host")
 	} else if target.Name == ast.TargetReqbodyProcessor {
 		actualVal = perRequestEnv.Get(ast.EnvVarReqbodyProcessor, "")
+	} else if target.Name == ast.TargetReqbodyError {
+		actualVal = perRequestEnv.Get(ast.EnvVarReqbodyProcessorError, "")
 	}
 
 	if len(actualValCollection) == 0 {

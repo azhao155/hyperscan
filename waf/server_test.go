@@ -231,15 +231,11 @@ func testBytesLimit(
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	r, err := s.EvalRequest(req)
+	_, err = s.EvalRequest(req)
 
 	// Assert
 	if err != nil {
 		t.Fatalf("Unexpected error from EvalRequest: %s", err)
-	}
-
-	if r != Block {
-		t.Fatalf("EvalRequest did not return block")
 	}
 
 	if mrl.fieldBytesLimitExceededCalled != expectedFieldBytesLimitExceededCalled {
@@ -326,7 +322,7 @@ func (m *mockSecRuleEvaluation) EvalRulesPhase1() Decision {
 	m.evalRulesPhase1Called++
 	return m.decision
 }
-func (m *mockSecRuleEvaluation) EvalRulesPhase2to5() Decision {
+func (m *mockSecRuleEvaluation) EvalRulesPhase2to5(BodyParseError int) Decision {
 	m.evalRulesPhase2to5Called++
 	return m.decision
 }
