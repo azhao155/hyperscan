@@ -202,7 +202,7 @@ func testBytesLimit(
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-	msrev := &mockSecRuleEvaluation{}
+	msrev := &mockSecRuleEvaluation{decision: Pass}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
 	mcrev := &mockCustomRuleEvaluation{}
@@ -235,11 +235,15 @@ func testBytesLimit(
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	_, err = s.EvalRequest(req)
+	r, err := s.EvalRequest(req)
 
 	// Assert
 	if err != nil {
 		t.Fatalf("Unexpected error from EvalRequest: %s", err)
+	}
+
+	if r != Pass {
+		t.Fatalf("EvalRequest did not return pass: %v", Pass)
 	}
 
 	if mrl.fieldBytesLimitExceededCalled != expectedFieldBytesLimitExceededCalled {
