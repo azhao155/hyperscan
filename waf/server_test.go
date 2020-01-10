@@ -85,6 +85,10 @@ func TestWafServerEvalRequest(t *testing.T) {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.evalRulesPhase2to5Called: %v", msrev.evalRulesPhase2to5Called)
 	}
 
+	if msrev.bodyParseErrorOccurredCalled != 0 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.bodyParseErrorOccurred: %v", msrev.bodyParseErrorOccurredCalled)
+	}
+
 	if msrev.closeCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.Close: %v", msrev.closeCalled)
 	}
@@ -302,12 +306,13 @@ func (r *mockRequestBodyParser) LengthLimits() LengthLimits {
 }
 
 type mockSecRuleEvaluation struct {
-	scanHeadersCalled        int
-	scanBodyFieldCalled      int
-	evalRulesPhase1Called    int
-	evalRulesPhase2to5Called int
-	closeCalled              int
-	decision                 Decision
+	scanHeadersCalled            int
+	scanBodyFieldCalled          int
+	evalRulesPhase1Called        int
+	evalRulesPhase2to5Called     int
+	bodyParseErrorOccurredCalled int
+	closeCalled                  int
+	decision                     Decision
 }
 
 func (m *mockSecRuleEvaluation) ScanHeaders() (err error) {
@@ -322,9 +327,12 @@ func (m *mockSecRuleEvaluation) EvalRulesPhase1() Decision {
 	m.evalRulesPhase1Called++
 	return m.decision
 }
-func (m *mockSecRuleEvaluation) EvalRulesPhase2to5(BodyParseError int) Decision {
+func (m *mockSecRuleEvaluation) EvalRulesPhase2to5() Decision {
 	m.evalRulesPhase2to5Called++
 	return m.decision
+}
+func (m *mockSecRuleEvaluation) BodyParseErrorOccurred() {
+	m.bodyParseErrorOccurredCalled++
 }
 func (m *mockSecRuleEvaluation) Close() {
 	m.closeCalled++

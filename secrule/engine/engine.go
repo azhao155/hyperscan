@@ -111,9 +111,8 @@ func (s *engineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.SecR
 	reqScannerEvaluation := s.reqScanner.NewReqScannerEvaluation(scratchSpace)
 
 	env := re.NewEnvironment(s.txTargetRegexSelectorsCompiled)
-
-	// This is needed in the env to later populate the REQBODY_PROCESSOR target.
-	env.Set(ast.EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType])
+	env.Set(ast.EnvVarReqbodyProcessorError, "", ast.Value{ast.IntToken(0)})
+	env.Set(ast.EnvVarReqbodyProcessor, "", reqbodyProcessorValues[reqBodyType]) // This is needed in the env to later populate the REQBODY_PROCESSOR target.
 
 	scanResults := rs.NewScanResults()
 
@@ -171,10 +170,7 @@ func (s *secRuleEvaluationImpl) EvalRulesPhase1() (wafDecision waf.Decision) {
 	return s.evalRules(1)
 }
 
-func (s *secRuleEvaluationImpl) EvalRulesPhase2to5(bodyParseError int) (wafDecision waf.Decision) {
-
-	s.env.Set(ast.EnvVarReqbodyProcessorError, "", ast.Value{ast.IntToken(bodyParseError)})
-
+func (s *secRuleEvaluationImpl) EvalRulesPhase2to5() (wafDecision waf.Decision) {
 	for phase := 2; phase <= 5; phase++ {
 		wafDecision = s.evalRules(phase)
 		if wafDecision == waf.Allow || wafDecision == waf.Block {
@@ -183,6 +179,10 @@ func (s *secRuleEvaluationImpl) EvalRulesPhase2to5(bodyParseError int) (wafDecis
 	}
 
 	return
+}
+
+func (s *secRuleEvaluationImpl) BodyParseErrorOccurred() {
+	s.env.Set(ast.EnvVarReqbodyProcessorError, "", ast.Value{ast.IntToken(1)})
 }
 
 func (s *secRuleEvaluationImpl) evalRules(phase int) (wafDecision waf.Decision) {

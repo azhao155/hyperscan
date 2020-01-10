@@ -202,7 +202,6 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	err = s.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
-	bodyParseError := 0
 	if err != nil {
 		lengthLimits := s.requestBodyParser.LengthLimits()
 		if err == ErrFieldBytesLimitExceeded {
@@ -218,7 +217,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 			logger.Info().Int("limit", lengthLimits.MaxLengthTotalFullRawRequestBody).Msg("Request body length exceeded the limit while entire body was being scanned as a single field")
 			resultsLogger.TotalFullRawRequestBodyLimitExceeded(lengthLimits.MaxLengthTotalFullRawRequestBody)
 		} else {
-			bodyParseError = 1
+			secRuleEvaluation.BodyParseErrorOccurred()
 			logger.Info().Err(err).Msg("Request body scanning error")
 			resultsLogger.BodyParseError(err)
 		}
@@ -244,7 +243,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	if secRuleEvaluation != nil {
 		// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
-		decision = secRuleEvaluation.EvalRulesPhase2to5(bodyParseError)
+		decision = secRuleEvaluation.EvalRulesPhase2to5()
 		if decision == Allow || decision == Block {
 			return
 		}
