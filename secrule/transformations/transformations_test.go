@@ -128,9 +128,11 @@ func TestTransformations(t *testing.T) {
 		{"Ø", []Transformation{CmdLine}, "ø"},
 
 		{"before /*comment*/ after", []Transformation{ReplaceComments}, "before   after"},
-		{"before /* /* inside comment */ */ after", []Transformation{ReplaceComments}, "before   after"},
+		{"before /* /* inside comment */ */ after", []Transformation{ReplaceComments}, "before   */ after"},
 		{"before /*comment after", []Transformation{ReplaceComments}, "before  "},
 		{"before comment*/ after", []Transformation{ReplaceComments}, "before comment*/ after"},
+		{"/*", []Transformation{ReplaceComments}, " "},
+		{"*/", []Transformation{ReplaceComments}, "*/"},
 
 		// Combinations
 		{`AAAAAAA%20BCCC`, []Transformation{Lowercase, URLDecodeUni}, `aaaaaaa bccc`},

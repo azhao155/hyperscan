@@ -17,12 +17,6 @@ import (
 // Explicitly writing out what the SecRule-lang considers whitespaces, as it differs a little from Go Regexp's "\s".
 var whitespaceRegex = regexp.MustCompile(`[\x20\x0c\x09\x0a\x0d\x0b]+`) // ' ', \f, \t, \n, \r, \v. (0xa0 is done separately because the regex engine seems to have trouble with it.)
 
-// Regex for a C style comment
-var commentRegex = regexp.MustCompile(`/\*.*\*/`)
-
-// Unterminated comments will be replaced by a space. A standalone termination (*/) will not be touched.
-var openCommentRegex = regexp.MustCompile(`/\*.*`)
-
 // ApplyTransformations applies a transformation pipeline a string.
 func ApplyTransformations(s string, tt []ast.Transformation) string {
 	// TODO implement a trie for caching already done transformations
@@ -68,12 +62,8 @@ func ApplyTransformations(s string, tt []ast.Transformation) string {
 				s = whitespaceRegex.ReplaceAllString(s, "")
 			}
 		case ast.ReplaceComments:
-			if commentRegex.FindStringIndex(s) != nil {
-				s = commentRegex.ReplaceAllString(s, " ")
-			}
-
-			if openCommentRegex.FindStringIndex(s) != nil {
-				s = openCommentRegex.ReplaceAllString(s, " ")
+			if strings.Contains(s, "/*") {
+				s = replaceComments(s)
 			}
 		case ast.Sha1:
 		case ast.URLDecode, ast.URLDecodeUni:
@@ -84,6 +74,29 @@ func ApplyTransformations(s string, tt []ast.Transformation) string {
 	}
 
 	return s
+}
+
+// replaceComments replaces all C-style comments (/*..*/) with a space. Unterminated comments count. Closing comment by itself is left untouched.
+func replaceComments(input string) (output string) {
+	var buf bytes.Buffer
+	var inComment bool
+	for i := range input {
+		if input[i] == '/' && i+1 < len(input) && input[i+1] == '*' && !inComment {
+			inComment = true
+			buf.WriteByte(' ')
+		}
+		if i-2 >= 0 && input[i-2] == '*' && input[i-1] == '/' {
+			inComment = false
+		}
+
+		if inComment == false {
+			buf.WriteByte(input[i])
+		}
+	}
+
+	output = buf.String()
+
+	return
 }
 
 // Utf8ToUnicode converts all UTF-8 characters sequences to Unicode using a %uHHHH syntax. This is what it should do according to the book ModSecurity Handbook.
