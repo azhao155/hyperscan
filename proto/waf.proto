@@ -97,6 +97,7 @@ message PolicyConfig {
   SecRuleConfig secRuleConfig = 2;
   CustomRuleConfig customRuleConfig = 3;
   IPReputationConfig ipReputationConfig = 4;
+  ExclusionConfig exclusionConfig = 6;
 }
 
 message SecRuleConfig {
@@ -144,4 +145,14 @@ message IpReputationList {
 }
 
 message PutIPReputationListResponse {
+}
+
+message Exclusion {
+  string matchVariable = 1;
+  string selectorMatchOperator = 2;
+  string selector = 3;
+}
+
+message ExclusionConfig {
+  repeated Exclusion exclusion = 1;
 }
