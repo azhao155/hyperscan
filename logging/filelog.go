@@ -18,6 +18,9 @@ const Path = "/appgwroot/log/azwaf/"
 // FileName is the azwaf log file name
 const FileName = "waf_json.log"
 
+// ShadowModeFileName is the azwaf log file name for shadow mode
+const ShadowModeFileName = "shadow_mode_waf_json.log"
+
 const azureLogDateFormat = "2006-01-02T15:04:05-07:00"
 
 const retryOpenTimes = 20
@@ -25,14 +28,15 @@ const retryOpenTimes = 20
 type logFileWriter struct {
 	fileSystem   LogFileSystem
 	file         LogFile
+	fileName     string
 	logger       zerolog.Logger
 	writelogline chan []byte
 	writeDone    chan bool
 	reopenFileCh chan bool
 }
 
-func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger, reopenFileCh chan bool) (*logFileWriter, error) {
-	r := &logFileWriter{fileSystem: fileSystem, logger: logger, reopenFileCh: reopenFileCh}
+func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger, reopenFileCh chan bool, fileName string) (*logFileWriter, error) {
+	r := &logFileWriter{fileSystem: fileSystem, logger: logger, reopenFileCh: reopenFileCh, fileName: fileName}
 
 	err := fileSystem.MkDir(Path)
 	if err != nil {
@@ -40,14 +44,15 @@ func newLogFileWriter(fileSystem LogFileSystem, logger zerolog.Logger, reopenFil
 		return nil, err
 	}
 
-	r.file, err = fileSystem.Open(Path + FileName)
+	r.file, err = fileSystem.Open(Path + r.fileName)
 	if err != nil {
-		logger.Error().Err(err).Str("file", Path+FileName).Msg("Failed to open the file at initiation")
+		logger.Error().Err(err).Str("file", Path+r.fileName).Msg("Failed to open the file at initiation")
 		return nil, err
 	}
 
 	r.writelogline = make(chan []byte)
 	r.writeDone = make(chan bool)
+
 	go func() {
 		for {
 			select {
@@ -70,9 +75,9 @@ func (l *logFileWriter) openFilewithRetry(fileSystem LogFileSystem, logger zerol
 	l.file.Close()
 
 	for i := 0; i < retryOpenTimes; i++ {
-		l.file, err = fileSystem.Open(Path + FileName)
+		l.file, err = fileSystem.Open(Path + l.fileName)
 		if err != nil {
-			logger.Error().Err(err).Str("file", Path+FileName).Msg("Failed to open the file during reopen")
+			logger.Error().Err(err).Str("file", Path+l.fileName).Msg("Failed to open the file during reopen")
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -80,7 +85,7 @@ func (l *logFileWriter) openFilewithRetry(fileSystem LogFileSystem, logger zerol
 		return
 	}
 
-	panic(fmt.Sprintf("Failed to reopen log file: %v after %v retries.", Path+FileName, retryOpenTimes))
+	panic(fmt.Sprintf("Failed to reopen log file: %v after %v retries.", Path+l.fileName, retryOpenTimes))
 }
 
 func (l *logFileWriter) writeLogLine(data interface{}) {
@@ -98,9 +103,9 @@ type fileLogResultsLoggerFactory struct {
 }
 
 // NewFileLogResultsLoggerFactory creates a factory which can create result loggers that writes to files.
-func NewFileLogResultsLoggerFactory(fileSystem LogFileSystem, logger zerolog.Logger, reopenFileCh chan bool) (resultsLoggerFactory waf.ResultsLoggerFactory, err error) {
+func NewFileLogResultsLoggerFactory(fileSystem LogFileSystem, logger zerolog.Logger, reopenFileCh chan bool, fileName string) (resultsLoggerFactory waf.ResultsLoggerFactory, err error) {
 	var writer *logFileWriter
-	writer, err = newLogFileWriter(fileSystem, logger, reopenFileCh)
+	writer, err = newLogFileWriter(fileSystem, logger, reopenFileCh, fileName)
 	if err != nil {
 		return
 	}

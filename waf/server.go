@@ -16,6 +16,7 @@ type engineInstances struct {
 	cre               CustomRuleEngine
 	ireEnabled        bool
 	isDetectionMode   bool
+	isShadowMode      bool
 	configLogMetaData ConfigLogMetaData
 }
 
@@ -29,28 +30,30 @@ type Server interface {
 }
 
 type serverImpl struct {
-	logger                  zerolog.Logger
-	configMgr               ConfigMgr
-	engines                 map[string]engineInstances
-	secRuleEngineFactory    SecRuleEngineFactory
-	ipReputationEngine      IPReputationEngine
-	requestBodyParser       RequestBodyParser
-	resultsLoggerFactory    ResultsLoggerFactory
-	customRuleEngineFactory CustomRuleEngineFactory
-	geodb                   GeoDB
+	logger                     zerolog.Logger
+	configMgr                  ConfigMgr
+	engines                    map[string]engineInstances
+	secRuleEngineFactory       SecRuleEngineFactory
+	ipReputationEngine         IPReputationEngine
+	requestBodyParser          RequestBodyParser
+	resultsLoggerFactory       ResultsLoggerFactory
+	shadowresultsLoggerFactory ResultsLoggerFactory
+	customRuleEngineFactory    CustomRuleEngineFactory
+	geodb                      GeoDB
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, rlf ResultsLoggerFactory, sref SecRuleEngineFactory, rbp RequestBodyParser, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, rlf ResultsLoggerFactory, srlf ResultsLoggerFactory, sref SecRuleEngineFactory, rbp RequestBodyParser, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
 	s := &serverImpl{
-		logger:                  logger,
-		configMgr:               cm,
-		resultsLoggerFactory:    rlf,
-		secRuleEngineFactory:    sref,
-		requestBodyParser:       rbp,
-		customRuleEngineFactory: cref,
-		ipReputationEngine:      ire,
-		geodb:                   geoDB,
+		logger:                     logger,
+		configMgr:                  cm,
+		resultsLoggerFactory:       rlf,
+		shadowresultsLoggerFactory: srlf,
+		secRuleEngineFactory:       sref,
+		requestBodyParser:          rbp,
+		customRuleEngineFactory:    cref,
+		ipReputationEngine:         ire,
+		geodb:                      geoDB,
 	}
 
 	s.engines = make(map[string]engineInstances)
@@ -117,6 +120,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	decision = Pass
+	secRuleDecision := Pass
 	configID := req.ConfigID()
 
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
@@ -136,6 +140,11 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	// Create results-logger with the data specific to this request
 	resultsLogger := s.resultsLoggerFactory.NewResultsLogger(req, engines.configLogMetaData, engines.isDetectionMode)
+
+	secRuleResultsLogger := resultsLogger
+	if engines.isShadowMode {
+		secRuleResultsLogger = s.shadowresultsLoggerFactory.NewResultsLogger(req, engines.configLogMetaData, engines.isDetectionMode)
+	}
 
 	contentLength, reqBodyType, multipartBoundary, err := getLengthAndTypeFromHeaders(req)
 	if err != nil {
@@ -161,21 +170,20 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	var secRuleEvaluation SecRuleEvaluation
 	if engines.sre != nil {
-		secRuleEvaluation = engines.sre.NewEvaluation(logger, resultsLogger, req, reqBodyType)
+		secRuleEvaluation = engines.sre.NewEvaluation(logger, secRuleResultsLogger, req, reqBodyType)
 		defer secRuleEvaluation.Close()
 
 		err = secRuleEvaluation.ScanHeaders()
 		if err != nil {
-			resultsLogger.HeaderParseError(err)
-			decision = Block
+			secRuleResultsLogger.HeaderParseError(err)
+			secRuleDecision = Block
 			err = nil
-			return
+			secRuleEvaluation = nil
 		}
 
 		// SecRule-lang's phase 1 rule evaluation must be run before body scanning, because it may influence whether to run body scanning or not.
-		decision = secRuleEvaluation.EvalRulesPhase1()
-		if decision == Allow || decision == Block {
-			return
+		if secRuleEvaluation != nil {
+			secRuleDecision = secRuleEvaluation.EvalRulesPhase1()
 		}
 	}
 
@@ -241,11 +249,26 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	if secRuleEvaluation != nil {
-		// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
-		decision = secRuleEvaluation.EvalRulesPhase2to5()
-		if decision == Allow || decision == Block {
-			return
+	if !engines.isShadowMode {
+		// Check SecRule phase 1 result
+		if secRuleDecision == Allow || secRuleDecision == Block {
+			decision = secRuleDecision
+		} else {
+			// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
+			if secRuleEvaluation != nil {
+				decision = secRuleEvaluation.EvalRulesPhase2to5()
+			}
+		}
+	} else {
+		// Check SecRule phase 1 result
+		if secRuleDecision == Allow || secRuleDecision == Block {
+			// We do not use secRuleDecision for anything in shadow mode.
+		} else {
+			// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
+			// We do not need the return value in shadow mode.
+			if secRuleEvaluation != nil {
+				secRuleEvaluation.EvalRulesPhase2to5()
+			}
 		}
 	}
 
@@ -264,6 +287,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		}
 		configID := config.ConfigID()
 		engines.isDetectionMode = config.IsDetectionMode()
+		engines.isShadowMode = config.IsShadowMode()
 
 		// Create SecRuleEngine.
 		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil && secRuleConfig.Enabled() {

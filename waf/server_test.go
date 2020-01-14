@@ -14,6 +14,7 @@ func TestWafServerEvalRequest(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -26,7 +27,7 @@ func TestWafServerEvalRequest(t *testing.T) {
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -103,6 +104,7 @@ func TestWafDetectionMode(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 
 	// Block request
 	msrev := &mockSecRuleEvaluation{decision: Block}
@@ -119,7 +121,122 @@ func TestWafDetectionMode(t *testing.T) {
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+	req := &mockWafHTTPRequest{}
+
+	// Act
+	d, err := s.EvalRequest(req)
+
+	// Assert
+	if d != Pass {
+		t.Fatalf("Unexpected decision: %v", d)
+	}
+}
+
+func TestWafShadowModeCustomRuleBlock(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+
+	// Allow request
+	msrev := &mockSecRuleEvaluation{decision: Allow}
+
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+
+	// Block request
+	mcrev := &mockCustomRuleEvaluation{decision: Block}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: false, isShadowMode: true}}
+	c[0] = mc
+	mrbp := &mockRequestBodyParser{}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+	req := &mockWafHTTPRequest{}
+
+	// Act
+	d, err := s.EvalRequest(req)
+
+	// Assert
+	if d != Block {
+		t.Fatalf("Unexpected decision: %v", d)
+	}
+}
+
+func TestWafShadowModeSecRuleBlock(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+
+	// Block request
+	msrev := &mockSecRuleEvaluation{decision: Block}
+
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+
+	// Allow request
+	mcrev := &mockCustomRuleEvaluation{decision: Allow}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: false, isShadowMode: true}}
+	c[0] = mc
+	mrbp := &mockRequestBodyParser{}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+	req := &mockWafHTTPRequest{}
+
+	// Act
+	d, err := s.EvalRequest(req)
+
+	// Assert
+	if d != Allow {
+		t.Fatalf("Unexpected decision: %v", d)
+	}
+}
+
+func TestWafShadowDetectionMode(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+
+	// Block request
+	msrev := &mockSecRuleEvaluation{decision: Block}
+
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcrev := &mockCustomRuleEvaluation{decision: Block}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: true, isShadowMode: true}}
+	c[0] = mc
+	mrbp := &mockRequestBodyParser{}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -139,6 +256,8 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -150,7 +269,7 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -202,6 +321,8 @@ func testBytesLimit(
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+
 	msrev := &mockSecRuleEvaluation{decision: Pass}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -227,7 +348,7 @@ func testBytesLimit(
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
@@ -489,6 +610,7 @@ type mockCustomRuleEvaluation struct {
 	scanBodyFieldCalled int
 	evalRulesCalled     int
 	closeCalled         int
+	decision            Decision
 }
 
 func (s *mockCustomRuleEngine) GeoDB() GeoDB {
@@ -507,7 +629,7 @@ func (s *mockCustomRuleEvaluation) ScanBodyField(contentType FieldContentType, f
 
 func (s *mockCustomRuleEvaluation) EvalRules() Decision {
 	s.evalRulesCalled++
-	return Pass
+	return s.decision
 }
 
 func (s *mockCustomRuleEvaluation) Close() {

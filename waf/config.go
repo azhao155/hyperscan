@@ -27,6 +27,7 @@ type IPReputationConfig interface {
 type PolicyConfig interface {
 	ConfigID() string
 	IsDetectionMode() bool
+	IsShadowMode() bool
 	SecRuleConfig() SecRuleConfig
 	CustomRuleConfig() CustomRuleConfig
 	IPReputationConfig() IPReputationConfig

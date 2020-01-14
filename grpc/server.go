@@ -20,7 +20,12 @@ import (
 // StartServer is the dependency injection composition root for running Azwaf through gRPC
 func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.LengthLimits, standaloneSecruleServer bool, network string, address string, reopenLogFileCh chan bool) {
 	// Initialize common dependencies
-	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileCh)
+	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileCh, logging.FileName)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Error while creating file logger")
+	}
+
+	srlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileCh, logging.ShadowModeFileName)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
@@ -68,7 +73,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 		sref := sreng.NewEngineFactory(logger, rl, rsf, ref)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
-		wafServer, err = waf.NewServer(logger, cm, c, rlf, sref, rbp, cref, ire, geoDB)
+		wafServer, err = waf.NewServer(logger, cm, c, rlf, srlf, sref, rbp, cref, ire, geoDB)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating service manager")
 		}

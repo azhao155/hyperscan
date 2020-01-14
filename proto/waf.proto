@@ -93,6 +93,7 @@ message MatchVariable {
 message PolicyConfig {
   string configID = 1;
   bool isDetectionMode = 5;
+  bool isShadowMode = 6;
 
   SecRuleConfig secRuleConfig = 2;
   CustomRuleConfig customRuleConfig = 3;

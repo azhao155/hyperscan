@@ -77,7 +77,7 @@ func getInstance(secruleconf string) waf.Server {
 
 	// TODO implement log file reopening ability.
 	reopenLogFileChan := make(chan bool)
-	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan)
+	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan, logging.FileName)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}

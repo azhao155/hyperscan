@@ -47,8 +47,16 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	// Setup logger.
 	logger := testutils.NewTestLogger(t)
 	reopenLogFileChan := make(chan bool)
-	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan)
 
+	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan, logging.FileName)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Error while creating logger factory")
+	}
+
+	srlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChan, logging.ShadowModeFileName)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("Error while creating shadow file logger factory")
+	}
 	// Setup config manager
 	cm, c, err := waf.NewConfigMgr(&mockFileSystem{}, &mockConfigConverter{})
 	if err != nil {
@@ -73,7 +81,7 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	geoDB := geodb.NewGeoDB(logger, gfs)
 	cref := customrule.NewEngineFactory(mref, geoDB)
 	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{})
-	wafServer, err := waf.NewServer(logger, cm, c, rlf, sref, rbp, cref, ire, geoDB)
+	wafServer, err := waf.NewServer(logger, cm, c, rlf, srlf, sref, rbp, cref, ire, geoDB)
 
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)

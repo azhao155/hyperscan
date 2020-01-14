@@ -480,7 +480,7 @@ func arrangeTestResultsLogger(t *testing.T, isDetectionMode bool) (waf.ResultsLo
 
 	reopenFileCh := make(chan bool)
 
-	f, err := NewFileLogResultsLoggerFactory(fileSystem, zeroLogger, reopenFileCh)
+	f, err := NewFileLogResultsLoggerFactory(fileSystem, zeroLogger, reopenFileCh, FileName)
 	if err != nil {
 		t.Fatalf("Unexpected error %T: %v", err, err)
 	}
@@ -556,13 +556,14 @@ func (fs *mockFileSystem) MkDir(name string) error {
 }
 
 func (fs *mockFileSystem) Open(name string) (f LogFile, err error) {
-	f = &mockFile{}
-	fs.fmap[name] = f
-
 	if c, ok := fs.openCalledMap[name]; ok {
 		fs.openCalledMap[name] = c + 1
+		f = fs.fmap[name]
 		return f, nil
 	}
+
+	f = &mockFile{}
+	fs.fmap[name] = f
 
 	fs.openCalledMap[name] = 1
 	return f, nil
