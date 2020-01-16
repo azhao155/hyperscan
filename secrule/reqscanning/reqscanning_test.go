@@ -1942,6 +1942,206 @@ func TestTransformationsViaReqScanner(t *testing.T) {
 	}
 }
 
+func TestReqScannerMultipartStrictness(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{}
+	req := &mockWafHTTPRequest{uri: "/"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "multipart/form-data; boundary=------------------------1aa6ce6559102"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if sr.MultipartBoundaryQuoted != false {
+		t.Fatalf("Unexpected MultipartBoundaryQuoted")
+	}
+
+	if sr.MultipartBoundaryWhitespace != false {
+		t.Fatalf("Unexpected MultipartBoundaryWhitespace")
+	}
+
+	if sr.MultipartMissingSemicolon != false {
+		t.Fatalf("Unexpected MultipartMissingSemicolon")
+	}
+
+	if sr.MultipartInvalidQuoting != false {
+		t.Fatalf("Unexpected MultipartInvalidQuoting")
+	}
+}
+
+func TestReqScannerMultipartStrictnessBoundaryQuoted(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{}
+	req := &mockWafHTTPRequest{uri: "/"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "multipart/form-data; boundary=\"------------------------1aa6ce6559102\""})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if sr.MultipartBoundaryQuoted != true {
+		t.Fatalf("Unexpected MultipartBoundaryQuoted")
+	}
+
+	if sr.MultipartBoundaryWhitespace != false {
+		t.Fatalf("Unexpected MultipartBoundaryWhitespace")
+	}
+
+	if sr.MultipartMissingSemicolon != false {
+		t.Fatalf("Unexpected MultipartMissingSemicolon")
+	}
+
+	if sr.MultipartInvalidQuoting != false {
+		t.Fatalf("Unexpected MultipartInvalidQuoting")
+	}
+}
+
+func TestReqScannerMultipartStrictnessBoundaryWhitespace(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{}
+	req := &mockWafHTTPRequest{uri: "/"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "multipart/form-data; boundary=------------------------ 1aa6ce6559102"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if sr.MultipartBoundaryQuoted != false {
+		t.Fatalf("Unexpected MultipartBoundaryQuoted")
+	}
+
+	if sr.MultipartBoundaryWhitespace != true {
+		t.Fatalf("Unexpected MultipartBoundaryWhitespace")
+	}
+
+	if sr.MultipartMissingSemicolon != false {
+		t.Fatalf("Unexpected MultipartMissingSemicolon")
+	}
+
+	if sr.MultipartInvalidQuoting != false {
+		t.Fatalf("Unexpected MultipartInvalidQuoting")
+	}
+}
+
+func TestReqScannerMultipartStrictnessMissingSemicolon(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{}
+	req := &mockWafHTTPRequest{uri: "/"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "multipart/form-data"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if sr.MultipartBoundaryQuoted != false {
+		t.Fatalf("Unexpected MultipartBoundaryQuoted")
+	}
+
+	if sr.MultipartBoundaryWhitespace != false {
+		t.Fatalf("Unexpected MultipartBoundaryWhitespace")
+	}
+
+	if sr.MultipartMissingSemicolon != true {
+		t.Fatalf("Unexpected MultipartMissingSemicolon")
+	}
+
+	if sr.MultipartInvalidQuoting != false {
+		t.Fatalf("Unexpected MultipartInvalidQuoting")
+	}
+}
+
+func TestReqScannerMultipartStrictnessInvalidQuoting(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{}
+	req := &mockWafHTTPRequest{uri: "/"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "multipart/form-data; boundary=\"------------------------1aa6ce6559102"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules)
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	if sr.MultipartBoundaryQuoted != false {
+		t.Fatalf("Unexpected MultipartBoundaryQuoted")
+	}
+
+	if sr.MultipartBoundaryWhitespace != false {
+		t.Fatalf("Unexpected MultipartBoundaryWhitespace")
+	}
+
+	if sr.MultipartMissingSemicolon != false {
+		t.Fatalf("Unexpected MultipartMissingSemicolon")
+	}
+
+	if sr.MultipartInvalidQuoting != true {
+		t.Fatalf("Unexpected MultipartInvalidQuoting")
+	}
+}
+
 type mockWafHTTPRequest struct {
 	uri        string
 	bodyReader io.Reader

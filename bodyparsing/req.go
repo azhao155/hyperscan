@@ -108,7 +108,68 @@ func (r *reqBodyParserImpl) Parse(
 
 func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorator, multipartBoundary string, cb waf.ParsedBodyFieldCb) (err error) {
 	var buf bytes.Buffer
-	m := multipart.NewReader(bodyReader, multipartBoundary)
+
+	multipartStrictReader := &multipartStrictReaderDecorator{
+		reader:   bodyReader,
+		boundary: multipartBoundary,
+	}
+	defer func() {
+		if err != nil {
+			return
+		}
+
+		if multipartStrictReader.multipartDataAfter {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningDataAfter, "")
+			if err != nil {
+				return
+			}
+		}
+
+		if multipartStrictReader.multipartDataBefore {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningDataBefore, "")
+			if err != nil {
+				return
+			}
+		}
+
+		if multipartStrictReader.multipartHeaderFolding {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningHeaderFolding, "")
+			if err != nil {
+				return
+			}
+		}
+
+		if multipartStrictReader.multipartInvalidHeaderFolding {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningInvalidHeaderFolding, "")
+			if err != nil {
+				return
+			}
+		}
+
+		if multipartStrictReader.multipartLfLine {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningLfLine, "")
+			if err != nil {
+				return
+			}
+		}
+
+		if multipartStrictReader.multipartUnmatchedBoundary {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningUnmatchedBoundary, "")
+			if err != nil {
+				return
+			}
+		}
+
+		if !multipartStrictReader.completed() {
+			err = cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningIncomplete, "")
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	m := multipart.NewReader(multipartStrictReader, multipartBoundary)
+
 	done := false
 	for i := 0; !done; i++ {
 		bodyReader.ResetFieldReadCount() // Even though the part headers are not strictly a "field", they still may be a significant number of bytes, so we'll treat them as a field.
@@ -122,6 +183,10 @@ func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorat
 
 			// NextPart() doesn't return the raw err, but wraps it. Therefore we must check the state of the underlying reader.
 			if bodyReader.LastErr == waf.ErrFieldBytesLimitExceeded || bodyReader.LastErr == waf.ErrPausableBytesLimitExceeded || bodyReader.LastErr == waf.ErrTotalBytesLimitExceeded {
+				if bodyReader.LastErr == waf.ErrPausableBytesLimitExceeded {
+					cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningFileLimitExceeded, "")
+				}
+
 				err = bodyReader.LastErr
 				return
 			}
@@ -169,6 +234,10 @@ func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorat
 		_, err = buf.ReadFrom(part)
 		if err != nil {
 			if err == waf.ErrFieldBytesLimitExceeded || err == waf.ErrPausableBytesLimitExceeded || err == waf.ErrTotalBytesLimitExceeded {
+				if bodyReader.LastErr == waf.ErrPausableBytesLimitExceeded {
+					cb(waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningFileLimitExceeded, "")
+				}
+
 				return
 			}
 
@@ -231,9 +300,6 @@ func (r *reqBodyParserImpl) scanJSONBody(bodyReader *maxLengthReaderDecorator, c
 		// TODO handle float64, Number, bool, nil
 		switch v := token.(type) {
 		case string:
-			// It's odd, but SecRule-lang uses the XML selector to select JSON
-			// TODO can this oddity be moved to secrule rather than bodyparsing
-			// TODO selectors
 			cb(waf.JSONContent, "", v)
 		}
 	}

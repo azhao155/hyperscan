@@ -171,6 +171,8 @@ func (s *secRuleEvaluationImpl) EvalRulesPhase1() (wafDecision waf.Decision) {
 }
 
 func (s *secRuleEvaluationImpl) EvalRulesPhase2to5() (wafDecision waf.Decision) {
+	s.populateMultipartStrictnessResults()
+
 	for phase := 2; phase <= 5; phase++ {
 		wafDecision = s.evalRules(phase)
 		if wafDecision == waf.Allow || wafDecision == waf.Block {
@@ -226,6 +228,45 @@ func usesRequestBodyTarget(statements []ast.Statement) bool {
 	}
 
 	return false
+}
+
+func (s *secRuleEvaluationImpl) populateMultipartStrictnessResults() {
+	boolToVal := func(b bool) ast.Value {
+		if b {
+			return ast.Value{ast.IntToken(1)}
+		}
+		return ast.Value{ast.IntToken(0)}
+	}
+
+	// As per the ModSecurity reference manual.
+	e := s.env.Get(ast.EnvVarReqbodyProcessorError, "")
+	reqbodyProcessorError := (len(e) > 0 && e[0].(ast.IntToken) == 1)
+	reqbodyProcessorError = reqbodyProcessorError || s.scanResults.MultipartIncomplete // Considering an incomplete form-data body an error. Probably EnvVarReqbodyProcessorError was already set due to this though.
+	multipartStrictError := reqbodyProcessorError ||
+		s.scanResults.MultipartBoundaryQuoted ||
+		s.scanResults.MultipartBoundaryWhitespace ||
+		s.scanResults.MultipartDataAfter ||
+		s.scanResults.MultipartDataBefore ||
+		s.scanResults.MultipartFileLimitExceeded ||
+		s.scanResults.MultipartHeaderFolding ||
+		s.scanResults.MultipartInvalidHeaderFolding ||
+		s.scanResults.MultipartInvalidQuoting ||
+		s.scanResults.MultipartLfLine ||
+		s.scanResults.MultipartMissingSemicolon ||
+		s.scanResults.MultipartStrictError
+
+	s.env.Set(ast.EnvVarMultipartBoundaryQuoted, "", boolToVal(s.scanResults.MultipartBoundaryQuoted))
+	s.env.Set(ast.EnvVarMultipartBoundaryWhitespace, "", boolToVal(s.scanResults.MultipartBoundaryWhitespace))
+	s.env.Set(ast.EnvVarMultipartDataAfter, "", boolToVal(s.scanResults.MultipartDataAfter))
+	s.env.Set(ast.EnvVarMultipartDataBefore, "", boolToVal(s.scanResults.MultipartDataBefore))
+	s.env.Set(ast.EnvVarMultipartFileLimitExceeded, "", boolToVal(s.scanResults.MultipartFileLimitExceeded))
+	s.env.Set(ast.EnvVarMultipartHeaderFolding, "", boolToVal(s.scanResults.MultipartHeaderFolding))
+	s.env.Set(ast.EnvVarMultipartInvalidHeaderFolding, "", boolToVal(s.scanResults.MultipartInvalidHeaderFolding))
+	s.env.Set(ast.EnvVarMultipartInvalidQuoting, "", boolToVal(s.scanResults.MultipartInvalidQuoting))
+	s.env.Set(ast.EnvVarMultipartLfLine, "", boolToVal(s.scanResults.MultipartLfLine))
+	s.env.Set(ast.EnvVarMultipartMissingSemicolon, "", boolToVal(s.scanResults.MultipartMissingSemicolon))
+	s.env.Set(ast.EnvVarMultipartStrictError, "", boolToVal(multipartStrictError))
+	s.env.Set(ast.EnvVarMultipartUnmatchedBoundary, "", boolToVal(s.scanResults.MultipartUnmatchedBoundary))
 }
 
 var reqbodyProcessorValues = []ast.Value{

@@ -5,6 +5,7 @@ import (
 	"azwaf/waf"
 	"bytes"
 	"io"
+	"strings"
 	"testing"
 )
 
@@ -28,7 +29,7 @@ func TestReqScannerBodyMultipart1(t *testing.T) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
-	body := bytes.NewBufferString(`--------------------------1aa6ce6559102
+	body := bytes.NewBufferString(strings.Replace(strings.Replace(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 
 hello world 1
@@ -37,7 +38,7 @@ content-disposition: form-data; name="b"
 
 aaaaaaabccc
 --------------------------1aa6ce6559102--
-`)
+`, "\r", "", -1), "\n", "\r\n", -1))
 	boundary := "------------------------1aa6ce6559102"
 
 	// Act
@@ -80,7 +81,7 @@ func TestReqScannerBodyMultipartSkipFile(t *testing.T) {
 		calls = append(calls, parsedBodyFieldCbCall{contentType: contentType, fieldName: fieldName, data: data})
 		return
 	}
-	body := bytes.NewBufferString(`--------------------------1aa6ce6559102
+	body := bytes.NewBufferString(strings.Replace(strings.Replace(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 
 hello world 1
@@ -89,7 +90,7 @@ content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 
 aaaaaaabccc
 --------------------------1aa6ce6559102--
-`)
+`, "\r", "", -1), "\n", "\r\n", -1))
 	boundary := "------------------------1aa6ce6559102"
 
 	// Act
@@ -143,9 +144,28 @@ func TestReqScannerBodyMultipart0Length(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
 
-	if len(calls) != 0 {
+	expectedCalls := []parsedBodyFieldCbCall{
+		{waf.MultipartFormDataStrictnessWarning, waf.MultipartFormDataStrictnessWarningIncomplete, ""},
+	}
+
+	if len(calls) != len(expectedCalls) {
 		t.Fatalf("Got unexpected len(calls): %v. Calls were: %v", len(calls), calls)
 	}
+
+	for i, call := range calls {
+		if call.contentType != expectedCalls[i].contentType {
+			t.Fatalf("Unexpected content type for call %v: %v", i, call.contentType)
+		}
+
+		if call.fieldName != expectedCalls[i].fieldName {
+			t.Fatalf("Unexpected fieldName for call %v: %v", i, call.fieldName)
+		}
+
+		if call.data != expectedCalls[i].data {
+			t.Fatalf("Unexpected data for call %v: %v", i, call.data)
+		}
+	}
+
 }
 
 func TestReqScannerBodyJSON1(t *testing.T) {

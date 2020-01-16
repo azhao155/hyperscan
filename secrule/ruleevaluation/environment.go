@@ -13,14 +13,26 @@ type environment struct {
 	txTargetRegexSelectorsCompiled map[string]*regexp.Regexp // CRS has a few rules that uses regex selectors on TX-targets such as "SecRule TX:/^HEADER_NAME_/ ...". This holds the precompiled regexes.
 
 	// Single-valued variables.
-	hostHeader       ast.Value
-	matchedVar       ast.Value
-	matchedVarName   ast.Value
-	reqbodyProcessor ast.Value
-	reqbodyProcessorError ast.Value
-	requestLine      ast.Value
-	requestMethod    ast.Value
-	requestProtocol  ast.Value
+	hostHeader                    ast.Value
+	matchedVar                    ast.Value
+	matchedVarName                ast.Value
+	reqbodyProcessor              ast.Value
+	reqbodyProcessorError         ast.Value
+	requestLine                   ast.Value
+	requestMethod                 ast.Value
+	requestProtocol               ast.Value
+	multipartBoundaryQuoted       ast.Value
+	multipartBoundaryWhitespace   ast.Value
+	multipartDataAfter            ast.Value
+	multipartDataBefore           ast.Value
+	multipartFileLimitExceeded    ast.Value
+	multipartHeaderFolding        ast.Value
+	multipartInvalidHeaderFolding ast.Value
+	multipartInvalidQuoting       ast.Value
+	multipartLfLine               ast.Value
+	multipartMissingSemicolon     ast.Value
+	multipartStrictError          ast.Value
+	multipartUnmatchedBoundary    ast.Value
 
 	// Collections that can only be retrieved item by item.
 	txVars map[string]ast.Value
@@ -42,6 +54,8 @@ func NewEnvironment(txTargetRegexSelectorsCompiled map[string]*regexp.Regexp) sr
 
 func (e *environment) Get(name ast.EnvVarName, selector string) (v ast.Value) {
 	switch name {
+	case ast.EnvVarTx:
+		v = e.txVars[selector]
 	case ast.EnvVarRequestHeaders:
 		if selector == "host" {
 			return e.hostHeader
@@ -60,8 +74,30 @@ func (e *environment) Get(name ast.EnvVarName, selector string) (v ast.Value) {
 		return e.requestMethod
 	case ast.EnvVarRequestProtocol:
 		return e.requestProtocol
-	case ast.EnvVarTx:
-		v = e.txVars[selector]
+	case ast.EnvVarMultipartBoundaryQuoted:
+		return e.multipartBoundaryQuoted
+	case ast.EnvVarMultipartBoundaryWhitespace:
+		return e.multipartBoundaryWhitespace
+	case ast.EnvVarMultipartDataAfter:
+		return e.multipartDataAfter
+	case ast.EnvVarMultipartDataBefore:
+		return e.multipartDataBefore
+	case ast.EnvVarMultipartFileLimitExceeded:
+		return e.multipartFileLimitExceeded
+	case ast.EnvVarMultipartHeaderFolding:
+		return e.multipartHeaderFolding
+	case ast.EnvVarMultipartInvalidHeaderFolding:
+		return e.multipartInvalidHeaderFolding
+	case ast.EnvVarMultipartInvalidQuoting:
+		return e.multipartInvalidQuoting
+	case ast.EnvVarMultipartLfLine:
+		return e.multipartLfLine
+	case ast.EnvVarMultipartMissingSemicolon:
+		return e.multipartMissingSemicolon
+	case ast.EnvVarMultipartStrictError:
+		return e.multipartStrictError
+	case ast.EnvVarMultipartUnmatchedBoundary:
+		return e.multipartUnmatchedBoundary
 	}
 
 	return
@@ -86,6 +122,8 @@ func (e *environment) GetTxVarsViaRegexSelector(selector string) (vv []ast.Value
 
 func (e *environment) Set(name ast.EnvVarName, collectionKey string, val ast.Value) {
 	switch name {
+	case ast.EnvVarTx:
+		e.txVars[collectionKey] = val
 	case ast.EnvVarRequestHeaders:
 		if collectionKey == "host" {
 			e.hostHeader = val
@@ -104,13 +142,37 @@ func (e *environment) Set(name ast.EnvVarName, collectionKey string, val ast.Val
 		e.requestMethod = val
 	case ast.EnvVarRequestProtocol:
 		e.requestProtocol = val
-	case ast.EnvVarTx:
-		e.txVars[collectionKey] = val
+	case ast.EnvVarMultipartBoundaryQuoted:
+		e.multipartBoundaryQuoted = val
+	case ast.EnvVarMultipartBoundaryWhitespace:
+		e.multipartBoundaryWhitespace = val
+	case ast.EnvVarMultipartDataAfter:
+		e.multipartDataAfter = val
+	case ast.EnvVarMultipartDataBefore:
+		e.multipartDataBefore = val
+	case ast.EnvVarMultipartFileLimitExceeded:
+		e.multipartFileLimitExceeded = val
+	case ast.EnvVarMultipartHeaderFolding:
+		e.multipartHeaderFolding = val
+	case ast.EnvVarMultipartInvalidHeaderFolding:
+		e.multipartInvalidHeaderFolding = val
+	case ast.EnvVarMultipartInvalidQuoting:
+		e.multipartInvalidQuoting = val
+	case ast.EnvVarMultipartLfLine:
+		e.multipartLfLine = val
+	case ast.EnvVarMultipartMissingSemicolon:
+		e.multipartMissingSemicolon = val
+	case ast.EnvVarMultipartStrictError:
+		e.multipartStrictError = val
+	case ast.EnvVarMultipartUnmatchedBoundary:
+		e.multipartUnmatchedBoundary = val
 	}
 }
 
 func (e *environment) Delete(name ast.EnvVarName, selector string) {
 	switch name {
+	case ast.EnvVarTx:
+		delete(e.txVars, selector)
 	case ast.EnvVarRequestHeaders:
 		if selector == "host" {
 			e.hostHeader = nil
@@ -129,8 +191,6 @@ func (e *environment) Delete(name ast.EnvVarName, selector string) {
 		e.requestMethod = nil
 	case ast.EnvVarRequestProtocol:
 		e.requestProtocol = nil
-	case ast.EnvVarTx:
-		delete(e.txVars, selector)
 	}
 }
 

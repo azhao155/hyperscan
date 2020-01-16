@@ -65,6 +65,30 @@ func eval(rp ast.RulePredicate, target ast.Target, transformations []ast.Transfo
 		actualVal = perRequestEnv.Get(ast.EnvVarReqbodyProcessor, "")
 	} else if target.Name == ast.TargetReqbodyError {
 		actualVal = perRequestEnv.Get(ast.EnvVarReqbodyProcessorError, "")
+	} else if target.Name == ast.TargetMultipartBoundaryQuoted {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartBoundaryQuoted, "")
+	} else if target.Name == ast.TargetMultipartBoundaryWhitespace {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartBoundaryWhitespace, "")
+	} else if target.Name == ast.TargetMultipartDataAfter {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartDataAfter, "")
+	} else if target.Name == ast.TargetMultipartDataBefore {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartDataBefore, "")
+	} else if target.Name == ast.TargetMultipartFileLimitExceeded {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartFileLimitExceeded, "")
+	} else if target.Name == ast.TargetMultipartHeaderFolding {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartHeaderFolding, "")
+	} else if target.Name == ast.TargetMultipartInvalidHeaderFolding {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartInvalidHeaderFolding, "")
+	} else if target.Name == ast.TargetMultipartInvalidQuoting {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartInvalidQuoting, "")
+	} else if target.Name == ast.TargetMultipartLfLine {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartLfLine, "")
+	} else if target.Name == ast.TargetMultipartMissingSemicolon {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartMissingSemicolon, "")
+	} else if target.Name == ast.TargetMultipartStrictError {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartStrictError, "")
+	} else if target.Name == ast.TargetMultipartUnmatchedBoundary {
+		actualVal = perRequestEnv.Get(ast.EnvVarMultipartUnmatchedBoundary, "")
 	}
 
 	if len(actualValCollection) == 0 {

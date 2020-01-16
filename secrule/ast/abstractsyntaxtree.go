@@ -68,7 +68,9 @@ const (
 	EnvVarMultipartInvalidHeaderFolding
 	EnvVarMultipartInvalidQuoting
 	EnvVarMultipartLfLine
-	EnvVarMultipartSemicolonMissing
+	EnvVarMultipartMissingSemicolon
+	EnvVarMultipartStrictError
+	EnvVarMultipartUnmatchedBoundary
 	EnvVarRemoteAddr
 	EnvVarReqbodyErrorMsg
 	EnvVarReqbodyProcessorError
@@ -124,6 +126,16 @@ const (
 	TargetMatchedVarName
 	TargetMatchedVars
 	TargetMatchedVarsNames
+	TargetMultipartBoundaryQuoted
+	TargetMultipartBoundaryWhitespace
+	TargetMultipartDataAfter
+	TargetMultipartDataBefore
+	TargetMultipartFileLimitExceeded
+	TargetMultipartHeaderFolding
+	TargetMultipartInvalidHeaderFolding
+	TargetMultipartInvalidQuoting
+	TargetMultipartLfLine
+	TargetMultipartMissingSemicolon
 	TargetMultipartStrictError
 	TargetMultipartUnmatchedBoundary
 	TargetQueryString
@@ -171,6 +183,16 @@ var TargetNamesStrings = []string{
 	"MATCHED_VAR_NAME",
 	"MATCHED_VARS",
 	"MATCHED_VARS_NAMES",
+	"MULTIPART_BOUNDARY_QUOTED",
+	"MULTIPART_BOUNDARY_WHITESPACE",
+	"MULTIPART_DATA_AFTER",
+	"MULTIPART_DATA_BEFORE",
+	"MULTIPART_FILE_LIMIT_EXCEEDED",
+	"MULTIPART_HEADER_FOLDING",
+	"MULTIPART_INVALID_HEADER_FOLDING",
+	"MULTIPART_INVALID_QUOTING",
+	"MULTIPART_LF_LINE",
+	"MULTIPART_MISSING_SEMICOLON",
 	"MULTIPART_STRICT_ERROR",
 	"MULTIPART_UNMATCHED_BOUNDARY",
 	"QUERY_STRING",

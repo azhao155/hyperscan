@@ -330,7 +330,19 @@ func requiresLateScan(predicate ast.RulePredicate, target ast.Target) bool {
 		target.Name == ast.TargetMatchedVarsNames ||
 		target.Name == ast.TargetTx ||
 		target.Name == ast.TargetReqbodyProcessor ||
-		target.Name == ast.TargetReqbodyError {
+		target.Name == ast.TargetReqbodyError ||
+		target.Name == ast.TargetMultipartBoundaryQuoted ||
+		target.Name == ast.TargetMultipartBoundaryWhitespace ||
+		target.Name == ast.TargetMultipartDataAfter ||
+		target.Name == ast.TargetMultipartDataBefore ||
+		target.Name == ast.TargetMultipartFileLimitExceeded ||
+		target.Name == ast.TargetMultipartHeaderFolding ||
+		target.Name == ast.TargetMultipartInvalidHeaderFolding ||
+		target.Name == ast.TargetMultipartInvalidQuoting ||
+		target.Name == ast.TargetMultipartLfLine ||
+		target.Name == ast.TargetMultipartMissingSemicolon ||
+		target.Name == ast.TargetMultipartStrictError ||
+		target.Name == ast.TargetMultipartUnmatchedBoundary {
 		return true
 	}
 

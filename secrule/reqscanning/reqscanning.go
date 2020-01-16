@@ -1,17 +1,17 @@
 package reqscanning
 
 import (
+	"azwaf/encoding"
+	"azwaf/libinjection"
 	sr "azwaf/secrule"
 	"azwaf/secrule/ast"
 	tr "azwaf/secrule/transformations"
-
-	"azwaf/encoding"
-	"azwaf/libinjection"
 	"azwaf/waf"
 	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // NewScanResults creates a ScanResults struct.
@@ -336,6 +336,10 @@ func (r *reqScannerEvaluationImpl) ScanHeaders(req waf.HTTPRequest, results *sr.
 			r.scanCookies(v, results)
 		}
 
+		if strings.EqualFold(k, "content-type") {
+			r.scanContentType(v, results)
+		}
+
 		err = r.scanField(ast.TargetRequestHeadersNames, "", k, results)
 		if err != nil {
 			return
@@ -381,6 +385,26 @@ func (r *reqScannerEvaluationImpl) ScanBodyField(contentType waf.FieldContentTyp
 		err = r.scanField(ast.TargetFiles, "", data, results)
 		if err != nil {
 			return
+		}
+
+	case waf.MultipartFormDataStrictnessWarning:
+		switch fieldName {
+		case waf.MultipartFormDataStrictnessWarningDataAfter:
+			results.MultipartDataAfter = true
+		case waf.MultipartFormDataStrictnessWarningDataBefore:
+			results.MultipartDataBefore = true
+		case waf.MultipartFormDataStrictnessWarningHeaderFolding:
+			results.MultipartHeaderFolding = true
+		case waf.MultipartFormDataStrictnessWarningInvalidHeaderFolding:
+			results.MultipartInvalidHeaderFolding = true
+		case waf.MultipartFormDataStrictnessWarningLfLine:
+			results.MultipartLfLine = true
+		case waf.MultipartFormDataStrictnessWarningUnmatchedBoundary:
+			results.MultipartUnmatchedBoundary = true
+		case waf.MultipartFormDataStrictnessWarningFileLimitExceeded:
+			results.MultipartFileLimitExceeded = true
+		case waf.MultipartFormDataStrictnessWarningIncomplete:
+			results.MultipartIncomplete = true
 		}
 
 	case waf.JSONContent:
@@ -665,6 +689,34 @@ func (r *reqScannerEvaluationImpl) scanCookies(c string, results *sr.ScanResults
 	}
 
 	return
+}
+
+func (r *reqScannerEvaluationImpl) scanContentType(v string, results *sr.ScanResults) {
+	valLowerTrimmed := strings.TrimLeft(strings.ToLower(v), " ")
+	if strings.HasPrefix(valLowerTrimmed, "multipart/form-data") {
+		if !strings.ContainsAny(valLowerTrimmed, ";") {
+			results.MultipartMissingSemicolon = true
+		} else {
+			ss := strings.Split(valLowerTrimmed, ";")
+			for _, s := range ss {
+				s = strings.TrimLeft(s, " ")
+				if strings.HasPrefix(s, "boundary=") {
+					s = strings.TrimPrefix(s, "boundary=")
+					if len(s) >= 2 && s[0] == '"' && s[len(s)-1] == '"' {
+						results.MultipartBoundaryQuoted = true
+					} else if strings.ContainsAny(s, "'\"") {
+						results.MultipartInvalidQuoting = true
+					}
+
+					for _, c := range s {
+						if unicode.IsSpace(c) {
+							results.MultipartBoundaryWhitespace = true
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 type qvalpair struct {

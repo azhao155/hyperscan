@@ -86,12 +86,25 @@ type Match struct {
 
 // ScanResults is the collection of all results found while scanning.
 type ScanResults struct {
-	Matches         map[MatchKey][]Match
-	TargetsCount    map[ast.Target]int
-	RequestLine     []byte
-	RequestMethod   []byte
-	RequestProtocol []byte
-	HostHeader      []byte
+	Matches                       map[MatchKey][]Match
+	TargetsCount                  map[ast.Target]int
+	RequestLine                   []byte
+	RequestMethod                 []byte
+	RequestProtocol               []byte
+	HostHeader                    []byte
+	MultipartBoundaryQuoted       bool
+	MultipartBoundaryWhitespace   bool
+	MultipartDataAfter            bool
+	MultipartDataBefore           bool
+	MultipartFileLimitExceeded    bool
+	MultipartHeaderFolding        bool
+	MultipartIncomplete           bool
+	MultipartInvalidHeaderFolding bool
+	MultipartInvalidQuoting       bool
+	MultipartLfLine               bool
+	MultipartMissingSemicolon     bool
+	MultipartStrictError          bool
+	MultipartUnmatchedBoundary    bool
 }
 
 // MatchKey is used as a key to look up a match in a ScanResults.

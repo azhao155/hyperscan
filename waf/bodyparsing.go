@@ -36,6 +36,7 @@ const (
 	FullRawRequestBody
 	MultipartFormDataContent
 	MultipartFormDataFileNames
+	MultipartFormDataStrictnessWarning
 	URLEncodedContent
 	XMLCharData
 	XMLAttrVal
@@ -91,6 +92,18 @@ var ReqBodyTypeStrings = []string{
 	"text/xml",
 	"application/json",
 }
+
+// Possible values of MultipartFormDataStrictnessWarning.
+const (
+	MultipartFormDataStrictnessWarningDataAfter            = "DataAfter"
+	MultipartFormDataStrictnessWarningDataBefore           = "DataBefore"
+	MultipartFormDataStrictnessWarningFileLimitExceeded    = "FileLimitExceeded"
+	MultipartFormDataStrictnessWarningHeaderFolding        = "HeaderFolding"
+	MultipartFormDataStrictnessWarningIncomplete           = "Incomplete"
+	MultipartFormDataStrictnessWarningInvalidHeaderFolding = "InvalidHeaderFolding"
+	MultipartFormDataStrictnessWarningLfLine               = "LfLine"
+	MultipartFormDataStrictnessWarningUnmatchedBoundary    = "UnmatchedBoundary"
+)
 
 func getLengthAndTypeFromHeaders(req HTTPRequest) (contentLength int, reqBodyType ReqBodyType, multipartBoundary string, err error) {
 	// TODO consider using DetectContentType instead of the Content-Type field. ModSec only uses Content-Type though.
