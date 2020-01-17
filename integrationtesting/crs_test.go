@@ -135,6 +135,17 @@ func TestCrsRules(t *testing.T) {
 					continue
 				}
 
+				var webserverWouldDenyHeader bool
+				for _, h := range req.Headers() {
+					if strings.ContainsAny(h.Value(), "\r\n") {
+						webserverWouldDenyHeader = true
+					}
+				}
+				if webserverWouldDenyHeader {
+					// If there was a header that was so invalid that the web server would block the request even before it reaches the WAF.
+					continue
+				}
+
 				// Act
 				_, err = wafServer.EvalRequest(req)
 				if err != nil {
