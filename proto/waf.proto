@@ -98,12 +98,12 @@ message PolicyConfig {
   SecRuleConfig secRuleConfig = 2;
   CustomRuleConfig customRuleConfig = 3;
   IPReputationConfig ipReputationConfig = 4;
-  ExclusionConfig exclusionConfig = 6;
 }
 
 message SecRuleConfig {
   bool enabled = 1;
   string ruleSetId = 2;
+  repeated Exclusion exclusions = 3;
 }
 
 message GeoDBConfig {
@@ -152,8 +152,4 @@ message Exclusion {
   string matchVariable = 1;
   string selectorMatchOperator = 2;
   string selector = 3;
-}
-
-message ExclusionConfig {
-  repeated Exclusion exclusion = 1;
 }

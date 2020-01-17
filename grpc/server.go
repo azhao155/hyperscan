@@ -50,7 +50,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 			logger.Fatal().Err(err).Msg("Error while loading rules")
 		}
 
-		sre, err := sreng.NewEngine(stmts, rsf, ref, "") // TODO some sensible ruleSetID?
+		sre, err := sreng.NewEngine(stmts, rsf, ref, "", nil) // TODO some sensible ruleSetID?
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 		}

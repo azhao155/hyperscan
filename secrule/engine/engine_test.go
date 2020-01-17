@@ -77,6 +77,7 @@ type mockSecRuleConfig struct{}
 
 func (c *mockSecRuleConfig) Enabled() bool     { return false }
 func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
+func (c *mockSecRuleConfig) Exclusions() []waf.Exclusion { return nil }
 
 type mockResultsLogger struct {
 }
@@ -111,7 +112,7 @@ func (r *mockReqScannerEvaluation) ScanBodyField(contentType waf.FieldContentTyp
 type mockReqScannerFactory struct {
 }
 
-func (f *mockReqScannerFactory) NewReqScanner(statements []Statement) (r ReqScanner, err error) {
+func (f *mockReqScannerFactory) NewReqScanner(statements []Statement, exclusions []waf.Exclusion) (r ReqScanner, err error) {
 	r = &mockReqScanner{}
 	return
 }

@@ -62,10 +62,12 @@ func (mpc *mockPolicyConfig) IPReputationConfig() waf.IPReputationConfig {
 type mockSecRuleConfig struct {
 	enabled   bool
 	ruleSetID string
+	exclusions []waf.Exclusion
 }
 
 func (msc *mockSecRuleConfig) Enabled() bool     { return msc.enabled }
 func (msc *mockSecRuleConfig) RuleSetID() string { return msc.ruleSetID }
+func (msc *mockSecRuleConfig) Exclusions() []waf.Exclusion { return nil }
 
 type mockCustomRuleConfig struct {
 	customRules []waf.CustomRule

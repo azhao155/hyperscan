@@ -11,6 +11,14 @@ type Config interface {
 type SecRuleConfig interface {
 	Enabled() bool
 	RuleSetID() string
+	Exclusions() []Exclusion
+}
+
+// Exclusion defines global exceptions on targets
+type Exclusion interface {
+	MatchVariable() string
+	SelectorMatchOperator() string
+	Selector() string
 }
 
 // GeoDBConfig is GeoDB Engine config

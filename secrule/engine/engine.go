@@ -20,11 +20,12 @@ type engineImpl struct {
 	usesFullRawRequestBody         bool
 	ruleSetID                      waf.RuleSetID
 	txTargetRegexSelectorsCompiled map[string]*regexp.Regexp
+	exclusions                     []waf.Exclusion
 }
 
 // NewEngine creates a SecRule engine from statements
-func NewEngine(statements []ast.Statement, rsf sr.ReqScannerFactory, ref sr.RuleEvaluatorFactory, ruleSetID waf.RuleSetID) (engine waf.SecRuleEngine, err error) {
-	reqScanner, err := rsf.NewReqScanner(statements)
+func NewEngine(statements []ast.Statement, rsf sr.ReqScannerFactory, ref sr.RuleEvaluatorFactory, ruleSetID waf.RuleSetID, exclusions []waf.Exclusion) (engine waf.SecRuleEngine, err error) {
+	reqScanner, err := rsf.NewReqScanner(statements, exclusions)
 	if err != nil {
 		return
 	}
@@ -53,6 +54,7 @@ func NewEngine(statements []ast.Statement, rsf sr.ReqScannerFactory, ref sr.Rule
 		usesFullRawRequestBody:         usesFullRawRequestBody,
 		ruleSetID:                      ruleSetID,
 		txTargetRegexSelectorsCompiled: txTargetRegexSelectorsCompiled,
+		exclusions:                     exclusions,
 	}
 
 	return

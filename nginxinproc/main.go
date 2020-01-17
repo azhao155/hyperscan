@@ -97,7 +97,7 @@ func getInstance(secruleconf string) waf.Server {
 		logger.Fatal().Err(err).Msg("Error while loading rules")
 	}
 
-	sre, err := sreng.NewEngine(stmts, rsf, ref, "")
+	sre, err := sreng.NewEngine(stmts, rsf, ref, "", nil)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 	}

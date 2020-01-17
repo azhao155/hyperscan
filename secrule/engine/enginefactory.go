@@ -36,7 +36,7 @@ func (f *engineFactoryImpl) NewEngine(config waf.SecRuleConfig) (engine waf.SecR
 		return
 	}
 
-	engine, err = NewEngine(statements, f.reqScannerFactory, f.ruleEvaluatorFactory, ruleSetID)
+	engine, err = NewEngine(statements, f.reqScannerFactory, f.ruleEvaluatorFactory, ruleSetID, config.Exclusions())
 	if err != nil {
 		return
 	}

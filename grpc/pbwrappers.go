@@ -55,10 +55,23 @@ type wafHTTPRequestPbWrapperBodyReader struct {
 
 func (r *wafHTTPRequestPbWrapperBodyReader) Read(p []byte) (n int, err error) { return r.readCb(p) }
 
-type secRuleConfigImpl struct{ pb *pb.SecRuleConfig }
+type secRuleConfigImpl struct{
+	pb *pb.SecRuleConfig
+	exclusionsCache []waf.Exclusion
+}
 
 func (c *secRuleConfigImpl) Enabled() bool     { return c.pb.Enabled }
 func (c *secRuleConfigImpl) RuleSetID() string { return c.pb.RuleSetId }
+func (c *secRuleConfigImpl) Exclusions() []waf.Exclusion {
+	if c.exclusionsCache == nil {
+		for _, ex := range c.pb.Exclusions {
+			exWrapped := &exclusionWrapper{pb: ex}
+			c.exclusionsCache = append(c.exclusionsCache, exWrapped)
+		}
+	}
+
+	return c.exclusionsCache
+}
 
 type customRuleConfigImpl struct {
 	pb               *pb.CustomRuleConfig
@@ -75,6 +88,14 @@ func (cc *customRuleConfigImpl) CustomRules() []waf.CustomRule {
 
 	return cc.customRulesCache
 }
+
+type exclusionWrapper struct {
+	pb                   *pb.Exclusion
+}
+
+func (ew *exclusionWrapper) MatchVariable() string            { return ew.pb.MatchVariable }
+func (ew *exclusionWrapper) SelectorMatchOperator() string    { return ew.pb.SelectorMatchOperator }
+func (ew *exclusionWrapper) Selector() string                 { return ew.pb.Selector }
 
 type ipReputationConfigImpl struct{ pb *pb.IPReputationConfig }
 
@@ -214,7 +235,7 @@ type ConfigConverterImpl struct{}
 func (*ConfigConverterImpl) SerializeToJSON(c waf.Config) (json string, err error) {
 	wci, ok := c.(*configPbWrapper)
 	if !ok {
-		err = fmt.Errorf("Failed convert given WAFConfig to a serializable protobuf backed type")
+		err = fmt.Errorf("Failed to convert given WAFConfig to a serializable protobuf backed type")
 	}
 
 	m := jsonpb.Marshaler{}

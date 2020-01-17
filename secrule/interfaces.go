@@ -60,7 +60,7 @@ type ReqScannerEvaluation interface {
 
 // ReqScannerFactory creates ReqScanners. This makes mocking possible when testing.
 type ReqScannerFactory interface {
-	NewReqScanner(statements []ast.Statement) (r ReqScanner, err error)
+	NewReqScanner(statements []ast.Statement, exclusions []waf.Exclusion) (r ReqScanner, err error)
 }
 
 // Environment holds the per-request variables and other state information as the rule evaluator is executing.

@@ -7,8 +7,9 @@ import (
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) Enabled() bool     { return true }
-func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
+func (c *mockSecRuleConfig) Enabled() bool           { return true }
+func (c *mockSecRuleConfig) RuleSetID() string       { return "OWASP CRS 3.0" }
+func (c *mockSecRuleConfig) Exclusions() []Exclusion { return []Exclusion{} }
 
 type mockCustomRule struct{}
 

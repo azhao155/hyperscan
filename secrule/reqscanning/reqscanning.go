@@ -47,11 +47,13 @@ type scanGroup struct {
 }
 
 type reqScannerImpl struct {
-	allScanGroups                       []*scanGroup
-	scanGroupsForTarget                 map[ast.Target][]*scanGroup
-	targetsSimple                       map[ast.Target]bool
-	targetsRegexSelector                map[ast.TargetName][]*targetsRegexSelectorWithSameTargetName
-	exceptTargetsRegexSelectorsCompiled map[string]*regexp.Regexp
+	allScanGroups                             []*scanGroup
+	scanGroupsForTarget                       map[ast.Target][]*scanGroup
+	targetsSimple                             map[ast.Target]bool
+	targetsRegexSelector                      map[ast.TargetName][]*targetsRegexSelectorWithSameTargetName
+	exceptTargetsRegexSelectorsCompiled       map[string]*regexp.Regexp
+	globalExceptTargets                       []ast.Target
+	globalExceptTargetsRegexSelectorsCompiled map[string]*regexp.Regexp
 }
 
 type reqScannerEvaluationImpl struct {
@@ -64,13 +66,20 @@ type targetsRegexSelectorWithSameTargetName struct {
 	regexSelectorCompiled *regexp.Regexp
 }
 
+var targetNamesFromExclusion = map[string][]ast.TargetName{
+	"RequestArgNames":    {ast.TargetArgs, ast.TargetArgsGet, ast.TargetArgsPost},
+	"RequestCookieNames": {ast.TargetRequestCookies},
+	"RequestHeaderNames": {ast.TargetRequestHeaders},
+}
+
 // NewReqScanner creates a ReqScanner.
-func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement) (r sr.ReqScanner, err error) {
+func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclusions []waf.Exclusion) (r sr.ReqScanner, err error) {
 	var allScanGroups []*scanGroup
 	scanGroupsForTarget := make(map[ast.Target][]*scanGroup)
 	targetsSimple := make(map[ast.Target]bool)
 	targetsRegexSelector := make(map[ast.TargetName][]*targetsRegexSelectorWithSameTargetName)
 	exceptTargetsRegexSelectorsCompiled := make(map[string]*regexp.Regexp)
+	globalExceptTargetsRegexSelectorsCompiled := make(map[string]*regexp.Regexp)
 
 	// Construct a inverted view of the rules that maps from targets+selectors, to rule conditions
 	for _, curStmt := range statements {
@@ -194,12 +203,49 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement) (r sr.
 		}
 	}
 
+	globalExceptTargets := []ast.Target{}
+
+	for _, e := range exclusions {
+		for _, t := range targetNamesFromExclusion[e.MatchVariable()] {
+			if e.SelectorMatchOperator() != "" && e.Selector() != "" {
+				var expr string
+				escapedVal := regexp.QuoteMeta(e.Selector())
+
+				// possible optimization: use string operations directly instead of regexes.
+				switch e.SelectorMatchOperator() {
+
+				case "StartsWith":
+					expr = "^" + escapedVal
+				case "EndsWith":
+					expr = escapedVal + "$"
+				case "Contains":
+					expr = escapedVal
+				case "Equals":
+					expr = "^" + escapedVal + "$"
+
+				}
+
+				globalExceptTargetsRegexSelectorsCompiled[e.Selector()], err = regexp.Compile(expr)
+				if err != nil {
+					return
+				}
+
+				globalExceptTargets = append(globalExceptTargets, ast.Target{Name: t, Selector: expr, IsRegexSelector: true})
+			} else {
+				// collections
+				globalExceptTargets = append(globalExceptTargets, ast.Target{Name: t, Selector: ""})
+			}
+		}
+	}
+
 	r = &reqScannerImpl{
-		allScanGroups:                       allScanGroups,
-		scanGroupsForTarget:                 scanGroupsForTarget,
-		targetsSimple:                       targetsSimple,
-		targetsRegexSelector:                targetsRegexSelector,
-		exceptTargetsRegexSelectorsCompiled: exceptTargetsRegexSelectorsCompiled,
+		allScanGroups:                             allScanGroups,
+		scanGroupsForTarget:                       scanGroupsForTarget,
+		targetsSimple:                             targetsSimple,
+		targetsRegexSelector:                      targetsRegexSelector,
+		exceptTargetsRegexSelectorsCompiled:       exceptTargetsRegexSelectorsCompiled,
+		globalExceptTargets:                       globalExceptTargets,
+		globalExceptTargetsRegexSelectorsCompiled: globalExceptTargetsRegexSelectorsCompiled,
 	}
 
 	return
@@ -239,7 +285,7 @@ func (r *reqScannerImpl) matchesExceptTargets(targetName ast.TargetName, fieldNa
 	for _, et := range exceptTargets {
 		// Is this exceptTarget a simple target?
 		if !et.IsRegexSelector {
-			if targetName == et.Name && strings.EqualFold(fieldName, et.Selector) {
+			if targetName == et.Name && (et.Selector == "" || strings.EqualFold(fieldName, et.Selector)) {
 				return true
 			}
 			continue
@@ -248,6 +294,23 @@ func (r *reqScannerImpl) matchesExceptTargets(targetName ast.TargetName, fieldNa
 		// Are we looking for a target with regex selector that this field name matches?
 		if et.IsRegexSelector {
 			if r.exceptTargetsRegexSelectorsCompiled[et.Selector].MatchString(fieldName) {
+				return true
+			}
+		}
+	}
+
+	for _, get := range r.globalExceptTargets {
+		// Is this exceptTarget a simple target?
+		if !get.IsRegexSelector {
+			if targetName == get.Name && (get.Selector == "" || strings.EqualFold(fieldName, get.Selector)) {
+				return true
+			}
+			continue
+		}
+
+		// Are we looking for a target with regex selector that this field name matches?
+		if get.IsRegexSelector {
+			if r.globalExceptTargetsRegexSelectorsCompiled[get.Selector] != nil && r.globalExceptTargetsRegexSelectorsCompiled[get.Selector].MatchString(fieldName) {
 				return true
 			}
 		}
