@@ -17,7 +17,7 @@ import (
 	"testing"
 )
 
-func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
+func newTestStandaloneSecruleServer(t *testing.T, msrc *mockSecRuleConfig) waf.Server {
 	logger := testutils.NewTestLogger(t)
 	p := srrp.NewRuleParser()
 	rlfs := srrp.NewRuleLoaderFileSystem()
@@ -30,7 +30,7 @@ func newTestStandaloneSecruleServer(t *testing.T) waf.Server {
 	reslog := newMockResultsLogger()
 	rlf := &mockResultsLoggerFactory{mockResultsLogger: reslog}
 	ef := sreng.NewEngineFactory(logger, rl, rsf, ref)
-	e, err := ef.NewEngine(&mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
+	e, err := ef.NewEngine(msrc)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}

@@ -67,7 +67,17 @@ type mockSecRuleConfig struct {
 
 func (msc *mockSecRuleConfig) Enabled() bool     { return msc.enabled }
 func (msc *mockSecRuleConfig) RuleSetID() string { return msc.ruleSetID }
-func (msc *mockSecRuleConfig) Exclusions() []waf.Exclusion { return nil }
+func (msc *mockSecRuleConfig) Exclusions() []waf.Exclusion { return msc.exclusions }
+
+type mockExclusion struct {
+	matchVariable         string
+	selectorMatchOperator string
+	selector              string
+}
+
+func (r *mockExclusion) MatchVariable() string         { return r.matchVariable }
+func (r *mockExclusion) SelectorMatchOperator() string { return r.selectorMatchOperator }
+func (r *mockExclusion) Selector() string              { return r.selector }
 
 type mockCustomRuleConfig struct {
 	customRules []waf.CustomRule

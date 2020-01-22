@@ -13,7 +13,7 @@ func TestNewStandaloneSecruleServerEvalRequestCrs30(t *testing.T) {
 	defer zerolog.SetGlobalLevel(origLogLevel)
 
 	// Arrange
-	wafServer := newTestStandaloneSecruleServer(t)
+	wafServer := newTestStandaloneSecruleServer(t, &mockSecRuleConfig{ruleSetID: "OWASP CRS 3.0"})
 	headers := []waf.HeaderPair{&mockHeaderPair{k: "Host", v: "example.com"}}
 	req1 := &mockWafHTTPRequest{uri: "http://localhost:8080/?a=hello", method: "GET", headers: headers, protocol: "HTTP/1.1"}
 	req2 := &mockWafHTTPRequest{uri: "http://localhost:8080/?a=/etc/passwd", method: "GET", headers: headers, protocol: "HTTP/1.1"}
