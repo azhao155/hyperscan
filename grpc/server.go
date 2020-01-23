@@ -18,14 +18,14 @@ import (
 )
 
 // StartServer is the dependency injection composition root for running Azwaf through gRPC
-func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.LengthLimits, standaloneSecruleServer bool, network string, address string, reopenLogFileCh chan bool) {
+func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.LengthLimits, standaloneSecruleServer bool, network string, address string, reopenLogFileCh chan bool, reopenLogFileChForShaodowMode chan bool) {
 	// Initialize common dependencies
 	rlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileCh, logging.FileName)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
 
-	srlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileCh, logging.ShadowModeFileName)
+	srlf, err := logging.NewFileLogResultsLoggerFactory(&logging.LogFileSystemImpl{}, logger, reopenLogFileChForShaodowMode, logging.ShadowModeFileName)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}

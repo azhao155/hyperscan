@@ -44,14 +44,16 @@ func main() {
 	signal.Notify(signalChan, syscall.SIGUSR1)
 
 	reopenLogFileChan := make(chan bool)
+	reopenLogFileChanForShadow := make(chan bool)
 	go func() {
 		for {
 			<-signalChan
 			reopenLogFileChan <- true
+			reopenLogFileChanForShadow <- true
 		}
 	}()
 
-	grpc.StartServer(logger, *secruleconf, lengthLimits, standaloneSecruleServer, "tcp", ":37291", reopenLogFileChan)
+	grpc.StartServer(logger, *secruleconf, lengthLimits, standaloneSecruleServer, "tcp", ":37291", reopenLogFileChan, reopenLogFileChanForShadow)
 }
 
 func parseLengthLimitsArgOrDefault(logger zerolog.Logger, limitsArg string) (lengthLimits waf.LengthLimits) {
