@@ -9,4 +9,5 @@ require (
 	golang.org/x/net v0.0.0-20190311183353-d8887717615a
 	google.golang.org/grpc v1.18.0
 	gopkg.in/yaml.v3 v3.0.0-20190709130402-674ba3eaed22
+	rsc.io/binaryregexp v0.2.0
 )

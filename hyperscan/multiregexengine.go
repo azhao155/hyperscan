@@ -2,10 +2,12 @@ package hyperscan
 
 import (
 	"azwaf/waf"
+	"bytes"
 	"fmt"
 	"regexp"
 
 	hs "github.com/flier/gohs/hyperscan"
+	"rsc.io/binaryregexp"
 )
 
 type engineFactoryImpl struct {
@@ -17,7 +19,8 @@ type engineImpl struct {
 	db hs.BlockDatabase
 
 	// Precompiled Go regexes used to re-validate matches.
-	goregexes map[int]*regexp.Regexp // TODO could this have been just a list rather than map?
+	goregexes    map[int]*regexp.Regexp       // TODO could this have been just a list rather than map?
+	goregexesbin map[int]*binaryregexp.Regexp // TODO could this have been just a list rather than map?
 
 	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
 	emptyStringPatternIDs []int
@@ -85,19 +88,44 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern
 
 	// Compile each regex for Go regexp as well, so we can use Go regexp to re-validate matches that Hyperscan find as potential matches
 	h.goregexes = make(map[int]*regexp.Regexp)
+	h.goregexesbin = make(map[int]*binaryregexp.Regexp)
 	for _, m := range mm {
 		// Make the PCRE regex compatible with Go regexp
 		e := removePcrePossessiveQuantifier(m.Expr)
 
-		var r *regexp.Regexp
-		r, err = regexp.Compile(e)
-		if err != nil {
-			err = fmt.Errorf("failed to compile Go regexp pattern %v. Error was: %v", e, err)
-			h.Close()
-			return
+		var b bytes.Buffer
+		for i := 0; i < len(e); i++ {
+			if e[i] < 128 {
+				b.WriteByte(e[i])
+			} else {
+				fmt.Fprintf(&b, "\\x%X", e[i])
+			}
+		}
+		e = b.String()
+
+		// Default to using the built in Go regexp engine, but fall back to Russ Cox's fork which allows searching for binary content.
+		if isPrintableASCII(e) {
+			var r *regexp.Regexp
+			r, err = regexp.Compile(e)
+			if err != nil {
+				err = fmt.Errorf("failed to compile Go regexp pattern %v. Error was: %v", e, err)
+				h.Close()
+				return
+			}
+
+			h.goregexes[m.ID] = r
+		} else {
+			var r *binaryregexp.Regexp
+			r, err = binaryregexp.Compile(e)
+			if err != nil {
+				err = fmt.Errorf("failed to compile Go regexp pattern %v using binary regexp engine. Error was: %v", e, err)
+				h.Close()
+				return
+			}
+
+			h.goregexesbin[m.ID] = r
 		}
 
-		h.goregexes[m.ID] = r
 	}
 
 	engine = h
@@ -123,7 +151,7 @@ func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (mat
 	}
 
 	if h.db == nil {
-		if len(h.goregexes) > 0 {
+		if len(h.goregexes) > 0 || len(h.goregexesbin) > 0 {
 			panic("multi regex engine in inconsistent state. Hyperscan DB was nil but there were Go regexes.")
 		}
 		return
@@ -142,7 +170,15 @@ func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (mat
 
 	// Re-validate the potential matches using Go regexp
 	for _, pmID := range potentialMatches {
-		loc := h.goregexes[pmID].FindSubmatchIndex(input)
+		var loc []int
+		if r, ok := h.goregexes[pmID]; ok { // Usually the precompiled regexps are using Go's builtin regexp engine.
+			loc = r.FindSubmatchIndex(input)
+		} else if r, ok := h.goregexesbin[pmID]; ok { // Some regexps have binary content. For these we will fall back to here.
+			loc = r.FindSubmatchIndex(input)
+		} else {
+			panic("multi regex engine in inconsistent state. There was neither Go regexes nor binaryregexp.")
+		}
+
 		if loc == nil {
 			continue
 		}
@@ -204,4 +240,13 @@ func (s *scratchSpaceImpl) Close() {
 		s.scratch.Free()
 		s.scratch = nil
 	}
+}
+
+func isPrintableASCII(s string) bool {
+	for i := 0; i < len(s); i++ {
+		if ' ' <= s[i] && s[i] <= '~' {
+			return false
+		}
+	}
+	return true
 }
