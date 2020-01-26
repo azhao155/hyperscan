@@ -1,6 +1,7 @@
 package bodyparsing
 
 import (
+	"azwaf/encoding"
 	"azwaf/waf"
 	"bytes"
 	"encoding/json"
@@ -256,11 +257,11 @@ func (r *reqBodyParserImpl) scanMultipartBody(bodyReader *maxLengthReaderDecorat
 }
 
 func (r *reqBodyParserImpl) scanUrlencodedBody(bodyReader *maxLengthReaderDecorator, cb waf.ParsedBodyFieldCb) (err error) {
-	dec := newURLDecoder(bodyReader)
+	dec := encoding.NewURLDecoder(bodyReader)
 	for {
 		bodyReader.ResetFieldReadCount()
 		var key, value string
-		key, value, err = dec.next()
+		key, value, err = dec.Next()
 		if err != nil {
 			if err == waf.ErrFieldBytesLimitExceeded || err == waf.ErrPausableBytesLimitExceeded || err == waf.ErrTotalBytesLimitExceeded {
 				return

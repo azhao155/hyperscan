@@ -93,11 +93,12 @@ func TestCrsRules(t *testing.T) {
 		e, err := ef.NewEngine(c)
 		if err != nil {
 			t.Fatalf("Got unexpected error: %s", err)
+			return
 		}
 
 		wafServer, err := waf.NewStandaloneSecruleServer(logger, rlf, e, rbp)
 		if err != nil {
-			t.Logf("Error while running tests %v", err)
+			t.Fatalf("Error while creating server: %v", err)
 			return
 		}
 
@@ -105,7 +106,7 @@ func TestCrsRules(t *testing.T) {
 		fullPath := filepath.Join(filepath.Dir(thissrcfilename), "../secrule/rulesetfiles", ts.testRootDir)
 		tt, err := GetTests(fullPath, *ruleID)
 		if err != nil {
-			t.Logf("Error while running tests %v", err)
+			t.Fatalf("Error while getting tests: %v", err)
 			return
 		}
 
@@ -176,5 +177,5 @@ func TestCrsRules(t *testing.T) {
 	t.Logf("Total tests: %d, Skip: %d, Pass: %d, Fail: %d", total, skip, pass, fail)
 	t.Logf("Total tests pass percent: %d%%", (pass*100)/(pass+fail))
 
-	assert.Equal(total, pass)
+	assert.Equal(total, false)
 }

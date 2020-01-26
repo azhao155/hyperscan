@@ -1,12 +1,15 @@
 package integrationtesting
 
 import (
+	"azwaf/encoding"
 	"azwaf/waf"
 	"bytes"
 	"encoding/base64"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -130,13 +133,13 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 			}
 
 			hasHost := false
-			hasContentType := false
+			var contentType string
 			hasContentLength := false
 			for k, v := range s.Stage.Input.Headers {
 				req.headers = append(req.headers, &mockHeaderPair{k: k, v: v})
 
-				if strings.EqualFold("content-type", k) {
-					hasContentType = true
+				if k == "Content-Type" { // This is deliberately case sensitive, because it is case sensitive in FTW as well.
+					contentType = v
 				}
 
 				if strings.EqualFold("content-length", k) {
@@ -152,8 +155,37 @@ func toTestCase(file testFile) (testCases []TestCase, err error) {
 
 			if !input.StopMagic {
 				// Default content type
-				if len(body) > 0 && !hasContentType {
-					req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"})
+				if len(body) > 0 && contentType == "" {
+					contentType = "application/x-www-form-urlencoded"
+					req.headers = append(req.headers, &mockHeaderPair{k: "Content-Type", v: contentType})
+				}
+
+				// Percent encode bodies if the content type was "application/x-www-form-urlencoded" and not already percent-encoded.
+				// This is a bit strange, but FTW does something like this.
+				if contentType == "application/x-www-form-urlencoded" {
+					if strings.ContainsAny(body, "%") {
+						// Let's just assume the body was already percent encoded...
+					} else {
+						vals := make(url.Values)
+
+						d := encoding.NewURLDecoder(bytes.NewBufferString(body))
+						var k, v string
+						for {
+							k, v, err = d.Next()
+							if err != nil {
+								if err == io.EOF {
+									err = nil
+									break
+								}
+								return
+							}
+
+							vals[k] = append(vals[k], v)
+						}
+
+						body = vals.Encode()
+						req.body = body
+					}
 				}
 
 				// Default content length

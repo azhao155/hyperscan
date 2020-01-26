@@ -1,13 +1,13 @@
-package bodyparsing
+package encoding
 
 import (
-	"azwaf/encoding"
 	"bytes"
 	"io"
 )
 
-func newURLDecoder(r io.Reader) *urlDecoder {
-	return &urlDecoder{
+// NewURLDecoder creates a URLDecoder.
+func NewURLDecoder(r io.Reader) *URLDecoder {
+	return &URLDecoder{
 		r:     r,
 		state: lookingForEq,
 	}
@@ -22,7 +22,8 @@ const (
 	endOfStream
 )
 
-type urlDecoder struct {
+// URLDecoder stream decodes a URL-encoded string into key-value pairs.
+type URLDecoder struct {
 	r            io.Reader
 	buf          bytes.Buffer
 	state        urldecoderState
@@ -30,7 +31,8 @@ type urlDecoder struct {
 	eqPos        int
 }
 
-func (d *urlDecoder) next() (key string, val string, err error) {
+// Next gets the next key-value pair from the stream.
+func (d *URLDecoder) Next() (key string, val string, err error) {
 	if d.state == endOfStream {
 		err = io.EOF
 		return
@@ -49,7 +51,7 @@ func (d *urlDecoder) next() (key string, val string, err error) {
 					d.state = foundEq
 				case '&':
 					// There was no equal-sign in this "pair"
-					key = encoding.WeakURLUnescape(string(bb[:i]))
+					key = WeakURLUnescape(string(bb[:i]))
 					val = ""
 
 					// Consume number of bytes equivalent to this key-val pair from the buffer.
@@ -63,8 +65,8 @@ func (d *urlDecoder) next() (key string, val string, err error) {
 			case foundEq:
 				switch c {
 				case '&':
-					key = encoding.WeakURLUnescape(string(bb[:d.eqPos]))
-					val = encoding.WeakURLUnescape(string(bb[d.eqPos+1 : i]))
+					key = WeakURLUnescape(string(bb[:d.eqPos]))
+					val = WeakURLUnescape(string(bb[d.eqPos+1 : i]))
 
 					// Consume number of bytes equivalent to this key-val pair from the buffer.
 					d.buf.Next(i + 1)
@@ -98,11 +100,11 @@ func (d *urlDecoder) next() (key string, val string, err error) {
 
 			// If we already found an equal-sign, then we have a complete key-val pair.
 			if d.state == foundEq {
-				key = encoding.WeakURLUnescape(string(bb[:d.eqPos]))
-				val = encoding.WeakURLUnescape(string(bb[d.eqPos+1:]))
+				key = WeakURLUnescape(string(bb[:d.eqPos]))
+				val = WeakURLUnescape(string(bb[d.eqPos+1:]))
 			} else {
 				// We don't have a complete key-val pair, so we decide to just return the remaining bytes as a key with an empty value.
-				key = encoding.WeakURLUnescape(string(bb))
+				key = WeakURLUnescape(string(bb))
 			}
 
 			// Consume the rest of the buffer, just to leave things in a consistent state.

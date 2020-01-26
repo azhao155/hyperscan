@@ -1,6 +1,7 @@
-package bodyparsing
+package encoding
 
 import (
+	"azwaf/testutils"
 	"bytes"
 	"io"
 	"testing"
@@ -9,7 +10,7 @@ import (
 func TestUrldecoder1(t *testing.T) {
 	// Arrange
 	body := bytes.NewBufferString("abc=def&&ghi=jkl=mno&pqr&=stu&hello=world&hello=world2")
-	d := newURLDecoder(body)
+	d := NewURLDecoder(body)
 
 	type expectCase struct {
 		key string
@@ -29,7 +30,7 @@ func TestUrldecoder1(t *testing.T) {
 
 	// Act and assert
 	for i, e := range expected {
-		k, v, err := d.next()
+		k, v, err := d.Next()
 		if k != e.key {
 			t.Fatalf("Unexpected key %v: %v", i, k)
 		}
@@ -45,14 +46,14 @@ func TestUrldecoder1(t *testing.T) {
 func TestUrldecoderManyPairs(t *testing.T) {
 	// Arrange
 	bb := []byte("hello=world123&")
-	body1 := &mockReader{Length: 1000 * len(bb), Content: bb}
+	body1 := &testutils.MockReader{Length: 1000 * len(bb), Content: bb}
 	body2 := bytes.NewBufferString("a=b")
 	body := io.MultiReader(body1, body2)
-	d := newURLDecoder(body)
+	d := NewURLDecoder(body)
 
 	// Act and assert
 	for i := 0; i < 1000; i++ {
-		k, v, err := d.next()
+		k, v, err := d.Next()
 		if k != "hello" {
 			t.Fatalf("Unexpected key %v", i)
 		}
@@ -64,8 +65,8 @@ func TestUrldecoderManyPairs(t *testing.T) {
 		}
 	}
 
-	k2, v2, err2 := d.next()
-	_, _, err3 := d.next()
+	k2, v2, err2 := d.Next()
+	_, _, err3 := d.Next()
 
 	if err2 != nil {
 		t.Fatalf("Unexpected err %T: %v", err2, err2)
@@ -87,7 +88,7 @@ func TestUrldecoderManyPairs(t *testing.T) {
 func TestUrldecoderStrangeStart(t *testing.T) {
 	// Arrange
 	body := bytes.NewBufferString("a&b=c")
-	d := newURLDecoder(body)
+	d := NewURLDecoder(body)
 
 	type expectCase struct {
 		key string
@@ -102,7 +103,7 @@ func TestUrldecoderStrangeStart(t *testing.T) {
 
 	// Act and assert
 	for i, e := range expected {
-		k, v, err := d.next()
+		k, v, err := d.Next()
 		if k != e.key {
 			t.Fatalf("Unexpected key %v: %v", i, k)
 		}
@@ -118,13 +119,13 @@ func TestUrldecoderStrangeStart(t *testing.T) {
 func TestUrldecoderLongVal(t *testing.T) {
 	// Arrange
 	body1 := bytes.NewBufferString("a=")
-	body2 := &mockReader{Length: 1024 * 256, Content: []byte("b")}
+	body2 := &testutils.MockReader{Length: 1024 * 256, Content: []byte("b")}
 	body := io.MultiReader(body1, body2)
-	d := newURLDecoder(body)
+	d := NewURLDecoder(body)
 
 	// Act
-	k1, v1, err1 := d.next()
-	_, _, err2 := d.next()
+	k1, v1, err1 := d.Next()
+	_, _, err2 := d.Next()
 
 	// Assert
 	if err1 != nil {
@@ -147,15 +148,15 @@ func TestUrldecoderLongVal(t *testing.T) {
 func TestUrldecoderLongValWithTrailingPair(t *testing.T) {
 	// Arrange
 	body1 := bytes.NewBufferString("a=")
-	body2 := &mockReader{Length: 1024 * 256, Content: []byte("b")}
+	body2 := &testutils.MockReader{Length: 1024 * 256, Content: []byte("b")}
 	body3 := bytes.NewBufferString("&c=d")
 	body := io.MultiReader(body1, body2, body3)
-	d := newURLDecoder(body)
+	d := NewURLDecoder(body)
 
 	// Act
-	k1, v1, err1 := d.next()
-	k2, v2, err2 := d.next()
-	_, _, err3 := d.next()
+	k1, v1, err1 := d.Next()
+	k2, v2, err2 := d.Next()
+	_, _, err3 := d.Next()
 
 	// Assert
 	if err1 != nil {
@@ -189,15 +190,15 @@ func TestUrldecoderLongValWithTrailingPair(t *testing.T) {
 
 func TestUrldecoderLongKey(t *testing.T) {
 	// Arrange
-	body1 := &mockReader{Length: 1024 * 256, Content: []byte("a")}
+	body1 := &testutils.MockReader{Length: 1024 * 256, Content: []byte("a")}
 	body2 := bytes.NewBufferString("=b&c=d")
 	body := io.MultiReader(body1, body2)
-	d := newURLDecoder(body)
+	d := NewURLDecoder(body)
 
 	// Act
-	k1, v1, err1 := d.next()
-	k2, v2, err2 := d.next()
-	_, _, err3 := d.next()
+	k1, v1, err1 := d.Next()
+	k2, v2, err2 := d.Next()
+	_, _, err3 := d.Next()
 
 	// Assert
 	if err1 != nil {

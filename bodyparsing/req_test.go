@@ -431,7 +431,7 @@ var noOpParsedBodyFieldCb = func(contentType waf.FieldContentType, fieldName str
 
 func TestReqScannerBodyMultipartNofileLimit1(t *testing.T) {
 	// Arrange
-	body1 := &mockReader{Length: 1024 * 256, Content: []byte(`--------------------------1aa6ce6559102
+	body1 := &testutils.MockReader{Length: 1024 * 256, Content: []byte(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 
 aaaaaaaaaa
@@ -459,7 +459,7 @@ aaaaaaaaaa
 content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 
 `)
-	body2 := &mockReader{Length: 1024 * 1024 * 200} // 200 MiB
+	body2 := &testutils.MockReader{Length: 1024 * 1024 * 200} // 200 MiB
 	body3 := bytes.NewBufferString(`
 --------------------------1aa6ce6559102--
 `)
@@ -485,7 +485,7 @@ aaaaaaaaaa
 content-disposition: form-data; name="b"; filename="vcredist_x64.exe"
 
 `)
-	body2 := &mockReader{Length: 1024 * 1024 * 1024} // 1 GiB
+	body2 := &testutils.MockReader{Length: 1024 * 1024 * 1024} // 1 GiB
 	body3 := bytes.NewBufferString(`
 --------------------------1aa6ce6559102--
 `)
@@ -507,7 +507,7 @@ func TestReqScannerBodyMultipartSingleFieldLimit(t *testing.T) {
 content-disposition: form-data; name="a"
 
 `)
-	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
+	body2 := &testutils.MockReader{Length: 1024 * 30} // 30 KiB
 	body3 := bytes.NewBufferString(`
 --------------------------1aa6ce6559102--
 `)
@@ -528,7 +528,7 @@ func TestReqScannerBodyMultipartHeadersLimit(t *testing.T) {
 	body1 := bytes.NewBufferString(`--------------------------1aa6ce6559102
 content-disposition: form-data; name="a"
 `)
-	body2 := &mockReader{Length: 1024 * 30, Content: []byte("some-header: aaaaaaaaaaaaaa\r\n")} // 30 KiB
+	body2 := &testutils.MockReader{Length: 1024 * 30, Content: []byte("some-header: aaaaaaaaaaaaaa\r\n")} // 30 KiB
 	body3 := bytes.NewBufferString(`
 
 some content
@@ -549,7 +549,7 @@ some content
 func TestReqScannerBodyJSONLimit(t *testing.T) {
 	// Arrange
 	body1 := bytes.NewBufferString(`{"myarray": [`)
-	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`"hello world", `)} // 1 MiB
+	body2 := &testutils.MockReader{Length: 1024 * 1024, Content: []byte(`"hello world", `)} // 1 MiB
 	body3 := bytes.NewBufferString(`"hello world"]}`)
 	body := io.MultiReader(body1, body2, body3)
 
@@ -565,7 +565,7 @@ func TestReqScannerBodyJSONLimit(t *testing.T) {
 func TestReqScannerBodyJSONSingleFieldLimit(t *testing.T) {
 	// Arrange
 	body1 := bytes.NewBufferString(`{"myarray": "`)
-	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
+	body2 := &testutils.MockReader{Length: 1024 * 30} // 30 KiB
 	body3 := bytes.NewBufferString(`"}`)
 	body := io.MultiReader(body1, body2, body3)
 
@@ -581,7 +581,7 @@ func TestReqScannerBodyJSONSingleFieldLimit(t *testing.T) {
 func TestReqScannerBodyXMLLimit(t *testing.T) {
 	// Arrange
 	body1 := bytes.NewBufferString(`<hello>`)
-	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`<world>something</world>`)} // 1 MiB
+	body2 := &testutils.MockReader{Length: 1024 * 1024, Content: []byte(`<world>something</world>`)} // 1 MiB
 	body3 := bytes.NewBufferString(`</hello>`)
 	body := io.MultiReader(body1, body2, body3)
 
@@ -597,7 +597,7 @@ func TestReqScannerBodyXMLLimit(t *testing.T) {
 func TestReqScannerBodyXMLSingleFieldLimit(t *testing.T) {
 	// Arrange
 	body1 := bytes.NewBufferString(`<hello>`)
-	body2 := &mockReader{Length: 1024 * 30} // 30 KiB
+	body2 := &testutils.MockReader{Length: 1024 * 30} // 30 KiB
 	body3 := bytes.NewBufferString(`</hello>`)
 	body := io.MultiReader(body1, body2, body3)
 
@@ -612,7 +612,7 @@ func TestReqScannerBodyXMLSingleFieldLimit(t *testing.T) {
 
 func TestReqScannerBodyUrlEncodeLimit(t *testing.T) {
 	// Arrange
-	body2 := &mockReader{Length: 1024 * 1024, Content: []byte(`a=helloworld1&`)} // 1 MiB
+	body2 := &testutils.MockReader{Length: 1024 * 1024, Content: []byte(`a=helloworld1&`)} // 1 MiB
 	body3 := bytes.NewBufferString(`a=helloworld1`)
 	body := io.MultiReader(body2, body3)
 
@@ -710,67 +710,3 @@ type mockLogMetaData struct {
 
 func (h *mockLogMetaData) Scope() string     { return "Global" }
 func (h *mockLogMetaData) ScopeName() string { return "Default Policy" }
-
-// A io.Reader implementation that that just fills up the given buffer with copies of the Content byte slice until Length is reached.
-type mockReader struct {
-	Pos     int
-	Length  int
-	Content []byte
-	next    []byte
-}
-
-// Fills up the given buffer with 'a'-chars on each call until Length is reached.
-func (m *mockReader) Read(p []byte) (n int, err error) {
-	if m.Content == nil {
-		m.Content = []byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-	}
-
-	if m.Pos >= m.Length {
-		err = io.EOF
-		return
-	}
-
-	for {
-		if m.Pos+len(m.Content) > m.Length {
-			err = io.EOF
-			return
-		}
-
-		if len(m.next) == 0 {
-			m.next = m.Content
-		}
-
-		c := copy(p[n:], m.next)
-		n += c
-		m.Pos += c
-		m.next = m.next[c:]
-
-		if n == len(p) {
-			break
-		}
-	}
-
-	return
-}
-
-// Tests that the mockReader works, which itself is just used for other tests.
-func TestMockReader(t *testing.T) {
-	// Arrange
-	content := []byte("hello,")
-	targetLen := 1024 * 1024 * 2
-	m := &mockReader{Length: targetLen, Content: content}
-	b := &bytes.Buffer{}
-
-	// Act
-	_, err := b.ReadFrom(m)
-
-	// Assert
-	if err != nil {
-		t.Fatalf("Unexpected err %T: %v", err, err)
-	}
-
-	if b.Len() != targetLen-targetLen%len(content) {
-		t.Fatalf("Unexpected length: %v", b.Len())
-
-	}
-}
