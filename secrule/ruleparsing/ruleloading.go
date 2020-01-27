@@ -118,12 +118,6 @@ func filterUnsupportedRules(stmts []ast.Statement) (filteredStmts []ast.Statemen
 			if rule.ID == 942130 {
 				continue
 			}
-
-			// Skip this rule until we add support for stripping embedded anchors
-			// TODO add support for stripping embedded anchors
-			if rule.ID == 942330 {
-				continue
-			}
 		}
 
 		filteredStmts = append(filteredStmts, r)
