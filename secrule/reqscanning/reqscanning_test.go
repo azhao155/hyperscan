@@ -2231,6 +2231,45 @@ func (r *mockExclusion) MatchVariable() string         { return r.matchVariable 
 func (r *mockExclusion) SelectorMatchOperator() string { return r.selectorMatchOperator }
 func (r *mockExclusion) Selector() string              { return r.selector }
 
+func TestReqScannerWithoutExclusion(t *testing.T) {
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1"}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	//  Act
+	// Check without Exclusions
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsGet})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsPost})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
 func TestReqScannerGlobalExclusionsEquals(t *testing.T) {
 	// Arrange
 	mf := newMockMultiRegexEngineFactory()
@@ -2254,17 +2293,17 @@ func TestReqScannerGlobalExclusionsEquals(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg1"})
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
 
-	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsGet, Selector: "arg1"})
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsGet})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
 
-	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsPost, Selector: "arg1"})
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsPost})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
@@ -2277,9 +2316,9 @@ func TestReqScannerGlobalExclusionsContains(t *testing.T) {
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg"}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
-	sr := NewScanResults()
 
 	// Act
+	sr := NewScanResults()
 	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
 	s, _ := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
@@ -2293,7 +2332,7 @@ func TestReqScannerGlobalExclusionsContains(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg1"})
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
@@ -2322,7 +2361,7 @@ func TestReqScannerGlobalExclusionsStartsWith(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg1"})
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
@@ -2351,7 +2390,7 @@ func TestReqScannerGlobalExclusionsEndsWith(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg1"})
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
@@ -2382,12 +2421,12 @@ func TestReqScannerGlobalExclusionsMulti(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg1"})
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
 
-	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "bogus"})
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
@@ -2399,7 +2438,7 @@ func TestReqScannerGlobalExclusionsSpace(t *testing.T) {
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
 	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg1 "}
-	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1 =aaaaaaabccc"}
 	sr := NewScanResults()
 
 	// Act
@@ -2416,7 +2455,7 @@ func TestReqScannerGlobalExclusionsSpace(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg1"})
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}
@@ -2427,7 +2466,7 @@ func TestReqScannerGlobalExclusionsEscape(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
-	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg^1 "}
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg^1"}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg^1=aaaaaaabccc"}
 	sr := NewScanResults()
 
@@ -2445,7 +2484,8 @@ func TestReqScannerGlobalExclusionsEscape(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs, Selector: "arg^1"})
+	fmt.Println(sr.Matches)
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
 	}

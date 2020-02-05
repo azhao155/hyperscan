@@ -230,7 +230,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclus
 					return
 				}
 
-				globalExceptTargets = append(globalExceptTargets, ast.Target{Name: t, Selector: expr, IsRegexSelector: true})
+				globalExceptTargets = append(globalExceptTargets, ast.Target{Name: t, Selector: e.Selector(), IsRegexSelector: true})
 			} else {
 				// collections
 				globalExceptTargets = append(globalExceptTargets, ast.Target{Name: t, Selector: ""})
