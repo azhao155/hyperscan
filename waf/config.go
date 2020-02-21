@@ -36,6 +36,7 @@ type PolicyConfig interface {
 	ConfigID() string
 	IsDetectionMode() bool
 	IsShadowMode() bool
+	RequestBodyCheck() bool
 	SecRuleConfig() SecRuleConfig
 	CustomRuleConfig() CustomRuleConfig
 	IPReputationConfig() IPReputationConfig

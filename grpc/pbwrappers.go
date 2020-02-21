@@ -55,8 +55,8 @@ type wafHTTPRequestPbWrapperBodyReader struct {
 
 func (r *wafHTTPRequestPbWrapperBodyReader) Read(p []byte) (n int, err error) { return r.readCb(p) }
 
-type secRuleConfigImpl struct{
-	pb *pb.SecRuleConfig
+type secRuleConfigImpl struct {
+	pb              *pb.SecRuleConfig
 	exclusionsCache []waf.Exclusion
 }
 
@@ -90,12 +90,12 @@ func (cc *customRuleConfigImpl) CustomRules() []waf.CustomRule {
 }
 
 type exclusionWrapper struct {
-	pb                   *pb.Exclusion
+	pb *pb.Exclusion
 }
 
-func (ew *exclusionWrapper) MatchVariable() string            { return ew.pb.MatchVariable }
-func (ew *exclusionWrapper) SelectorMatchOperator() string    { return ew.pb.SelectorMatchOperator }
-func (ew *exclusionWrapper) Selector() string                 { return ew.pb.Selector }
+func (ew *exclusionWrapper) MatchVariable() string         { return ew.pb.MatchVariable }
+func (ew *exclusionWrapper) SelectorMatchOperator() string { return ew.pb.SelectorMatchOperator }
+func (ew *exclusionWrapper) Selector() string              { return ew.pb.Selector }
 
 type ipReputationConfigImpl struct{ pb *pb.IPReputationConfig }
 
@@ -103,9 +103,10 @@ func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
 
 type policyConfigWrapper struct{ pb *pb.PolicyConfig }
 
-func (c *policyConfigWrapper) ConfigID() string      { return c.pb.ConfigID }
-func (c *policyConfigWrapper) IsDetectionMode() bool { return c.pb.IsDetectionMode }
-func (c *policyConfigWrapper) IsShadowMode() bool    { return c.pb.IsShadowMode }
+func (c *policyConfigWrapper) ConfigID() string       { return c.pb.ConfigID }
+func (c *policyConfigWrapper) IsDetectionMode() bool  { return c.pb.IsDetectionMode }
+func (c *policyConfigWrapper) IsShadowMode() bool     { return c.pb.IsShadowMode }
+func (c *policyConfigWrapper) RequestBodyCheck() bool { return c.pb.RequestBodyCheck }
 func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
 	if c.pb.SecRuleConfig == nil {
 		return nil

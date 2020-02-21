@@ -24,8 +24,9 @@ type mockCustomRuleConfig struct{}
 func (c *mockCustomRuleConfig) CustomRules() []CustomRule { return []CustomRule{&mockCustomRule{}} }
 
 type mockPolicyConfig struct {
-	isDetectionMode bool
-	isShadowMode    bool
+	isDetectionMode  bool
+	isShadowMode     bool
+	requestBodyCheck bool
 }
 
 type mockIPReputationConfig struct{}
@@ -35,6 +36,7 @@ func (c *mockIPReputationConfig) Enabled() bool { return true }
 func (c *mockPolicyConfig) ConfigID() string                       { return "waf policy 1" }
 func (c *mockPolicyConfig) IsDetectionMode() bool                  { return c.isDetectionMode }
 func (c *mockPolicyConfig) IsShadowMode() bool                     { return c.isShadowMode }
+func (c *mockPolicyConfig) RequestBodyCheck() bool                 { return c.requestBodyCheck }
 func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig           { return &mockSecRuleConfig{} }
 func (c *mockPolicyConfig) CustomRuleConfig() CustomRuleConfig     { return &mockCustomRuleConfig{} }
 func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return &mockIPReputationConfig{} }

@@ -17,6 +17,7 @@ type engineInstances struct {
 	ireEnabled        bool
 	isDetectionMode   bool
 	isShadowMode      bool
+	requestBodyCheck  bool
 	configLogMetaData ConfigLogMetaData
 }
 
@@ -187,51 +188,53 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	var alsoScanFullRawRequestBody bool
-	// Currently only the SecRule engine may need the raw request body.
-	if engines.sre != nil {
-		alsoScanFullRawRequestBody = secRuleEvaluation.AlsoScanFullRawRequestBody()
-	}
+	if engines.requestBodyCheck {
+		var alsoScanFullRawRequestBody bool
+		// Currently only the SecRule engine may need the raw request body.
+		if engines.sre != nil {
+			alsoScanFullRawRequestBody = secRuleEvaluation.AlsoScanFullRawRequestBody()
+		}
 
-	// The callback function the body parser will call each time it has found a body field.
-	bodyFieldCb := func(contentType FieldContentType, fieldName string, data string) (err error) {
-		if customRuleEvaluation != nil {
-			err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
-			if err != nil {
-				return err
+		// The callback function the body parser will call each time it has found a body field.
+		bodyFieldCb := func(contentType FieldContentType, fieldName string, data string) (err error) {
+			if customRuleEvaluation != nil {
+				err = customRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+				if err != nil {
+					return err
+				}
 			}
+
+			if secRuleEvaluation != nil {
+				err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+			}
+
+			return
 		}
 
-		if secRuleEvaluation != nil {
-			err = secRuleEvaluation.ScanBodyField(contentType, fieldName, data)
+		err = s.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
+		if err != nil {
+			lengthLimits := s.requestBodyParser.LengthLimits()
+			if err == ErrFieldBytesLimitExceeded {
+				logger.Info().Int("limit", lengthLimits.MaxLengthField).Msg("Request body contained a field longer than the limit")
+				resultsLogger.FieldBytesLimitExceeded(lengthLimits.MaxLengthField)
+			} else if err == ErrPausableBytesLimitExceeded {
+				logger.Info().Int("limit", lengthLimits.MaxLengthPausable).Msg("Request body length (excluding file upload fields) exceeded the limit")
+				resultsLogger.PausableBytesLimitExceeded(lengthLimits.MaxLengthPausable)
+			} else if err == ErrTotalBytesLimitExceeded {
+				logger.Info().Int("limit", lengthLimits.MaxLengthTotal).Msg("Request body length exceeded the limit")
+				resultsLogger.TotalBytesLimitExceeded(lengthLimits.MaxLengthTotal)
+			} else if err == ErrTotalFullRawRequestBodyExceeded {
+				logger.Info().Int("limit", lengthLimits.MaxLengthTotalFullRawRequestBody).Msg("Request body length exceeded the limit while entire body was being scanned as a single field")
+				resultsLogger.TotalFullRawRequestBodyLimitExceeded(lengthLimits.MaxLengthTotalFullRawRequestBody)
+			} else {
+				secRuleEvaluation.BodyParseErrorOccurred()
+				logger.Info().Err(err).Msg("Request body scanning error")
+				resultsLogger.BodyParseError(err)
+			}
+
+			decision = Block
+			err = nil
 		}
-
-		return
-	}
-
-	err = s.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
-	if err != nil {
-		lengthLimits := s.requestBodyParser.LengthLimits()
-		if err == ErrFieldBytesLimitExceeded {
-			logger.Info().Int("limit", lengthLimits.MaxLengthField).Msg("Request body contained a field longer than the limit")
-			resultsLogger.FieldBytesLimitExceeded(lengthLimits.MaxLengthField)
-		} else if err == ErrPausableBytesLimitExceeded {
-			logger.Info().Int("limit", lengthLimits.MaxLengthPausable).Msg("Request body length (excluding file upload fields) exceeded the limit")
-			resultsLogger.PausableBytesLimitExceeded(lengthLimits.MaxLengthPausable)
-		} else if err == ErrTotalBytesLimitExceeded {
-			logger.Info().Int("limit", lengthLimits.MaxLengthTotal).Msg("Request body length exceeded the limit")
-			resultsLogger.TotalBytesLimitExceeded(lengthLimits.MaxLengthTotal)
-		} else if err == ErrTotalFullRawRequestBodyExceeded {
-			logger.Info().Int("limit", lengthLimits.MaxLengthTotalFullRawRequestBody).Msg("Request body length exceeded the limit while entire body was being scanned as a single field")
-			resultsLogger.TotalFullRawRequestBodyLimitExceeded(lengthLimits.MaxLengthTotalFullRawRequestBody)
-		} else {
-			secRuleEvaluation.BodyParseErrorOccurred()
-			logger.Info().Err(err).Msg("Request body scanning error")
-			resultsLogger.BodyParseError(err)
-		}
-
-		decision = Block
-		err = nil
 	}
 
 	// Custom rule evaluation always occurs first
@@ -288,6 +291,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		configID := config.ConfigID()
 		engines.isDetectionMode = config.IsDetectionMode()
 		engines.isShadowMode = config.IsShadowMode()
+		engines.requestBodyCheck = config.RequestBodyCheck()
 
 		// Create SecRuleEngine.
 		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil && secRuleConfig.Enabled() {

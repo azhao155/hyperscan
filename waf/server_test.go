@@ -15,14 +15,14 @@ func TestWafServerEvalRequest(t *testing.T) {
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-	msrev := &mockSecRuleEvaluation{}
+	msrev := &mockSecRuleEvaluation{decision: Pass}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
 	mcrev := &mockCustomRuleEvaluation{}
 	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
-	c[0] = &mockConfig{}
+	c[0] = &mockConfig{mpc: mockPolicyConfig{requestBodyCheck: true}}
 	mrbp := &mockRequestBodyParser{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
@@ -34,9 +34,16 @@ func TestWafServerEvalRequest(t *testing.T) {
 	req := &mockWafHTTPRequest{}
 
 	// Act
-	s.EvalRequest(req)
+	d, err := s.EvalRequest(req)
 
 	// Assert
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	if d != Pass {
+		t.Fatalf("Unexpected decision: %v", d)
+	}
 
 	if mcref.newEngineCalled != 1 {
 		t.Fatalf("Unexpected number of calls to mockCustomRuleEngineFactory.NewEngine: %v", mcref.newEngineCalled)
@@ -99,24 +106,20 @@ func TestWafServerEvalRequest(t *testing.T) {
 	}
 }
 
-func TestWafDetectionMode(t *testing.T) {
+func TestRequestBodyCheckOff(t *testing.T) {
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-
-	// Block request
-	msrev := &mockSecRuleEvaluation{decision: Block}
-
+	msrev := &mockSecRuleEvaluation{decision: Pass}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
 	mcrev := &mockCustomRuleEvaluation{}
 	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
-	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: true}}
-	c[0] = mc
+	c[0] = &mockConfig{mpc: mockPolicyConfig{requestBodyCheck: false}}
 	mrbp := &mockRequestBodyParser{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
@@ -131,8 +134,124 @@ func TestWafDetectionMode(t *testing.T) {
 	d, err := s.EvalRequest(req)
 
 	// Assert
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
 	if d != Pass {
 		t.Fatalf("Unexpected decision: %v", d)
+	}
+
+	if mcref.newEngineCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEngineFactory.NewEngine: %v", mcref.newEngineCalled)
+	}
+
+	if mcre.newEvaluationCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEngine.NewEvaluation: %v", mcre.newEvaluationCalled)
+	}
+
+	if mcrev.scanHeadersCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.ScanHeaders: %v", mcrev.scanHeadersCalled)
+	}
+
+	if mcrev.scanBodyFieldCalled != 0 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.ScanBodyField: %v", mcrev.scanBodyFieldCalled)
+	}
+
+	if mcrev.evalRulesCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.EvalRules: %v", mcrev.evalRulesCalled)
+	}
+
+	if mcrev.closeCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.Close: %v", mcrev.closeCalled)
+	}
+
+	if msref.newEngineCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEngineFactory.NewEngine: %v", msref.newEngineCalled)
+	}
+
+	if msre.newEvaluationCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEngine.NewEvaluation: %v", msre.newEvaluationCalled)
+	}
+
+	if msrev.scanHeadersCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.ScanHeaders: %v", msrev.scanHeadersCalled)
+	}
+
+	if msrev.scanBodyFieldCalled != 0 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.ScanBodyField: %v", msrev.scanBodyFieldCalled)
+	}
+
+	if msrev.evalRulesPhase1Called != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.EvalRulesPhase1: %v", msrev.evalRulesPhase1Called)
+	}
+
+	if msrev.evalRulesPhase2to5Called != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.evalRulesPhase2to5Called: %v", msrev.evalRulesPhase2to5Called)
+	}
+
+	if msrev.bodyParseErrorOccurredCalled != 0 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.bodyParseErrorOccurred: %v", msrev.bodyParseErrorOccurredCalled)
+	}
+
+	if msrev.closeCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockSecRuleEvaluation.Close: %v", msrev.closeCalled)
+	}
+
+	if mire.evalRequestCount != 1 {
+		t.Fatalf("Unexpected number of calls to mockIPReputationEngine.EvalRequest: %v", mire.evalRequestCount)
+	}
+}
+
+func TestWafDetectionMode(t *testing.T) {
+	// Arrange
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	msrev := &mockSecRuleEvaluation{decision: Block} // SecRule engine decides to block request
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcrev := &mockCustomRuleEvaluation{}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	mc := &mockConfig{}
+	c[0] = mc
+	mrbp := &mockRequestBodyParser{}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	mgdb := &mockGeoDB{}
+	req := &mockWafHTTPRequest{}
+
+	// Act
+	mc.mpc.isDetectionMode = false
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+	d1, err := s.EvalRequest(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	mc.mpc.isDetectionMode = true
+	s, err = NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	if err != nil {
+		t.Fatalf("Error from NewServer: %s", err)
+	}
+	d2, err := s.EvalRequest(req)
+	if err != nil {
+		t.Fatalf("Unexpected error: %v", err)
+	}
+
+	// Assert
+	if d1 != Block {
+		t.Fatalf("Unexpected decision: %v", d1)
+	}
+
+	if d2 != Pass {
+		t.Fatalf("Unexpected decision: %v", d2)
 	}
 }
 
@@ -142,15 +261,10 @@ func TestWafShadowModeCustomRuleBlock(t *testing.T) {
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-
-	// Allow request
-	msrev := &mockSecRuleEvaluation{decision: Allow}
-
+	msrev := &mockSecRuleEvaluation{decision: Allow} // SecRule engine decides to allow request
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
-
-	// Block request
-	mcrev := &mockCustomRuleEvaluation{decision: Block}
+	mcrev := &mockCustomRuleEvaluation{decision: Block} // Custom rules engine decides to block request
 	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
@@ -181,15 +295,10 @@ func TestWafShadowModeSecRuleBlock(t *testing.T) {
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-
-	// Block request
-	msrev := &mockSecRuleEvaluation{decision: Block}
-
+	msrev := &mockSecRuleEvaluation{decision: Block} // SecRule engine decides to block request
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
-
-	// Allow request
-	mcrev := &mockCustomRuleEvaluation{decision: Allow}
+	mcrev := &mockCustomRuleEvaluation{decision: Allow} // Custom rules engine decides to allow request
 	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
@@ -220,13 +329,10 @@ func TestWafShadowDetectionMode(t *testing.T) {
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-
-	// Block request
-	msrev := &mockSecRuleEvaluation{decision: Block}
-
+	msrev := &mockSecRuleEvaluation{decision: Block} // SecRule engine decides to block request
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
-	mcrev := &mockCustomRuleEvaluation{decision: Block}
+	mcrev := &mockCustomRuleEvaluation{decision: Block} // Custom rules engine decides to block request
 	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
@@ -257,7 +363,6 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-
 	msrev := &mockSecRuleEvaluation{}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -322,7 +427,6 @@ func testBytesLimit(
 	mrl := &mockResultsLogger{}
 	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
 	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
-
 	msrev := &mockSecRuleEvaluation{decision: Pass}
 	msre := &mockSecRuleEngine{msrev: msrev}
 	msref := &mockSecRuleEngineFactory{msre: msre}
@@ -330,7 +434,7 @@ func testBytesLimit(
 	mcre := &mockCustomRuleEngine{mcrev: mcrev}
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
-	c[0] = &mockConfig{}
+	c[0] = &mockConfig{mpc: mockPolicyConfig{requestBodyCheck: true}}
 	mrbp := &mockRequestBodyParser{
 		parseCb: func(
 			logger zerolog.Logger,

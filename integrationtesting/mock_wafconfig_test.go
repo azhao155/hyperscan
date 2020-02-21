@@ -30,6 +30,7 @@ type mockPolicyConfig struct {
 	configID           string
 	isDetectionMode    bool
 	isShadowMode       bool
+	requestBodyCheck   bool
 	secRuleConfig      waf.SecRuleConfig
 	customRuleConfig   waf.CustomRuleConfig
 	ipReputationConfig waf.IPReputationConfig
@@ -47,6 +48,10 @@ func (mpc *mockPolicyConfig) IsShadowMode() bool {
 	return mpc.isShadowMode
 }
 
+func (mpc *mockPolicyConfig) RequestBodyCheck() bool {
+	return mpc.requestBodyCheck
+}
+
 func (mpc *mockPolicyConfig) SecRuleConfig() waf.SecRuleConfig {
 	return mpc.secRuleConfig
 }
@@ -60,13 +65,13 @@ func (mpc *mockPolicyConfig) IPReputationConfig() waf.IPReputationConfig {
 }
 
 type mockSecRuleConfig struct {
-	enabled   bool
-	ruleSetID string
+	enabled    bool
+	ruleSetID  string
 	exclusions []waf.Exclusion
 }
 
-func (msc *mockSecRuleConfig) Enabled() bool     { return msc.enabled }
-func (msc *mockSecRuleConfig) RuleSetID() string { return msc.ruleSetID }
+func (msc *mockSecRuleConfig) Enabled() bool               { return msc.enabled }
+func (msc *mockSecRuleConfig) RuleSetID() string           { return msc.ruleSetID }
 func (msc *mockSecRuleConfig) Exclusions() []waf.Exclusion { return msc.exclusions }
 
 type mockExclusion struct {

@@ -19,12 +19,13 @@ grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/PutConfig <<EOF
     {
       "configID": "myconfig1",
       "isDetectionMode": false,
+      "requestBodyCheck": true,
       "secRuleConfig": {
         "enabled": true,
         "ruleSetId": "OWASP CRS 3.0"
       },
       "ipReputationConfig": {
-        "enabled": true
+        "enabled": false
       },
       "customRuleConfig": {
         "customRules": [
@@ -37,6 +38,10 @@ grpcurl -plaintext -d @ 127.0.0.1:37291 wafservice.WafService/PutConfig <<EOF
                 "matchVariables": [
                   {
                     "variableName": "RequestUri",
+                    "selector": ""
+                  },
+                  {
+                    "variableName": "PostArgs",
                     "selector": ""
                   }
                 ],
