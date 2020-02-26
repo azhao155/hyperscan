@@ -9,7 +9,7 @@ type CustomRuleEngineFactory interface {
 
 // CustomRuleEngine is a WAF engine compatible with a subset of the ModCustomurity CustomRule language.
 type CustomRuleEngine interface {
-	NewEvaluation(logger zerolog.Logger, resultsLogger CustomRuleResultsLogger, req HTTPRequest) CustomRuleEvaluation
+	NewEvaluation(logger zerolog.Logger, resultsLogger CustomRuleResultsLogger, req HTTPRequest, reqBodyType ReqBodyType) CustomRuleEvaluation
 }
 
 // CustomRuleEvaluation is a run session of the CustomRule engine for a single specific HTTP request.
@@ -17,6 +17,7 @@ type CustomRuleEvaluation interface {
 	ScanHeaders() error
 	ScanBodyField(contentType FieldContentType, fieldName string, data string) error
 	EvalRules() (wafDecision Decision)
+	AlsoScanFullRawRequestBody() bool
 	Close()
 }
 

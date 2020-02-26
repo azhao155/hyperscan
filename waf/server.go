@@ -157,7 +157,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	var customRuleEvaluation CustomRuleEvaluation
 	if engines.cre != nil {
-		customRuleEvaluation = engines.cre.NewEvaluation(logger, resultsLogger, req)
+		customRuleEvaluation = engines.cre.NewEvaluation(logger, resultsLogger, req, reqBodyType)
 		defer customRuleEvaluation.Close()
 
 		err = customRuleEvaluation.ScanHeaders()
@@ -190,9 +190,11 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	if engines.requestBodyCheck {
 		var alsoScanFullRawRequestBody bool
-		// Currently only the SecRule engine may need the raw request body.
-		if engines.sre != nil {
+		if secRuleEvaluation != nil && alsoScanFullRawRequestBody == false {
 			alsoScanFullRawRequestBody = secRuleEvaluation.AlsoScanFullRawRequestBody()
+		}
+		if customRuleEvaluation != nil && alsoScanFullRawRequestBody == false {
+			alsoScanFullRawRequestBody = customRuleEvaluation.AlsoScanFullRawRequestBody()
 		}
 
 		// The callback function the body parser will call each time it has found a body field.

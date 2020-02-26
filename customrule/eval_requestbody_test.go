@@ -51,7 +51,7 @@ func TestRequestBodyEqualsBlockPositive(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.URLEncodedBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "john")
@@ -84,7 +84,7 @@ func TestRequestBodyEqualsBlockNegative(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.URLEncodedBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "bob")

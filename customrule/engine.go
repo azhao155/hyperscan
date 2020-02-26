@@ -51,6 +51,10 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 
 		for condIdx, mc := range rule.MatchConditions() {
 			for varIdx, m := range mc.MatchVariables() {
+				if m.VariableName() == "RequestBody" {
+					engine.usesFullRawRequestBody = true
+				}
+
 				mv := matchVariable{m.VariableName(), m.Selector()}
 
 				// Use existing struct for this MatchVariable or create new one if not yet created
@@ -145,10 +149,11 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 }
 
 type customRuleEngineImpl struct {
-	rules            []waf.CustomRule
-	geoDB            waf.GeoDB
-	conditionGroups  map[matchVariable]*conditionsWithSameMatchVar
-	scratchSpaceNext chan *scratchSpaces
+	rules                  []waf.CustomRule
+	geoDB                  waf.GeoDB
+	conditionGroups        map[matchVariable]*conditionsWithSameMatchVar
+	scratchSpaceNext       chan *scratchSpaces
+	usesFullRawRequestBody bool
 }
 
 type matchVariable struct {
@@ -183,9 +188,10 @@ type customRuleEvaluationImpl struct {
 	req                   waf.HTTPRequest
 	results               *scanResults
 	scratchSpacesInstance *scratchSpaces
+	reqBodyType           waf.ReqBodyType
 }
 
-func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.CustomRuleResultsLogger, req waf.HTTPRequest) waf.CustomRuleEvaluation {
+func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, resultsLogger waf.CustomRuleResultsLogger, req waf.HTTPRequest, reqBodyType waf.ReqBodyType) waf.CustomRuleEvaluation {
 	// Reuse a scratch space, or create a new one if there are none available
 	var scratchSpacesInstance *scratchSpaces
 	if len(c.scratchSpaceNext) > 0 {
@@ -204,6 +210,7 @@ func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, resultsLogge
 		req:                   req,
 		results:               &scanResults{matches: make(map[matchVariablePath]match)},
 		scratchSpacesInstance: scratchSpacesInstance,
+		reqBodyType:           reqBodyType,
 	}
 }
 
@@ -225,6 +232,12 @@ func (c *customRuleEngineImpl) newScratchSpace() (scratchSpacesInstance *scratch
 
 	scratchSpacesInstance = &s
 	return
+}
+
+func (e *customRuleEvaluationImpl) AlsoScanFullRawRequestBody() bool {
+	// The custom rules engine needs the full raw request body if it has rules that use it, and content type is application/x-www-form-urlencoded.
+	// TODO the reason for only allowing application/x-www-form-urlencoded was chosen due to limitations in ModSec. We could consider making this broader now that we do not use ModSec.
+	return e.engine.usesFullRawRequestBody && e.reqBodyType == waf.URLEncodedBody
 }
 
 func (e *customRuleEvaluationImpl) ScanHeaders() (err error) {
@@ -277,29 +290,23 @@ func (e *customRuleEvaluationImpl) ScanHeaders() (err error) {
 }
 
 func (e *customRuleEvaluationImpl) ScanBodyField(contentType waf.FieldContentType, fieldName string, data string) (err error) {
-	if contentType != waf.URLEncodedContent {
-		// TODO Consider removing this silly constraint we have because we have it in our ModSec version.
-		return
-	}
+	switch contentType {
+	case waf.URLEncodedContent, waf.MultipartFormDataContent:
+		err = e.scanTarget(matchVariable{variableName: "PostArgs"}, data, e.results)
+		if err != nil {
+			return
+		}
 
-	err = e.scanTarget(matchVariable{variableName: "PostArgs"}, data, e.results)
-	if err != nil {
-		return
-	}
+		err = e.scanTarget(matchVariable{variableName: "PostArgs", selector: fieldName}, data, e.results)
+		if err != nil {
+			return
+		}
 
-	err = e.scanTarget(matchVariable{variableName: "PostArgs", selector: fieldName}, data, e.results)
-	if err != nil {
-		return
-	}
-
-	err = e.scanTarget(matchVariable{variableName: "RequestBody"}, data, e.results)
-	if err != nil {
-		return
-	}
-
-	err = e.scanTarget(matchVariable{variableName: "RequestBody", selector: fieldName}, data, e.results)
-	if err != nil {
-		return
+	case waf.FullRawRequestBody:
+		err = e.scanTarget(matchVariable{variableName: "RequestBody"}, data, e.results)
+		if err != nil {
+			return
+		}
 	}
 
 	return

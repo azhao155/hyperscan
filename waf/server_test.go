@@ -704,7 +704,7 @@ func (m *mockCustomRuleEngineFactory) NewEngine(c CustomRuleConfig) (engine Cust
 	return
 }
 
-func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, resultsLogger CustomRuleResultsLogger, req HTTPRequest) CustomRuleEvaluation {
+func (s *mockCustomRuleEngine) NewEvaluation(logger zerolog.Logger, resultsLogger CustomRuleResultsLogger, req HTTPRequest, reqBodyType ReqBodyType) CustomRuleEvaluation {
 	s.newEvaluationCalled++
 	return s.mcrev
 }
@@ -738,6 +738,10 @@ func (s *mockCustomRuleEvaluation) EvalRules() Decision {
 
 func (s *mockCustomRuleEvaluation) Close() {
 	s.closeCalled++
+}
+
+func (s *mockCustomRuleEvaluation) AlsoScanFullRawRequestBody() bool {
+	return false
 }
 
 type mockGeoDB struct {

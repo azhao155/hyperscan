@@ -62,7 +62,7 @@ func TestStringOperators(t *testing.T) {
 		req1 := &mockWafHTTPRequest{uri: test.inputURI, method: "GET"}
 
 		// Act
-		eval := engine.NewEvaluation(logger, resLog, req1)
+		eval := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 		defer eval.Close()
 		err = eval.ScanHeaders()
 		decision := eval.EvalRules()
@@ -163,7 +163,7 @@ func TestTransformations(t *testing.T) {
 		req1 := &mockWafHTTPRequest{uri: "/", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: test.input}}}
 
 		// Act
-		eval := engine.NewEvaluation(logger, resLog, req1)
+		eval := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 		defer eval.Close()
 		err = eval.ScanHeaders()
 		decision := eval.EvalRules()
@@ -232,17 +232,17 @@ func TestMultipleRulesSameMatchVar(t *testing.T) {
 	req3 := &mockWafHTTPRequest{uri: "/?a=ghi", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, resLog, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2, waf.OtherBody)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
 
-	eval3 := engine.NewEvaluation(logger, resLog, req3)
+	eval3 := engine.NewEvaluation(logger, resLog, req3, waf.OtherBody)
 	defer eval3.Close()
 	err3 := eval3.ScanHeaders()
 	decision3 := eval3.EvalRules()
@@ -289,17 +289,17 @@ func TestMultipleMatchValues(t *testing.T) {
 	req3 := &mockWafHTTPRequest{uri: "/?a=ghi", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, resLog, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2, waf.OtherBody)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
 
-	eval3 := engine.NewEvaluation(logger, resLog, req3)
+	eval3 := engine.NewEvaluation(logger, resLog, req3, waf.OtherBody)
 	defer eval3.Close()
 	err3 := eval3.ScanHeaders()
 	decision3 := eval3.EvalRules()
@@ -344,17 +344,17 @@ func TestMultipleMatchVars(t *testing.T) {
 	req3 := &mockWafHTTPRequest{uri: "/?a=xyz", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: "xyz"}}}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, resLog, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2, waf.OtherBody)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
 
-	eval3 := engine.NewEvaluation(logger, resLog, req3)
+	eval3 := engine.NewEvaluation(logger, resLog, req3, waf.OtherBody)
 	defer eval3.Close()
 	err3 := eval3.ScanHeaders()
 	decision3 := eval3.EvalRules()
@@ -416,7 +416,7 @@ func TestMultipleMatchVarsAndVals(t *testing.T) {
 		req := &mockWafHTTPRequest{uri: test.inputURI, method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: test.inputHeaderVal}}}
 
 		// Act
-		eval := engine.NewEvaluation(logger, resLog, req)
+		eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
 		defer eval.Close()
 		err = eval.ScanHeaders()
 		decision := eval.EvalRules()
@@ -467,12 +467,12 @@ func TestRuleAllow(t *testing.T) {
 	req2 := &mockWafHTTPRequest{uri: "/?a=def", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, resLog, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2, waf.OtherBody)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
@@ -512,7 +512,7 @@ func TestLogging(t *testing.T) {
 	req1 := &mockWafHTTPRequest{uri: "/?a=abc", method: "GET"}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
@@ -552,12 +552,12 @@ func TestIPMatch(t *testing.T) {
 	req2 := &mockWafHTTPRequest{uri: "/", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: "1.2.0.0"}}}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, resLog, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2, waf.OtherBody)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()
@@ -598,12 +598,12 @@ func TestGeoMatch(t *testing.T) {
 	req2 := &mockWafHTTPRequest{uri: "/", method: "GET", headers: []waf.HeaderPair{&mockHeaderPair{k: "X-Some-Header", v: "3.3.3.3:443,4.4.4.4:443"}}}
 
 	// Act
-	eval1 := engine.NewEvaluation(logger, resLog, req1)
+	eval1 := engine.NewEvaluation(logger, resLog, req1, waf.OtherBody)
 	defer eval1.Close()
 	err1 := eval1.ScanHeaders()
 	decision1 := eval1.EvalRules()
 
-	eval2 := engine.NewEvaluation(logger, resLog, req2)
+	eval2 := engine.NewEvaluation(logger, resLog, req2, waf.OtherBody)
 	defer eval2.Close()
 	err2 := eval2.ScanHeaders()
 	decision2 := eval2.EvalRules()

@@ -72,12 +72,12 @@ func TestCustomRulesWithPriorities(t *testing.T) {
 	}
 
 	// Act
-	blockEval := engine.NewEvaluation(logger, resLog, blockReq)
+	blockEval := engine.NewEvaluation(logger, resLog, blockReq, waf.OtherBody)
 	defer blockEval.Close()
 	blockErr := blockEval.ScanHeaders()
 	blockDecision := blockEval.EvalRules()
 
-	allowEval := engine.NewEvaluation(logger, resLog, allowReq)
+	allowEval := engine.NewEvaluation(logger, resLog, allowReq, waf.OtherBody)
 	defer allowEval.Close()
 	allowErr := allowEval.ScanHeaders()
 	allowDecision := allowEval.EvalRules()
@@ -114,12 +114,12 @@ func TestCustomRulesWithPrioritiesInvertedOrder(t *testing.T) {
 	}
 
 	// Act
-	blockEval := engine.NewEvaluation(logger, resLog, blockReq)
+	blockEval := engine.NewEvaluation(logger, resLog, blockReq, waf.OtherBody)
 	defer blockEval.Close()
 	blockErr := blockEval.ScanHeaders()
 	blockDecision := blockEval.EvalRules()
 
-	allowEval := engine.NewEvaluation(logger, resLog, allowReq)
+	allowEval := engine.NewEvaluation(logger, resLog, allowReq, waf.OtherBody)
 	defer allowEval.Close()
 	allowErr := allowEval.ScanHeaders()
 	allowDecision := allowEval.EvalRules()

@@ -51,7 +51,7 @@ func TestPostArgsEqualsBlockPositive(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.URLEncodedBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "john")
@@ -84,7 +84,73 @@ func TestPostArgsEqualsBlockNegative(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.URLEncodedBody)
+	defer eval.Close()
+	err = eval.ScanHeaders()
+	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "bob")
+	err = eval.ScanBodyField(waf.URLEncodedContent, "lastName", "dylan")
+	decision := eval.EvalRules()
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Pass, decision)
+}
+
+func TestPostArgsEqualsBlockPositiveFormdata(t *testing.T) {
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+
+	// Arrange
+	content := "firstName=john&lastName=travolta"
+	req := &mockWafHTTPRequest{
+		uri:    "/",
+		method: "POST",
+		headers: []waf.HeaderPair{
+			&mockHeaderPair{k: "Content-Type", v: "multipart/form-data; boundary=------------------------1aa6ce6559102"},
+			&mockHeaderPair{k: "Content-Length", v: fmt.Sprint(len(content))},
+		},
+		body: content,
+	}
+	engine, resLog, err := newEngineWithCustomRules(postArgsEqualsBlockRule)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Act
+	eval := engine.NewEvaluation(logger, resLog, req, waf.MultipartFormDataBody)
+	defer eval.Close()
+	err = eval.ScanHeaders()
+	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "john")
+	err = eval.ScanBodyField(waf.URLEncodedContent, "lastName", "travolta")
+	decision := eval.EvalRules()
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+}
+
+func TestPostArgsEqualsBlockNegativeFormdata(t *testing.T) {
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+
+	// Arrange
+	content := "firstName=bob&lastName=dylan"
+	req := &mockWafHTTPRequest{
+		uri:    "/",
+		method: "POST",
+		headers: []waf.HeaderPair{
+			&mockHeaderPair{k: "Content-Type", v: "multipart/form-data; boundary=------------------------1aa6ce6559102"},
+			&mockHeaderPair{k: "Content-Length", v: fmt.Sprint(len(content))},
+		},
+		body: content,
+	}
+	engine, resLog, err := newEngineWithCustomRules(postArgsEqualsBlockRule)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Act
+	eval := engine.NewEvaluation(logger, resLog, req, waf.MultipartFormDataBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	err = eval.ScanBodyField(waf.URLEncodedContent, "firstName", "bob")

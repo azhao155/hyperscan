@@ -138,32 +138,32 @@ func TestHyperscanNegationRule(t *testing.T) {
 	}
 
 	// Act
-	evalM2M2 := engine.NewEvaluation(logger, resLog, reqM2M2)
+	evalM2M2 := engine.NewEvaluation(logger, resLog, reqM2M2, waf.OtherBody)
 	defer evalM2M2.Close()
 	errM2M2 := evalM2M2.ScanHeaders()
 	decisionM2M2 := evalM2M2.EvalRules()
 
-	evalM2M1 := engine.NewEvaluation(logger, resLog, reqM2M1)
+	evalM2M1 := engine.NewEvaluation(logger, resLog, reqM2M1, waf.OtherBody)
 	defer evalM2M1.Close()
 	errM2M1 := evalM2M1.ScanHeaders()
 	decisionM2M1 := evalM2M1.EvalRules()
 
-	evalM2M0 := engine.NewEvaluation(logger, resLog, reqM2M0)
+	evalM2M0 := engine.NewEvaluation(logger, resLog, reqM2M0, waf.OtherBody)
 	defer evalM2M0.Close()
 	errM2M0 := evalM2M0.ScanHeaders()
 	decisionM2M0 := evalM2M0.EvalRules()
 
-	evalM1M1 := engine.NewEvaluation(logger, resLog, reqM1M1)
+	evalM1M1 := engine.NewEvaluation(logger, resLog, reqM1M1, waf.OtherBody)
 	defer evalM1M1.Close()
 	errM1M1 := evalM1M1.ScanHeaders()
 	decisionM1M1 := evalM1M1.EvalRules()
 
-	evalM1M0 := engine.NewEvaluation(logger, resLog, reqM1M0)
+	evalM1M0 := engine.NewEvaluation(logger, resLog, reqM1M0, waf.OtherBody)
 	defer evalM1M0.Close()
 	errM1M0 := evalM1M0.ScanHeaders()
 	decisionM1M0 := evalM1M0.EvalRules()
 
-	evalM0M0 := engine.NewEvaluation(logger, resLog, reqM0M0)
+	evalM0M0 := engine.NewEvaluation(logger, resLog, reqM0M0, waf.OtherBody)
 	defer evalM0M0.Close()
 	errM0M0 := evalM0M0.ScanHeaders()
 	decisionM0M0 := evalM0M0.EvalRules()
@@ -337,32 +337,32 @@ func TestNumericNegationRule(t *testing.T) {
 	}
 
 	// Act
-	evalM2M2 := engine.NewEvaluation(logger, resLog, reqM2M2)
+	evalM2M2 := engine.NewEvaluation(logger, resLog, reqM2M2, waf.OtherBody)
 	defer evalM2M2.Close()
 	errM2M2 := evalM2M2.ScanHeaders()
 	decisionM2M2 := evalM2M2.EvalRules()
 
-	evalM2M1 := engine.NewEvaluation(logger, resLog, reqM2M1)
+	evalM2M1 := engine.NewEvaluation(logger, resLog, reqM2M1, waf.OtherBody)
 	defer evalM2M1.Close()
 	errM2M1 := evalM2M1.ScanHeaders()
 	decisionM2M1 := evalM2M1.EvalRules()
 
-	evalM2M0 := engine.NewEvaluation(logger, resLog, reqM2M0)
+	evalM2M0 := engine.NewEvaluation(logger, resLog, reqM2M0, waf.OtherBody)
 	defer evalM2M0.Close()
 	errM2M0 := evalM2M0.ScanHeaders()
 	decisionM2M0 := evalM2M0.EvalRules()
 
-	evalM1M1 := engine.NewEvaluation(logger, resLog, reqM1M1)
+	evalM1M1 := engine.NewEvaluation(logger, resLog, reqM1M1, waf.OtherBody)
 	defer evalM1M1.Close()
 	errM1M1 := evalM1M1.ScanHeaders()
 	decisionM1M1 := evalM1M1.EvalRules()
 
-	evalM1M0 := engine.NewEvaluation(logger, resLog, reqM1M0)
+	evalM1M0 := engine.NewEvaluation(logger, resLog, reqM1M0, waf.OtherBody)
 	defer evalM1M0.Close()
 	errM1M0 := evalM1M0.ScanHeaders()
 	decisionM1M0 := evalM1M0.EvalRules()
 
-	evalM0M0 := engine.NewEvaluation(logger, resLog, reqM0M0)
+	evalM0M0 := engine.NewEvaluation(logger, resLog, reqM0M0, waf.OtherBody)
 	defer evalM0M0.Close()
 	errM0M0 := evalM0M0.ScanHeaders()
 	decisionM0M0 := evalM0M0.EvalRules()
@@ -459,17 +459,17 @@ func TestIPMatchNegationRule(t *testing.T) {
 	}
 
 	// Act
-	evalM2 := engine.NewEvaluation(logger, resLog, reqM2)
+	evalM2 := engine.NewEvaluation(logger, resLog, reqM2, waf.OtherBody)
 	defer evalM2.Close()
 	errM2 := evalM2.ScanHeaders()
 	decisionM2 := evalM2.EvalRules()
 
-	evalM1 := engine.NewEvaluation(logger, resLog, reqM1)
+	evalM1 := engine.NewEvaluation(logger, resLog, reqM1, waf.OtherBody)
 	defer evalM1.Close()
 	errM1 := evalM1.ScanHeaders()
 	decisionM1 := evalM1.EvalRules()
 
-	evalM0 := engine.NewEvaluation(logger, resLog, reqM0)
+	evalM0 := engine.NewEvaluation(logger, resLog, reqM0, waf.OtherBody)
 	defer evalM0.Close()
 	errM0 := evalM0.ScanHeaders()
 	decisionM0 := evalM0.EvalRules()
@@ -633,32 +633,32 @@ func TestGeoMatchNegationRule(t *testing.T) {
 	}
 
 	// Act
-	evalM1M2 := engine.NewEvaluation(logger, resLog, reqM1M2)
+	evalM1M2 := engine.NewEvaluation(logger, resLog, reqM1M2, waf.OtherBody)
 	defer evalM1M2.Close()
 	errM1M2 := evalM1M2.ScanHeaders()
 	decisionM1M2 := evalM1M2.EvalRules()
 
-	evalM1M1 := engine.NewEvaluation(logger, resLog, reqM1M1)
+	evalM1M1 := engine.NewEvaluation(logger, resLog, reqM1M1, waf.OtherBody)
 	defer evalM1M1.Close()
 	errM1M1 := evalM1M1.ScanHeaders()
 	decisionM1M1 := evalM1M1.EvalRules()
 
-	evalM1M0 := engine.NewEvaluation(logger, resLog, reqM1M0)
+	evalM1M0 := engine.NewEvaluation(logger, resLog, reqM1M0, waf.OtherBody)
 	defer evalM1M0.Close()
 	errM1M0 := evalM1M0.ScanHeaders()
 	decisionM1M0 := evalM1M0.EvalRules()
 
-	evalM0M2 := engine.NewEvaluation(logger, resLog, reqM0M2)
+	evalM0M2 := engine.NewEvaluation(logger, resLog, reqM0M2, waf.OtherBody)
 	defer evalM0M2.Close()
 	errM0M2 := evalM0M2.ScanHeaders()
 	decisionM0M2 := evalM0M2.EvalRules()
 
-	evalM0M1 := engine.NewEvaluation(logger, resLog, reqM0M1)
+	evalM0M1 := engine.NewEvaluation(logger, resLog, reqM0M1, waf.OtherBody)
 	defer evalM0M1.Close()
 	errM0M1 := evalM0M1.ScanHeaders()
 	decisionM0M1 := evalM0M1.EvalRules()
 
-	evalM0M0 := engine.NewEvaluation(logger, resLog, reqM0M0)
+	evalM0M0 := engine.NewEvaluation(logger, resLog, reqM0M0, waf.OtherBody)
 	defer evalM0M0.Close()
 	errM0M0 := evalM0M0.ScanHeaders()
 	decisionM0M0 := evalM0M0.EvalRules()

@@ -47,7 +47,7 @@ func TestRequestCookiesContainsBlockPositive(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -75,7 +75,7 @@ func TestRequestCookiesContainsBlockNegative(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()

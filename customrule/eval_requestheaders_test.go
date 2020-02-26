@@ -49,7 +49,7 @@ func TestRequestHeadersContainsBlockPositive(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
 
@@ -77,7 +77,7 @@ func TestRequestHeadersContainsBlockNegative(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
@@ -128,7 +128,7 @@ func TestContentLengthLessThan(t *testing.T) {
 	}
 
 	// Act
-	eval := engine.NewEvaluation(logger, resLog, req)
+	eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
 	defer eval.Close()
 	err = eval.ScanHeaders()
 	decision := eval.EvalRules()
