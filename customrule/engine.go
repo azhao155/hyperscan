@@ -4,6 +4,7 @@ import (
 	"azwaf/encoding"
 	"azwaf/ipaddresses"
 	"azwaf/waf"
+	"fmt"
 	"html"
 	"net/http"
 	"net/url"
@@ -48,9 +49,8 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 			continue
 		}
 
-		for mcIdx, mc := range rule.MatchConditions() {
-
-			for _, m := range mc.MatchVariables() {
+		for condIdx, mc := range rule.MatchConditions() {
+			for varIdx, m := range mc.MatchVariables() {
 				mv := matchVariable{m.VariableName(), m.Selector()}
 
 				// Use existing struct for this MatchVariable or create new one if not yet created
@@ -75,7 +75,7 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 					cwsmv.sameTransformations = append(cwsmv.sameTransformations, cwsmvt)
 				}
 
-				cwsmvt.matchConditionPaths = append(cwsmvt.matchConditionPaths, matchConditionPath{ruleIdx, mcIdx})
+				cwsmvt.matchVariablePaths = append(cwsmvt.matchVariablePaths, matchVariablePath{ruleIdx, condIdx, varIdx})
 			}
 		}
 	}
@@ -85,12 +85,12 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 		for stIdx, st := range cg.sameTransformations {
 			groupRegexPatterns := []waf.MultiRegexEnginePattern{}
 
-			// BackRefs is not the same as st.matchConditionPaths, because there can be multiple values that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
-			backRefs := []matchConditionPath{}
+			// BackRefs is not the same as st.matchVariablePaths, because there can be multiple values that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
+			backRefs := []matchVariablePath{}
 			backRefCurID := 0
 
-			for _, path := range st.matchConditionPaths {
-				mc := engine.rules[path.ruleIdx].MatchConditions()[path.mcIdx]
+			for _, path := range st.matchVariablePaths {
+				mc := engine.rules[path.ruleIdx].MatchConditions()[path.condIdx]
 				for _, val := range mc.MatchValues() {
 					escapedVal := regexp.QuoteMeta(val)
 
@@ -163,15 +163,16 @@ type conditionsWithSameMatchVar struct {
 
 // Example: two separate rules both have conditions that target the QueryString match variable and also both want the transformations ["UrlDecode","Lowercase"]
 type conditionsWithSameMatchVarAndTransformations struct {
-	transformations     []string
-	matchConditionPaths []matchConditionPath
-	backRefs            []matchConditionPath
-	multiRegexEngine    waf.MultiRegexEngine
+	transformations    []string
+	matchVariablePaths []matchVariablePath
+	backRefs           []matchVariablePath
+	multiRegexEngine   waf.MultiRegexEngine
 }
 
-type matchConditionPath struct {
+type matchVariablePath struct {
 	ruleIdx int
-	mcIdx   int
+	condIdx int
+	varIdx  int
 }
 
 type scratchSpaces map[*waf.MultiRegexEngine]waf.MultiRegexEngineScratchSpace
@@ -201,7 +202,7 @@ func (c *customRuleEngineImpl) NewEvaluation(logger zerolog.Logger, resultsLogge
 		engine:                c,
 		resultsLogger:         resultsLogger,
 		req:                   req,
-		results:               &scanResults{matches: make(map[matchConditionPath]match)},
+		results:               &scanResults{matches: make(map[matchVariablePath]match)},
 		scratchSpacesInstance: scratchSpacesInstance,
 	}
 }
@@ -304,14 +305,29 @@ func (e *customRuleEvaluationImpl) ScanBodyField(contentType waf.FieldContentTyp
 	return
 }
 
+func (e *customRuleEvaluationImpl) evalCondition(ruleIdx int, condIdx int) (satisfied bool, mvp matchVariablePath) {
+	cond := e.engine.rules[ruleIdx].MatchConditions()[condIdx]
+	for varIdx := range cond.MatchVariables() {
+		mvp = matchVariablePath{ruleIdx, condIdx, varIdx}
+		_, satisfied = e.results.matches[mvp]
+		if satisfied {
+			return
+		}
+	}
+
+	return
+}
+
 func (e *customRuleEvaluationImpl) EvalRules() waf.Decision {
 	rules := e.engine.rules
 
 	for ruleIdx, rule := range rules {
 		allConditionsSatisfied := true
-		for mcIdx := range rule.MatchConditions() {
-			mcp := matchConditionPath{ruleIdx, mcIdx}
-			if _, ok := e.results.matches[mcp]; !ok {
+		matchedVariables := make([]matchVariablePath, len(rule.MatchConditions()))
+		for condIdx := range rule.MatchConditions() {
+			if satisfied, mvp := e.evalCondition(ruleIdx, condIdx); satisfied {
+				matchedVariables[condIdx] = mvp
+			} else {
 				allConditionsSatisfied = false
 				break
 			}
@@ -323,12 +339,12 @@ func (e *customRuleEvaluationImpl) EvalRules() waf.Decision {
 
 		// Prepare struct for logging that describes the data that triggered the conditions
 		rlcrmc := make([]waf.ResultsLoggerCustomRulesMatchedConditions, len(rule.MatchConditions()))
-		for mcIdx := range rule.MatchConditions() {
-			mcp := matchConditionPath{ruleIdx, mcIdx}
-			rlcrmc[mcIdx].ConditionIndex = mcIdx
-			rlcrmc[mcIdx].VariableName = e.results.matches[mcp].VariableName
-			rlcrmc[mcIdx].FieldName = e.results.matches[mcp].FieldName
-			rlcrmc[mcIdx].MatchedValue = string(e.results.matches[mcp].Data)
+		for condIdx := range rule.MatchConditions() {
+			mvp := matchedVariables[condIdx]
+			rlcrmc[condIdx].ConditionIndex = condIdx
+			rlcrmc[condIdx].VariableName = e.results.matches[mvp].VariableName
+			rlcrmc[condIdx].FieldName = e.results.matches[mvp].FieldName
+			rlcrmc[condIdx].MatchedValue = string(e.results.matches[mvp].Data)
 		}
 
 		e.resultsLogger.CustomRuleTriggered(rule.Name(), rule.Action(), rlcrmc)
@@ -360,7 +376,7 @@ type match struct {
 }
 
 type scanResults struct {
-	matches map[matchConditionPath]match
+	matches map[matchVariablePath]match
 }
 
 func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, results *scanResults) (err error) {
@@ -382,13 +398,13 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 			}
 
 			for _, mrematch := range mrematches {
-				mcp := st.backRefs[mrematch.ID]
-				if _, ok := results.matches[mcp]; ok {
+				mvp := st.backRefs[mrematch.ID]
+				if _, ok := results.matches[mvp]; ok {
 					// A match for this condition was already found
 					continue
 				}
 
-				results.matches[mcp] = match{
+				results.matches[mvp] = match{
 					VariableName: m.variableName,
 					FieldName:    m.selector,
 					Data:         mrematch.Data,
@@ -398,8 +414,8 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 
 		// Evaluate remaining conditions that are not evaluated by the regex engine
 		rules := e.engine.rules
-		for _, mcp := range st.matchConditionPaths {
-			mc := rules[mcp.ruleIdx].MatchConditions()[mcp.mcIdx]
+		for _, mvp := range st.matchVariablePaths {
+			mc := rules[mvp.ruleIdx].MatchConditions()[mvp.condIdx]
 			op := mc.Operator()
 
 			for _, mvar := range mc.MatchVariables() {
@@ -427,7 +443,11 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 						}
 
 						if prefix&mask == ip&mask {
-							results.matches[mcp] = match{StartPos: 0, EndPos: len(contentTransformed) - 1, Data: []byte(contentTransformed)}
+							results.matches[mvp] = match{
+								VariableName: m.variableName,
+								FieldName:    m.variableName,
+								Data:         []byte(contentTransformed),
+							}
 						}
 
 					case "GeoMatch":
@@ -437,8 +457,13 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 							contentCountryCode := e.engine.geoDB.GeoLookup(ipFromContent)
 
 							if strings.EqualFold(contentCountryCode, mval) {
-								results.matches[mcp] = match{Data: []byte(contentCountryCode)}
-								return
+								data := fmt.Sprintf("%s (%s)", ipFromContent, contentCountryCode)
+								results.matches[mvp] = match{
+									VariableName: m.variableName,
+									FieldName:    m.selector,
+									Data:         []byte(data),
+								}
+								break
 							}
 						}
 
@@ -468,7 +493,26 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 						}
 
 						if isMatch {
-							results.matches[mcp] = match{StartPos: 0, EndPos: len(contentTransformed) - 1, Data: []byte(contentTransformed)}
+							results.matches[mvp] = match{
+								VariableName: m.variableName,
+								FieldName:    m.selector,
+								Data:         []byte(contentTransformed),
+							}
+						}
+					}
+				}
+
+				// Under negation, the match variable is considered
+				// unmatched if it matches any of the match variables,
+				// and matched if it matches none of the match variables.
+				if mc.NegateCondition() {
+					if _, ok := e.results.matches[mvp]; ok {
+						delete(e.results.matches, mvp)
+					} else {
+						e.results.matches[mvp] = match{
+							VariableName: mvar.VariableName(),
+							FieldName:    mvar.Selector(),
+							Data:         []byte(contentTransformed),
 						}
 					}
 				}

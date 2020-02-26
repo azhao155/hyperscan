@@ -16,7 +16,7 @@ var stringMatchBypassRule = &mockCustomRule{
 		&mockMatchCondition{
 			matchVariables: []waf.MatchVariable{
 				&mockMatchVariable{
-					variableName: "RequestHeader",
+					variableName: "RequestHeaders",
 					selector:     "X-Bypass-String",
 				},
 				&mockMatchVariable{
@@ -32,7 +32,7 @@ var stringMatchBypassRule = &mockCustomRule{
 		&mockMatchCondition{
 			matchVariables: []waf.MatchVariable{
 				&mockMatchVariable{
-					variableName: "RequestHeader",
+					variableName: "RequestHeaders",
 					selector:     "X-Bypass-Enabled",
 				},
 				&mockMatchVariable{
@@ -49,26 +49,6 @@ var stringMatchBypassRule = &mockCustomRule{
 	action: "Allow",
 }
 
-var multiVarMatchRule = &mockCustomRule{
-	name:     "multiVarMatchRule",
-	priority: 1,
-	ruleType: "MatchRule",
-	matchConditions: []waf.MatchCondition{
-		&mockMatchCondition{
-			matchVariables: []waf.MatchVariable{
-				&mockMatchVariable{
-					variableName: "RequestUri",
-					selector:     "",
-				},
-			},
-			operator:        "Contains",
-			negateCondition: false,
-			matchValues:     []string{"1", "2"},
-		},
-	},
-	action: "Allow",
-}
-
 var numericBypassRule = &mockCustomRule{
 	name:     "numericBypassRule",
 	priority: 2,
@@ -77,7 +57,7 @@ var numericBypassRule = &mockCustomRule{
 		&mockMatchCondition{
 			matchVariables: []waf.MatchVariable{
 				&mockMatchVariable{
-					variableName: "RequestHeader",
+					variableName: "RequestHeaders",
 					selector:     "Content-Length",
 				},
 			},
@@ -112,15 +92,35 @@ var geoBlacklistRule = &mockCustomRule{
 	action: "Block",
 }
 
+var multiVarMatchRule = &mockCustomRule{
+	name:     "multiVarMatchRule",
+	priority: 4,
+	ruleType: "MatchRule",
+	matchConditions: []waf.MatchCondition{
+		&mockMatchCondition{
+			matchVariables: []waf.MatchVariable{
+				&mockMatchVariable{
+					variableName: "RequestUri",
+					selector:     "",
+				},
+			},
+			operator:        "Contains",
+			negateCondition: false,
+			matchValues:     []string{"1", "2"},
+		},
+	},
+	action: "Allow",
+}
+
 var wafConfigWithCustomRules = &mockWAFConfig{
 	policyConfigs: []waf.PolicyConfig{
 		&mockPolicyConfig{
 			secRuleConfig: &mockSecRuleConfig{},
 			customRuleConfig: &mockCustomRuleConfig{
 				customRules: []waf.CustomRule{
-					geoBlacklistRule,
 					numericBypassRule,
 					stringMatchBypassRule,
+					geoBlacklistRule,
 					multiVarMatchRule,
 				},
 			},
@@ -321,6 +321,6 @@ func TestCustomRuleNumericBypass(t *testing.T) {
 	// Assert
 	assert.Equal(waf.Block, blockDecision)
 	assert.Nil(blockErr)
-	assert.Equal(waf.Block, allowDecision)
+	assert.Equal(waf.Allow, allowDecision)
 	assert.Nil(allowErr)
 }

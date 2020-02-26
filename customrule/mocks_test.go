@@ -56,6 +56,12 @@ type mockGeoDB struct{}
 
 func (mdb *mockGeoDB) PutGeoIPData(geoIPData []waf.GeoIPDataRecord) error { return nil }
 func (mdb *mockGeoDB) GeoLookup(ipAddr string) string {
+	if ipAddr == "0.0.0.0" {
+		return "AA"
+	}
+	if ipAddr == "1.1.1.1" {
+		return "BB"
+	}
 	if ipAddr == "2.2.2.2" {
 		return "CC"
 	}
@@ -142,15 +148,26 @@ func (mcrc mockCustomRuleConfig) CustomRules() []waf.CustomRule {
 func newMockResultsLogger() *mockResultsLogger {
 	return &mockResultsLogger{
 		ruleMatched: make(map[string]bool),
+		logEntries:  make([]mockResultsLogEntry, 0),
 	}
 }
 
 type mockResultsLogger struct {
 	ruleMatched map[string]bool
+	logEntries  []mockResultsLogEntry
+}
+
+type mockResultsLogEntry struct {
+	ruleID            string
+	matchedConditions []waf.ResultsLoggerCustomRulesMatchedConditions
 }
 
 func (l *mockResultsLogger) CustomRuleTriggered(customRuleID string, action string, matchedConditions []waf.ResultsLoggerCustomRulesMatchedConditions) {
 	l.ruleMatched[customRuleID] = true
+	l.logEntries = append(l.logEntries, mockResultsLogEntry{
+		ruleID:            customRuleID,
+		matchedConditions: matchedConditions,
+	})
 	return
 }
 
@@ -183,10 +200,16 @@ func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
 						data []byte
 					}
 					preCannedAnswers := []preCannedAnswer{
+						{"a", "abe", []byte("abe")},
+						{"b", "abe", []byte("abe")},
+						{"a", "bart", []byte("bart")},
+						{"b", "bart", []byte("bart")},
+						{"a", "alice", []byte("alice")},
+						{"b", "bob", []byte("bob")},
 						{"^true$", "true", []byte("true")},
 						{"^john$", "john", []byte("john")},
 						{"john", "john", []byte("john")},
-						{"john", "firstname=john&lastname=lenon", []byte("john")},
+						{"john", "firstname=john&lastname=lennon", []byte("john")},
 						{"neo", "neo+is+the+one", []byte("neo")},
 						{"^DELETE$", "DELETE", []byte("DELETE")},
 						{"^/sensitive\\.php", "/sensitive.php?password=12345", []byte("/sensitive.php?password=12345")},

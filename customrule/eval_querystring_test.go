@@ -34,7 +34,7 @@ func TestQueryStringContainsBlockPositive(t *testing.T) {
 
 	// Arrange
 	req := &mockWafHTTPRequest{
-		uri:    "/?firstName=john&lastName=lenon",
+		uri:    "/?firstName=john&lastName=lennon",
 		method: "GET",
 	}
 	engine, resLog, err := newEngineWithCustomRules(queryStringContainsBlockRule)
