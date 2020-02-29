@@ -91,24 +91,28 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern
 	h.goregexesbin = make(map[int]*binaryregexp.Regexp)
 	for _, m := range mm {
 		// Make the PCRE regex compatible with Go regexp
-		e := removePcrePossessiveQuantifier(m.Expr)
+		expr := removePcrePossessiveQuantifier(m.Expr)
+
+		hasHexEscapedBytes := containsHexEscapedBytes(expr)
 
 		var b bytes.Buffer
-		for i := 0; i < len(e); i++ {
-			if e[i] < 128 {
-				b.WriteByte(e[i])
+		for i := 0; i < len(expr); i++ {
+			// ' ' is the lowest value printable ASCII char, and '~' is the highest
+			if ' ' <= expr[i] && expr[i] <= '~' {
+				b.WriteByte(expr[i])
 			} else {
-				fmt.Fprintf(&b, "\\x%X", e[i])
+				fmt.Fprintf(&b, "\\x%02X", expr[i])
+				hasHexEscapedBytes = true
 			}
 		}
-		e = b.String()
+		expr = b.String()
 
 		// Default to using the built in Go regexp engine, but fall back to Russ Cox's fork which allows searching for binary content.
-		if isPrintableASCII(e) {
+		if !hasHexEscapedBytes {
 			var r *regexp.Regexp
-			r, err = regexp.Compile(e)
+			r, err = regexp.Compile(expr)
 			if err != nil {
-				err = fmt.Errorf("failed to compile Go regexp pattern %v. Error was: %v", e, err)
+				err = fmt.Errorf("failed to compile Go regexp pattern %v. Error was: %v", expr, err)
 				h.Close()
 				return
 			}
@@ -116,16 +120,15 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern
 			h.goregexes[m.ID] = r
 		} else {
 			var r *binaryregexp.Regexp
-			r, err = binaryregexp.Compile(e)
+			r, err = binaryregexp.Compile(expr)
 			if err != nil {
-				err = fmt.Errorf("failed to compile Go regexp pattern %v using binary regexp engine. Error was: %v", e, err)
+				err = fmt.Errorf("failed to compile Go regexp pattern %v using binary regexp engine. Error was: %v", expr, err)
 				h.Close()
 				return
 			}
 
 			h.goregexesbin[m.ID] = r
 		}
-
 	}
 
 	engine = h
@@ -242,11 +245,8 @@ func (s *scratchSpaceImpl) Close() {
 	}
 }
 
-func isPrintableASCII(s string) bool {
-	for i := 0; i < len(s); i++ {
-		if ' ' <= s[i] && s[i] <= '~' {
-			return false
-		}
-	}
-	return true
+var hexEscapeRegexp = regexp.MustCompile(`((^|[^\\])(\\\\)*)\\x([0-9a-fA-F]{2})`)
+
+func containsHexEscapedBytes(s string) bool {
+	return hexEscapeRegexp.MatchString(s)
 }
