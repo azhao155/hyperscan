@@ -109,7 +109,7 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 						expr = escapedVal + "$"
 					case "Contains":
 						expr = escapedVal
-					case "Equals":
+					case "Equal":
 						expr = "^" + escapedVal + "$"
 					}
 
@@ -432,7 +432,7 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 
 				for _, mval := range mc.MatchValues() {
 					switch op {
-					case "Regex", "BeginsWith", "EndsWith", "Contains", "Equals":
+					case "Regex", "BeginsWith", "EndsWith", "Contains", "Equal":
 						// Already dealt with above
 					case "IPMatch":
 						var prefix, mask uint32

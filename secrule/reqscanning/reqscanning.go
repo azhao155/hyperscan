@@ -220,7 +220,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclus
 					expr = escapedVal + "$"
 				case "Contains":
 					expr = escapedVal
-				case "Equals":
+				case "Equal":
 					expr = "^" + escapedVal + "$"
 
 				}

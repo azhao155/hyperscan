@@ -2235,7 +2235,7 @@ func TestReqScannerWithoutExclusion(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
-	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1"}
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equal", selector: "arg1"}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
 	sr := NewScanResults()
 
@@ -2275,7 +2275,7 @@ func TestReqScannerGlobalExclusionsEquals(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
-	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1"}
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equal", selector: "arg1"}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
 	sr := NewScanResults()
 
@@ -2401,7 +2401,7 @@ func TestReqScannerGlobalExclusionsMulti(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
 	rsf := NewReqScannerFactory(mf)
 	rules, _ := newMockRuleLoader().Rules("some ruleset")
-	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1"}
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equal", selector: "arg1"}
 	mex2 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg"}
 	mex3 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "StartsWith", selector: "bogus"}
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}

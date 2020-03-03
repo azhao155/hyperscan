@@ -28,8 +28,8 @@ func TestStringOperators(t *testing.T) {
 		{"/?x=xyz", "EndsWith", "bc", waf.Pass},
 		{"/?a=abc", "Contains", "ab", waf.Block},
 		{"/?x=xyz", "Contains", "ab", waf.Pass},
-		{"/?a=abc", "Equals", "a=abc", waf.Block},
-		{"/?aa=abcc", "Equals", "a=abc", waf.Pass},
+		{"/?a=abc", "Equal", "a=abc", waf.Block},
+		{"/?aa=abcc", "Equal", "a=abc", waf.Pass},
 	}
 
 	var b strings.Builder
@@ -145,7 +145,7 @@ func TestTransformations(t *testing.T) {
 						matchVariables: []waf.MatchVariable{
 							&mockMatchVariable{variableName: "RequestHeaders"},
 						},
-						operator:    "Equals",
+						operator:    "Equal",
 						matchValues: []string{test.matchVal},
 						transforms:  test.transformations,
 					},

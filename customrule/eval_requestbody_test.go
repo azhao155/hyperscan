@@ -21,7 +21,7 @@ var requestBodyEqualsBlockRule = &mockCustomRule{
 					selector:     "firstName",
 				},
 			},
-			operator:        "Equals",
+			operator:        "Equal",
 			negateCondition: false,
 			matchValues:     []string{"john", "paul", "george", "ringo"},
 			transforms:      []string{"Lowercase"},

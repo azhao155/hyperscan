@@ -19,7 +19,7 @@ var requestMethodEqualsBlockRule = &mockCustomRule{
 					variableName: "RequestMethod",
 				},
 			},
-			operator:        "Equals",
+			operator:        "Equal",
 			negateCondition: false,
 			matchValues:     []string{"DELETE"},
 			transforms:      []string{"Uppercase"},
