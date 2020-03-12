@@ -58,6 +58,34 @@ func TestRequestHeadersContainsBlockPositive(t *testing.T) {
 	assert.Equal(waf.Block, decision)
 }
 
+func TestRequestHeadersWithDifferentCasingContainsBlockPositive(t *testing.T) {
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+
+	// Arrange
+	req := &mockWafHTTPRequest{
+		uri:    "/",
+		method: "GET",
+		headers: []waf.HeaderPair{
+			&mockHeaderPair{k: "x-first-name", v: "John"},
+			&mockHeaderPair{k: "x-last-name", v: "Travolta"},
+		},
+	}
+	engine, resLog, err := newEngineWithCustomRules(requestHeadersContainsBlockRule)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Act
+	eval := engine.NewEvaluation(logger, resLog, req, waf.OtherBody)
+	err = eval.ScanHeaders()
+	decision := eval.EvalRules()
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+}
+
 func TestRequestHeadersContainsBlockNegative(t *testing.T) {
 	assert := assert.New(t)
 	logger := testutils.NewTestLogger(t)

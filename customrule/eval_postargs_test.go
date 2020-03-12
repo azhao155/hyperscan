@@ -63,6 +63,39 @@ func TestPostArgsEqualsBlockPositive(t *testing.T) {
 	assert.Equal(waf.Block, decision)
 }
 
+func TestPostArgsWithDifferentCasingEqualsBlockPositive(t *testing.T) {
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+
+	// Arrange
+	content := "firstName=john&lastName=travolta"
+	req := &mockWafHTTPRequest{
+		uri:    "/",
+		method: "POST",
+		headers: []waf.HeaderPair{
+			&mockHeaderPair{k: "Content-Type", v: "application/x-www-form-urlencoded"},
+			&mockHeaderPair{k: "Content-Length", v: fmt.Sprint(len(content))},
+		},
+		body: content,
+	}
+	engine, resLog, err := newEngineWithCustomRules(postArgsEqualsBlockRule)
+	if err != nil {
+		t.Fatalf("Got unexpected error: %s", err)
+	}
+
+	// Act
+	eval := engine.NewEvaluation(logger, resLog, req, waf.URLEncodedBody)
+	defer eval.Close()
+	err = eval.ScanHeaders()
+	err = eval.ScanBodyField(waf.URLEncodedContent, "FIRSTNAME", "john")
+	err = eval.ScanBodyField(waf.URLEncodedContent, "LASTNAME", "travolta")
+	decision := eval.EvalRules()
+
+	// Assert
+	assert.Nil(err)
+	assert.Equal(waf.Block, decision)
+}
+
 func TestPostArgsEqualsBlockNegative(t *testing.T) {
 	assert := assert.New(t)
 	logger := testutils.NewTestLogger(t)

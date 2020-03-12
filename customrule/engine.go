@@ -56,13 +56,14 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 				}
 
 				mv := matchVariable{m.VariableName(), m.Selector()}
+				cgKey := matchVariableWithLowerCaseSelector(mv)
 
 				// Use existing struct for this MatchVariable or create new one if not yet created
 				var cwsmv *conditionsWithSameMatchVar
 				var ok bool
-				if cwsmv, ok = engine.conditionGroups[mv]; !ok {
+				if cwsmv, ok = engine.conditionGroups[cgKey]; !ok {
 					cwsmv = &conditionsWithSameMatchVar{}
-					engine.conditionGroups[mv] = cwsmv
+					engine.conditionGroups[cgKey] = cwsmv
 				}
 
 				// Use existing struct for this transformation-pipeline or create new one if not yet created
@@ -387,7 +388,8 @@ type scanResults struct {
 }
 
 func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, results *scanResults) (err error) {
-	cg, ok := e.engine.conditionGroups[m]
+	cgKey := matchVariableWithLowerCaseSelector(m)
+	cg, ok := e.engine.conditionGroups[cgKey]
 	if !ok {
 		// There were no conditions that needed this target
 		return
@@ -547,6 +549,10 @@ func (e *customRuleEvaluationImpl) scanCookies(c string, results *scanResults) (
 	}
 
 	return
+}
+
+func matchVariableWithLowerCaseSelector(m matchVariable) matchVariable {
+	return matchVariable{variableName: m.variableName, selector: strings.ToLower(m.selector)}
 }
 
 func applyTransformations(s string, transformations []string) string {
