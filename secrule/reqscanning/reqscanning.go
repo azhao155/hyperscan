@@ -40,10 +40,10 @@ type conditionRef struct {
 
 // Group of conditions that can be scanned together, because they are for the same target and with the same transformations.
 type scanGroup struct {
-	transformations []ast.Transformation
-	rxEngine        waf.MultiRegexEngine
-	conditions      []conditionRef
-	backRefs        []conditionRef
+	transformations       []ast.Transformation
+	rxEngine              waf.MultiRegexEngine
+	conditions            []conditionRef
+	regexEngineRefsToCond []conditionRef
 }
 
 type reqScannerImpl struct {
@@ -152,10 +152,10 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclus
 
 	// Construct multi regex engine instances.
 	for _, sg := range allScanGroups {
-		// When the multi regex engine finds a match, it gives us a single ID. BackRefs gets us from the ID to the actual rule.
-		// BackRefs is not the same as sg.conditions, because for @pmf there will be multiple patterns that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
-		backRefs := []conditionRef{}
-		backRefCurID := 0
+		// When the multi regex engine finds a match, it gives us a single ID. RegexEngineRefsToCond gets us from the ID to the actual rule.
+		// RegexEngineRefsToCond is not the same as sg.conditions, because for @pmf there will be multiple patterns that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
+		regexEngineRefsToCond := []conditionRef{}
+		refCurID := 0
 
 		patterns := []waf.MultiRegexEnginePattern{}
 		for _, p := range sg.conditions {
@@ -184,9 +184,9 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclus
 			exprs := getRxExprs(p.ruleItem)
 			for _, e := range exprs {
 				// This will allow us to navigate back to the actual rule when the multi scan engine finds a match.
-				backRefs = append(backRefs, p)
-				patterns = append(patterns, waf.MultiRegexEnginePattern{backRefCurID, e})
-				backRefCurID++
+				regexEngineRefsToCond = append(regexEngineRefsToCond, p)
+				patterns = append(patterns, waf.MultiRegexEnginePattern{refCurID, e})
+				refCurID++
 			}
 		}
 
@@ -195,7 +195,7 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclus
 			continue
 		}
 
-		sg.backRefs = backRefs
+		sg.regexEngineRefsToCond = regexEngineRefsToCond
 		sg.rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
 		if err != nil {
 			err = fmt.Errorf("failed to create multi-regex engine: %v", err)
@@ -531,7 +531,7 @@ func (r *reqScannerEvaluationImpl) scanField(targetName ast.TargetName, fieldNam
 			}
 
 			for _, m := range matches {
-				p := sg.backRefs[m.ID]
+				p := sg.regexEngineRefsToCond[m.ID]
 
 				if r.reqScanner.matchesExceptTargets(targetName, fieldName, p.ruleItem.Predicate.ExceptTargets) {
 					continue

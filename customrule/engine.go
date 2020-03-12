@@ -89,9 +89,9 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 		for stIdx, st := range cg.sameTransformations {
 			groupRegexPatterns := []waf.MultiRegexEnginePattern{}
 
-			// BackRefs is not the same as st.matchVariablePaths, because there can be multiple values that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
-			backRefs := []matchVariablePath{}
-			backRefCurID := 0
+			// RegexEngineRefsToMatchVars is not the same as st.matchVariablePaths, because there can be multiple values that needs to reference to the same condition, and the multi regex engine needs separate IDs for each pattern.
+			regexEngineRefsToMatchVars := []matchVariablePath{}
+			refCurID := 0
 
 			for _, path := range st.matchVariablePaths {
 				mc := engine.rules[path.ruleIdx].MatchConditions()[path.condIdx]
@@ -114,9 +114,9 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 					}
 
 					if expr != "" {
-						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: backRefCurID, Expr: expr})
-						backRefs = append(backRefs, path)
-						backRefCurID++
+						groupRegexPatterns = append(groupRegexPatterns, waf.MultiRegexEnginePattern{ID: refCurID, Expr: expr})
+						regexEngineRefsToMatchVars = append(regexEngineRefsToMatchVars, path)
+						refCurID++
 					}
 				}
 			}
@@ -132,7 +132,7 @@ func (f *customRuleEngineFactoryImpl) NewEngine(customRuleConfig waf.CustomRuleC
 				return
 			}
 			engine.conditionGroups[cgIdx].sameTransformations[stIdx].multiRegexEngine = m
-			engine.conditionGroups[cgIdx].sameTransformations[stIdx].backRefs = backRefs
+			engine.conditionGroups[cgIdx].sameTransformations[stIdx].regexEngineRefsToMatchVars = regexEngineRefsToMatchVars
 		}
 	}
 
@@ -168,10 +168,10 @@ type conditionsWithSameMatchVar struct {
 
 // Example: two separate rules both have conditions that target the QueryString match variable and also both want the transformations ["UrlDecode","Lowercase"]
 type conditionsWithSameMatchVarAndTransformations struct {
-	transformations    []string
-	matchVariablePaths []matchVariablePath
-	backRefs           []matchVariablePath
-	multiRegexEngine   waf.MultiRegexEngine
+	transformations            []string
+	matchVariablePaths         []matchVariablePath
+	regexEngineRefsToMatchVars []matchVariablePath
+	multiRegexEngine           waf.MultiRegexEngine
 }
 
 type matchVariablePath struct {
@@ -405,7 +405,7 @@ func (e *customRuleEvaluationImpl) scanTarget(m matchVariable, content string, r
 			}
 
 			for _, mrematch := range mrematches {
-				mvp := st.backRefs[mrematch.ID]
+				mvp := st.regexEngineRefsToMatchVars[mrematch.ID]
 				if _, ok := results.matches[mvp]; ok {
 					// A match for this condition was already found
 					continue
