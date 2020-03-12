@@ -20,6 +20,9 @@ type engineImpl struct {
 
 	// Special case for when searching for an empty string, because Hyperscan returns an error if it's given an empty string
 	emptyStringPatternIDs []int
+
+	// Special case for when searching for a regex with a backref, because this is not otherwise directly supported by Hyperscan and Go Regexp.
+	regexesWithBackref map[int]regexWithBackref
 }
 
 type scratchSpaceImpl struct {
@@ -38,6 +41,7 @@ func NewMultiRegexEngineFactory(dbCache DbCache) waf.MultiRegexEngineFactory {
 // NewMultiRegexEngine creates a MultiRegexEngine that uses Hyperscan in prefilter mode for the initial scan, and then uses Go regexp to re-validate matches and extract strings.
 func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern) (engine waf.MultiRegexEngine, err error) {
 	h := &engineImpl{}
+	h.regexesWithBackref = make(map[int]regexWithBackref)
 
 	patterns := []*hs.Pattern{}
 	for _, m := range mm {
@@ -47,7 +51,21 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern
 			continue
 		}
 
-		p := hs.NewPattern(m.Expr, 0)
+		expr := m.Expr
+
+		// Special case for when searching for a regex with a backref, because this is not otherwise directly supported by Hyperscan and Go Regexp.
+		var hasBackref bool
+		var r regexWithBackref
+		hasBackref, r, err = newRegexWithBackref(m.Expr)
+		if err != nil {
+			return
+		}
+		if hasBackref {
+			h.regexesWithBackref[m.ID] = r
+			expr = r.newRegex
+		}
+
+		p := hs.NewPattern(expr, 0)
 		p.Id = m.ID
 
 		// SingleMatch makes Hyperscan only return one match per regex. So if a regex is found multiple time, still only one match is recorded.
@@ -87,6 +105,11 @@ func (f *engineFactoryImpl) NewMultiRegexEngine(mm []waf.MultiRegexEnginePattern
 	for _, m := range mm {
 		// Make the PCRE regex compatible with Go regexp
 		expr := removePcrePossessiveQuantifier(m.Expr)
+
+		// Special case for when searching for a regex with a backref, because this is not otherwise directly supported by Hyperscan and Go Regexp.
+		if r, ok := h.regexesWithBackref[m.ID]; ok {
+			expr = r.newRegex
+		}
 
 		var r *goRegexpFacade
 		r, err = compileRegexpFacade(expr)
@@ -140,12 +163,27 @@ func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (mat
 
 	// Re-validate the potential matches using Go regexp
 	for _, pmID := range potentialMatches {
+		// Special case for when searching for a regex with a backref, because this is not otherwise directly supported by Hyperscan and Go Regexp.
+		if rwbh, ok := h.regexesWithBackref[pmID]; ok {
+			data, captureGroups := rwbh.tryMatch(input, h.goregexes[pmID])
+			if data != nil {
+				m := waf.MultiRegexEngineMatch{
+					ID:            pmID,
+					Data:          data,
+					CaptureGroups: captureGroups,
+				}
+				matches = append(matches, m)
+			}
+
+			continue
+		}
+
 		loc := h.goregexes[pmID].FindSubmatchIndex(input)
 		if loc == nil {
 			continue
 		}
 
-		// FindSubmatchIndex will always return an even number, because it returns pairs of start-end-locations.
+		// The length of the array returned by FindSubmatchIndex will always be an even number, because it returns pairs of start-end-locations.
 		var captureGroups [][]byte
 		for i := 0; i < len(loc); i = i + 2 {
 			if loc[i] != -1 {
@@ -161,7 +199,6 @@ func (h *engineImpl) Scan(input []byte, s waf.MultiRegexEngineScratchSpace) (mat
 			Data:          input[loc[0]:loc[1]],
 			CaptureGroups: captureGroups,
 		}
-
 		matches = append(matches, m)
 	}
 

@@ -60,6 +60,13 @@ func (g *goRegexpFacade) FindSubmatchIndex(b []byte) []int {
 	return g.goregexpBin.FindSubmatchIndex(b)
 }
 
+func (g *goRegexpFacade) FindAllSubmatchIndex(b []byte, n int) [][]int {
+	if g.goregexp != nil {
+		return g.goregexp.FindAllSubmatchIndex(b, n)
+	}
+	return g.goregexpBin.FindAllSubmatchIndex(b, n)
+}
+
 var hexEscapeRegexp = regexp.MustCompile(`((^|[^\\])(\\\\)*)\\x([0-9a-fA-F]{2})`)
 
 func containsHexEscapedBytes(s string) bool {

@@ -93,7 +93,7 @@ func NewStandaloneSecruleServer(logger zerolog.Logger, rlf ResultsLoggerFactory,
 	server = s
 
 	s.engines = make(map[string]engineInstances)
-	s.engines[""] = engineInstances{sre: sre}
+	s.engines[""] = engineInstances{sre: sre, requestBodyCheck: true}
 
 	return
 }

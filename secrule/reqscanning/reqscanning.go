@@ -198,7 +198,13 @@ func (f *reqScannerFactoryImpl) NewReqScanner(statements []ast.Statement, exclus
 		sg.regexEngineRefsToCond = regexEngineRefsToCond
 		sg.rxEngine, err = f.multiRegexEngineFactory.NewMultiRegexEngine(patterns)
 		if err != nil {
-			err = fmt.Errorf("failed to create multi-regex engine: %v", err)
+			buf := &bytes.Buffer{}
+			for _, b := range regexEngineRefsToCond {
+				fmt.Fprintf(buf, "%d, ", b.rule.ID)
+			}
+			s := buf.String()
+			s = s[:len(s)-2]
+			err = fmt.Errorf("failed to create multi-regex engine for the rules with IDs %s: %v", s, err)
 			return
 		}
 	}

@@ -67,12 +67,6 @@ func TestAllCrsReqRulesIndividually(t *testing.T) {
 				continue
 			}
 
-			// Skip this rule until we add support for backreferences
-			// TODO add support for backreferences
-			if rule.ID == 942130 {
-				continue
-			}
-
 			for itemIdx, item := range rule.Items {
 				if item.Predicate.Op != ast.Rx {
 					continue

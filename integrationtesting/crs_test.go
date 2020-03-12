@@ -12,7 +12,6 @@ import (
 	"azwaf/testutils"
 	"azwaf/waf"
 	"flag"
-	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -53,15 +52,7 @@ var testSuites = []testSuite{
 var ruleID = flag.String("ruleID", "", "Rule Id for CRS tests")
 var ruleSetVersion = flag.String("ruleSetVersion", "", "Ruleset Version (e.g. 3.0, 3.1)  for CRS tests")
 
-func skipRegressionTest(t *testing.T) {
-	if os.Getenv("RUN_CRS_REGRESSION_TESTS") == "" {
-		t.Skip("Skipping CRS regression test suite")
-	}
-}
-
 func TestCrsRules(t *testing.T) {
-	skipRegressionTest(t)
-
 	// Arrange
 	logger := testutils.NewTestLogger(t)
 	assert := assert.New(t)
@@ -119,7 +110,6 @@ func TestCrsRules(t *testing.T) {
 			total++
 
 			if testsToSkip[tc.TestTitle] || tc.Skip {
-				t.Logf("--- SKIP: %v", tc.TestTitle)
 				skip++
 				continue
 			}
@@ -159,7 +149,6 @@ func TestCrsRules(t *testing.T) {
 
 			matched := resLog.ruleMatched[tc.ExpectedRuleID]
 			if tc.MatchExpected == matched {
-				t.Logf("--- PASS: %v", tc.TestTitle)
 				pass++
 
 				if results[ruleid] == "" {
@@ -177,5 +166,5 @@ func TestCrsRules(t *testing.T) {
 	t.Logf("Total tests: %d, Skip: %d, Pass: %d, Fail: %d", total, skip, pass, fail)
 	t.Logf("Total tests pass percent: %d%%", (pass*100)/(pass+fail))
 
-	assert.Equal(total, false)
+	assert.Equal(0, fail)
 }

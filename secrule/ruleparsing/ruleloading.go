@@ -52,7 +52,7 @@ func (c *crsRuleLoader) Rules(ruleSetID waf.RuleSetID) (statements []ast.Stateme
 		if err != nil {
 			return
 		}
-		statements = append(statements, filterUnsupportedRules(rr)...)
+		statements = append(statements, rr...)
 	}
 
 	return
@@ -104,24 +104,7 @@ func loadRulesFromPath(filePath string, parser sr.RuleParser, fs RuleLoaderFileS
 		return
 	}
 
-	statements = append(statements, filterUnsupportedRules(rr)...)
-
-	return
-}
-
-func filterUnsupportedRules(stmts []ast.Statement) (filteredStmts []ast.Statement) {
-	for _, r := range stmts {
-		rule, ok := r.(*ast.Rule)
-		if ok {
-			// Skip this rule until we add support for backreferences
-			// TODO add support for backreferences
-			if rule.ID == 942130 {
-				continue
-			}
-		}
-
-		filteredStmts = append(filteredStmts, r)
-	}
+	statements = append(statements, rr...)
 
 	return
 }
