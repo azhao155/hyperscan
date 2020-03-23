@@ -119,7 +119,12 @@ func TestTransformations(t *testing.T) {
 		{`x%6ax`, []string{"UrlDecode"}, `xjx`, waf.Block},
 		{`x%6Ax`, []string{"UrlDecode"}, `xjx`, waf.Block},
 
-		{"a b", []string{"UrlEncode"}, "a%20b", waf.Block},
+		// RFC 3986 reserved characters.
+		{":/?#[]@!$&'()*+,;=", []string{"UrlEncode"}, "%3A%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D", waf.Block},
+
+		// Spaces are converted to pluses by convention.
+		{"a b", []string{"UrlEncode"}, "a+b", waf.Block},
+
 		{"a b", []string{}, "a b", waf.Block},
 		{"a b", []string{"UrlEncode"}, "a b", waf.Pass},
 

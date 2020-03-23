@@ -567,7 +567,7 @@ func applyTransformations(s string, transformations []string) string {
 		case "UrlDecode":
 			s = encoding.WeakURLUnescape(s)
 		case "UrlEncode":
-			s = url.PathEscape(s)
+			s = url.QueryEscape(s)
 		case "RemoveNulls":
 			if strings.Contains(s, "\x00") {
 				s = strings.Replace(s, "\x00", "", -1)

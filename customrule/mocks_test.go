@@ -226,6 +226,8 @@ func newMockMultiRegexEngineFactory() waf.MultiRegexEngineFactory {
 						{"^ABC$", "ABC", []byte("ABC")},
 						{"^ abc $", " abc ", []byte(" abc ")},
 						{"^%61%62%63$", "%61%62%63", []byte("%61%62%63")},
+						{"^%3A%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D$", "%3A%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D", []byte("%3A%2F%3F%23%5B%5D%40%21%24%26%27%28%29%2A%2B%2C%3B%3D")},
+						{"^a\\+b$", "a+b", []byte("a+b")},
 						{"^a%20b$", "a%20b", []byte("a%20b")},
 						{"^a b$", "a b", []byte("a b")},
 						{"^a\x00bc$", "a\x00bc", []byte("a\x00bc")},
