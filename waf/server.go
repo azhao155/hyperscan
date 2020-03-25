@@ -134,7 +134,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	defer func() {
-		if engines.isDetectionMode {
+		if engines.isDetectionMode || engines.isShadowMode{
 			decision = Pass
 		}
 	}()
@@ -241,9 +241,12 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	// Custom rule evaluation always occurs first
 	if customRuleEvaluation != nil {
-		decision = customRuleEvaluation.EvalRules()
-		if decision == Allow || decision == Block {
-			return
+		if !engines.isShadowMode {
+			decision = customRuleEvaluation.EvalRules()
+			// Short-circuiting
+			if decision == Allow || decision == Block {
+				return
+			}
 		}
 	}
 
@@ -254,26 +257,12 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	if !engines.isShadowMode {
-		// Check SecRule phase 1 result
-		if secRuleDecision == Allow || secRuleDecision == Block {
-			decision = secRuleDecision
-		} else {
-			// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
-			if secRuleEvaluation != nil {
-				decision = secRuleEvaluation.EvalRulesPhase2to5()
-			}
-		}
+	if secRuleDecision == Allow || secRuleDecision == Block {
+		decision = secRuleDecision
 	} else {
-		// Check SecRule phase 1 result
-		if secRuleDecision == Allow || secRuleDecision == Block {
-			// We do not use secRuleDecision for anything in shadow mode.
-		} else {
-			// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
-			// We do not need the return value in shadow mode.
-			if secRuleEvaluation != nil {
-				secRuleEvaluation.EvalRulesPhase2to5()
-			}
+		// Run SecRule-lang's phases 2 through 5. Phase 1 was already run prior to body scanning.
+		if secRuleEvaluation != nil {
+			decision = secRuleEvaluation.EvalRulesPhase2to5()
 		}
 	}
 
