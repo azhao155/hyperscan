@@ -22,7 +22,7 @@
             "request": "attach",
             "mode": "remote",
             "remotePath": "/azure/appgw/src/datapath/azwaf",
-            "port": 2345,
+            "port": 2346,
             "host": "localhost", // Replace with remote hostname or IP if not localhost. Alternatively use this Windows NAT command: netsh interface portproxy add v4tov4 listenaddress=127.0.0.1 listenport=2345 connectport=2345 connectaddress=yourremotehost
             "dlvLoadConfig": {
                 "maxStringLen": 5000
