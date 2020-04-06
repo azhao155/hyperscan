@@ -153,4 +153,5 @@ message Exclusion {
   string matchVariable = 1;
   string selectorMatchOperator = 2;
   string selector = 3;
+  repeated int32 rules = 4;
 }

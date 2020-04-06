@@ -5,11 +5,39 @@ import (
 	"testing"
 )
 
-type mockSecRuleConfig struct{}
+type mockExclusion struct {
+	matchVariable         string
+	selectorMatchOperator string
+	selector              string
+	rules                 []int32
+}
 
-func (c *mockSecRuleConfig) Enabled() bool           { return true }
-func (c *mockSecRuleConfig) RuleSetID() string       { return "OWASP CRS 3.0" }
-func (c *mockSecRuleConfig) Exclusions() []Exclusion { return []Exclusion{} }
+func (r *mockExclusion) MatchVariable() string         { return r.matchVariable }
+func (r *mockExclusion) SelectorMatchOperator() string { return r.selectorMatchOperator }
+func (r *mockExclusion) Selector() string              { return r.selector }
+func (r *mockExclusion) Rules() []int32                { return r.rules }
+
+type mockSecRuleConfig struct {
+	ruleEx map[Exclusion][]int
+}
+
+func (c *mockSecRuleConfig) Enabled() bool     { return true }
+func (c *mockSecRuleConfig) RuleSetID() string { return "OWASP CRS 3.0" }
+func (c *mockSecRuleConfig) Exclusions() []Exclusion {
+	return []Exclusion{
+		&mockExclusion{
+			selectorMatchOperator: "StartsWith",
+			selector:              "arg1",
+			matchVariable:         "RequestArgNames",
+			rules:                 []int32{950950, 950951},
+		},
+		&mockExclusion{
+			selectorMatchOperator: "Contains",
+			selector:              "globalArg",
+			matchVariable:         "RequestCookieNames",
+		},
+	}
+}
 
 type mockCustomRule struct{}
 
@@ -142,6 +170,18 @@ func TestPutConfig(t *testing.T) {
 
 	if secRule.RuleSetID() != "OWASP CRS 3.0" {
 		t.Fatalf("PutConfig SecRule has wrong RuleSetID field")
+	}
+
+	if len(secRule.Exclusions()) != 2 {
+		t.Fatalf("PutConfig SecRule does not have the expected number of exclusions.")
+	}
+
+	if secRule.Exclusions()[0].SelectorMatchOperator() != "StartsWith" || secRule.Exclusions()[0].Selector() != "arg1" || secRule.Exclusions()[0].MatchVariable() != "RequestArgNames" || secRule.Exclusions()[1].SelectorMatchOperator() != "Contains" || secRule.Exclusions()[1].Selector() != "globalArg" || secRule.Exclusions()[1].MatchVariable() != "RequestCookieNames" {
+		t.Fatalf("PutConfig SecRule does not have the expected exclusion ")
+	}
+
+	if len(secRule.Exclusions()[0].Rules()) != 2 || secRule.Exclusions()[0].Rules()[0] != 950950 || secRule.Exclusions()[0].Rules()[1] != 950951 || len(secRule.Exclusions()[1].Rules()) != 0 {
+		t.Fatalf("PutConfig SecRule does not have the expected exclusion ")
 	}
 }
 

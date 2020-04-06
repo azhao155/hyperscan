@@ -65,25 +65,26 @@ func (mpc *mockPolicyConfig) IPReputationConfig() waf.IPReputationConfig {
 }
 
 type mockSecRuleConfig struct {
-	enabled    bool
-	ruleSetID  string
-	exclusions []waf.Exclusion
+	enabled        bool
+	ruleSetID      string
+	exclusions     []waf.Exclusion
 }
 
-func (msc *mockSecRuleConfig) Enabled() bool               { return msc.enabled }
-func (msc *mockSecRuleConfig) RuleSetID() string           { return msc.ruleSetID }
-func (msc *mockSecRuleConfig) Exclusions() []waf.Exclusion { return msc.exclusions }
+func (msc *mockSecRuleConfig) Enabled() bool                             { return msc.enabled }
+func (msc *mockSecRuleConfig) RuleSetID() string                         { return msc.ruleSetID }
+func (msc *mockSecRuleConfig) Exclusions() []waf.Exclusion               { return msc.exclusions }
 
 type mockExclusion struct {
 	matchVariable         string
 	selectorMatchOperator string
 	selector              string
+	rules                 []int32
 }
 
 func (r *mockExclusion) MatchVariable() string         { return r.matchVariable }
 func (r *mockExclusion) SelectorMatchOperator() string { return r.selectorMatchOperator }
 func (r *mockExclusion) Selector() string              { return r.selector }
-
+func (r *mockExclusion) Rules() []int32 { return r.rules}
 type mockCustomRuleConfig struct {
 	customRules []waf.CustomRule
 }

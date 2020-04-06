@@ -75,9 +75,9 @@ func TestReqbodyProcessorValues(t *testing.T) {
 
 type mockSecRuleConfig struct{}
 
-func (c *mockSecRuleConfig) Enabled() bool     { return false }
-func (c *mockSecRuleConfig) RuleSetID() string { return "some ruleset" }
-func (c *mockSecRuleConfig) Exclusions() []waf.Exclusion { return nil }
+func (c *mockSecRuleConfig) Enabled() bool                           { return false }
+func (c *mockSecRuleConfig) RuleSetID() string                       { return "some ruleset" }
+func (c *mockSecRuleConfig) Exclusions() []waf.Exclusion             { return nil }
 
 type mockResultsLogger struct {
 }

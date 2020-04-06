@@ -82,7 +82,7 @@ func TestReqScannerPmfRule(t *testing.T) {
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaabccc&arg2=helloworld"}
 
 	// Act
-	rs, err1 := rf.NewReqScanner(rules,nil)
+	rs, err1 := rf.NewReqScanner(rules, nil)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
 	sr := srrs.NewScanResults()
@@ -126,7 +126,7 @@ func TestReqScannerPmfRuleNotCaseSensitive(t *testing.T) {
 	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=ccaaaaaaaBccc&arg2=helloworld"}
 
 	// Act
-	rs, err1 := rf.NewReqScanner(rules,nil)
+	rs, err1 := rf.NewReqScanner(rules, nil)
 	s, err2 := rs.NewScratchSpace()
 	rse := rs.NewReqScannerEvaluation(s)
 	sr := srrs.NewScanResults()

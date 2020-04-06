@@ -5,9 +5,23 @@ import (
 	"testing"
 )
 
+var wrapperGlobalExclusion = pb.Exclusion{
+	MatchVariable:         "RequestCookieNames",
+	SelectorMatchOperator: "Contains",
+	Selector:              "Hello",
+}
+
+var wrapperRuleExclusion = pb.Exclusion{
+	MatchVariable:         "RequestArgNames",
+	SelectorMatchOperator: "StartsWith",
+	Selector:              "Rule",
+	Rules:                 []int32{930120, 932160},
+}
+
 var wrapperTestConfig1 = pb.SecRuleConfig{
-	Enabled:   false,
-	RuleSetId: "abc",
+	Enabled:    false,
+	RuleSetId:  "abc",
+	Exclusions: []*pb.Exclusion{&wrapperGlobalExclusion, &wrapperRuleExclusion},
 }
 
 var testMatchVariable = pb.MatchVariable{
@@ -66,8 +80,26 @@ func TestConfigsConversion(t *testing.T) {
 		t.Fatalf("TestConfigsConversion SecRule has wrong Enabled field")
 	}
 
-	// Test CustomRules converstion
+	// Testing Global Exclusions
+	excl := secRule.Exclusions()
+	if excl == nil {
+		t.Fatalf(" TestConfigsConversion SecRule Exclusion is not present")
+	}
 
+	if excl[0].Selector() != wrapperGlobalExclusion.Selector || excl[0].SelectorMatchOperator() != wrapperGlobalExclusion.SelectorMatchOperator || excl[0].MatchVariable() != wrapperGlobalExclusion.MatchVariable || excl[0].Rules() != nil {
+		t.Fatalf(" TestConfigsConversion SecRule Incorrect Exclusions. Actual {%s,%s,%s,%v} Expected {RequestArgsNames,StartsWith,Hello, nil}", excl[0].MatchVariable(), excl[0].SelectorMatchOperator(), excl[0].Selector(), excl[0].Rules())
+	}
+
+	// Test Rule Exclusions
+	if excl[1].Selector() != wrapperRuleExclusion.Selector || excl[1].SelectorMatchOperator() != wrapperRuleExclusion.SelectorMatchOperator || excl[1].MatchVariable() != wrapperRuleExclusion.MatchVariable || excl[1].Rules() == nil {
+		t.Fatalf(" TestConfigsConversion SecRule Incorrect Exclusions. Actual {%s,%s,%s,%v} Expected {RequestArgsNames,StartsWith,Rule, %v}", excl[1].MatchVariable(), excl[1].SelectorMatchOperator(), excl[1].Selector(), excl[1].Rules(), wrapperRuleExclusion.Rules)
+	}
+
+	if excl[1].Rules()[0] != 930120 || excl[1].Rules()[1] != 932160 {
+		t.Fatalf(" TestconfigsConversion SecRule Incorrect Rules in Exclusions. Actual {%v} Expected {%v}", excl[1].Rules(), wrapperRuleExclusion.Rules)
+	}
+
+	// Test CustomRules converstion
 	locCustomRules := locConfig[0].CustomRuleConfig().CustomRules()
 	if len(locCustomRules) != len(policyConfig.CustomRuleConfig.CustomRules) {
 		t.Fatalf("TestConfigConvertion CustomRules has wrong CustomRule count")

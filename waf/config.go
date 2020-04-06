@@ -19,6 +19,7 @@ type Exclusion interface {
 	MatchVariable() string
 	SelectorMatchOperator() string
 	Selector() string
+	Rules() []int32
 }
 
 // GeoDBConfig is GeoDB Engine config

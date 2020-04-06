@@ -2216,7 +2216,8 @@ func (m *mockRuleLoader) Rules(r waf.RuleSetID) (statements []Statement, err err
 					Predicate: RulePredicate{Targets: []Target{{Name: TargetXML, Selector: "/*"}}, Op: Rx, Val: Value{StringToken("abc+")}},
 				},
 			},
-		}}
+		},
+	}
 
 	return
 }
@@ -2225,11 +2226,13 @@ type mockExclusion struct {
 	matchVariable         string
 	selectorMatchOperator string
 	selector              string
+	rules                 []int32
 }
 
 func (r *mockExclusion) MatchVariable() string         { return r.matchVariable }
 func (r *mockExclusion) SelectorMatchOperator() string { return r.selectorMatchOperator }
 func (r *mockExclusion) Selector() string              { return r.selector }
+func (r *mockExclusion) Rules() []int32                { return r.rules }
 
 func TestReqScannerWithoutExclusion(t *testing.T) {
 	mf := newMockMultiRegexEngineFactory()
@@ -2484,7 +2487,6 @@ func TestReqScannerGlobalExclusionsEscape(t *testing.T) {
 		t.Fatalf("Got unexpected error: %s", err2)
 	}
 
-	fmt.Println(sr.Matches)
 	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
 		t.Fatalf("Except target match found")
@@ -2545,6 +2547,708 @@ func TestReqScannerGlobalExclusionsCollection(t *testing.T) {
 
 	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
 	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerGlobalExclusionsWithSpecialChars(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "a[^$.|*()\b"}
+	req := &mockWafHTTPRequest{uri: "/hello.php?a[^$.|*()\b=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRuleExclusionEquals(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1"}
+	ruleExclusion := make(map[waf.Exclusion][]int32)
+	ruleExclusion[mex] = []int32{200}
+
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsGet})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgsPost})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRuleExclusionsContains(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+
+	// Act
+	sr := NewScanResults()
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsStartsWith(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "StartsWith", selector: "arg", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsEndsWith(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "EndsWith", selector: "g1", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerMultipleRuleExclusions(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1", rules: []int32{200}}
+	mex2 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg", rules: []int32{200}}
+	mex3 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "StartsWith", selector: "bogus", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1, mex2, mex3})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRuleExclusionsOnMultipleRule(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "arg1", rules: []int32{300, 400}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(300, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(400, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsSpace(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg1 ", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1 =aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsEscape(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "arg^1", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg^1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsIncorrectSelector(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Contains", selector: "def", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Match not found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsCollection(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerRuleExclusionsWithSpecialChars(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex1 := &mockExclusion{matchVariable: "RequestArgNames", selectorMatchOperator: "Equals", selector: "a[^$.|*()\b", rules: []int32{200}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?a[^$.|*()\b=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex1})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target match not found")
+	}
+}
+
+func TestReqScannerExclusionsWithEqualsAny(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames"}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRuleExclusionsWithEqualsAny(t *testing.T) {
+	// Arrange
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules, _ := newMockRuleLoader().Rules("some ruleset")
+	mex := &mockExclusion{matchVariable: "RequestArgNames", rules: []int32{100}}
+	req := &mockWafHTTPRequest{uri: "/hello.php?arg1=aaaaaaabccc"}
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(200, 0, Target{Name: TargetArgs})
+	if !ok {
+		t.Fatalf("Except target not match found")
+	}
+
+	_, ok = sr.GetResultsFor(100, 0, Target{Name: TargetArgs})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRequestHeaderNamesExclusion(t *testing.T) {
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+				},
+			},
+		},
+	}
+
+	mex := &mockExclusion{matchVariable: "RequestHeaderNames", selectorMatchOperator: "Contains", selector: "Key-Header"}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Key-Header", v: "aaaaaaabccc"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetRequestHeaders})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRequestHeaderNamesRuleExclusion(t *testing.T) {
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+				},
+			},
+		},
+	}
+
+	mex := &mockExclusion{matchVariable: "RequestHeaderNames", selectorMatchOperator: "Contains", selector: "Key-Header", rules: []int32{100}}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Key-Header", v: "aaaaaaabccc"})
+
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetRequestHeaders})
+	if !ok {
+		t.Fatalf("Except target not match found")
+	}
+}
+
+func TestReqScannerRequestHeaderNamesEqualsAnyExclusion(t *testing.T) {
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate:       RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("abc+")}},
+					Transformations: []Transformation{},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+				},
+			},
+		},
+	}
+
+	mex := &mockExclusion{matchVariable: "RequestHeaderNames", selectorMatchOperator: "EqualsAny"}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Key-Header", v: "aaaaaaabccc"})
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetRequestHeaders})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+}
+
+func TestReqScannerRequestHeaderNamesEqualsAnyRuleExclusion(t *testing.T) {
+	mf := newMockMultiRegexEngineFactory()
+	rsf := NewReqScannerFactory(mf)
+	rules := []Statement{
+		&Rule{
+			ID: 100,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("abc+")}},
+				},
+			},
+		},
+		&Rule{
+			ID: 200,
+			Items: []RuleItem{
+				{
+					Predicate: RulePredicate{Targets: []Target{{Name: TargetRequestHeaders}}, Op: Rx, Val: Value{StringToken("ab+c")}},
+				},
+			},
+		},
+	}
+
+	mex := &mockExclusion{matchVariable: "RequestHeaderNames", rules: []int32{100}}
+	req := &mockWafHTTPRequest{uri: "/hello.php"}
+	req.headers = append(req.headers, &mockHeaderPair{k: "Key-Header", v: "aaaaaaabccc"})
+
+	sr := NewScanResults()
+
+	// Act
+	rs, err1 := rsf.NewReqScanner(rules, []waf.Exclusion{mex})
+	s, _ := rs.NewScratchSpace()
+	rse := rs.NewReqScannerEvaluation(s)
+	err2 := rse.ScanHeaders(req, sr)
+
+	// Assert
+	if err1 != nil {
+		t.Fatalf("Got unexpected error: %s", err1)
+	}
+	if err2 != nil {
+		t.Fatalf("Got unexpected error: %s", err2)
+	}
+
+	_, ok := sr.GetResultsFor(100, 0, Target{Name: TargetRequestHeaders})
+	if ok {
+		t.Fatalf("Except target match found")
+	}
+
+	_, ok = sr.GetResultsFor(200, 0, Target{Name: TargetRequestHeaders})
+	if !ok {
 		t.Fatalf("Except target match found")
 	}
 }

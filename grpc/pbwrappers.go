@@ -56,8 +56,8 @@ type wafHTTPRequestPbWrapperBodyReader struct {
 func (r *wafHTTPRequestPbWrapperBodyReader) Read(p []byte) (n int, err error) { return r.readCb(p) }
 
 type secRuleConfigImpl struct {
-	pb              *pb.SecRuleConfig
-	exclusionsCache []waf.Exclusion
+	pb                 *pb.SecRuleConfig
+	exclusionsCache    []waf.Exclusion
 }
 
 func (c *secRuleConfigImpl) Enabled() bool     { return c.pb.Enabled }
@@ -96,6 +96,7 @@ type exclusionWrapper struct {
 func (ew *exclusionWrapper) MatchVariable() string         { return ew.pb.MatchVariable }
 func (ew *exclusionWrapper) SelectorMatchOperator() string { return ew.pb.SelectorMatchOperator }
 func (ew *exclusionWrapper) Selector() string              { return ew.pb.Selector }
+func (ew *exclusionWrapper) Rules() []int32 {return ew.pb.Rules}
 
 type ipReputationConfigImpl struct{ pb *pb.IPReputationConfig }
 
