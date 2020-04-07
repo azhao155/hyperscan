@@ -134,7 +134,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	defer func() {
-		if engines.isDetectionMode || engines.isShadowMode{
+		if engines.isDetectionMode || engines.isShadowMode {
 			decision = Pass
 		}
 	}()
@@ -215,27 +215,32 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 		err = s.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
 		if err != nil {
+			decision = Block
 			lengthLimits := s.requestBodyParser.LengthLimits()
+			defer func() {
+				err = nil
+			}()
 			if err == ErrFieldBytesLimitExceeded {
 				logger.Info().Int("limit", lengthLimits.MaxLengthField).Msg("Request body contained a field longer than the limit")
 				resultsLogger.FieldBytesLimitExceeded(lengthLimits.MaxLengthField)
+				return
 			} else if err == ErrPausableBytesLimitExceeded {
 				logger.Info().Int("limit", lengthLimits.MaxLengthPausable).Msg("Request body length (excluding file upload fields) exceeded the limit")
 				resultsLogger.PausableBytesLimitExceeded(lengthLimits.MaxLengthPausable)
+				return
 			} else if err == ErrTotalBytesLimitExceeded {
 				logger.Info().Int("limit", lengthLimits.MaxLengthTotal).Msg("Request body length exceeded the limit")
 				resultsLogger.TotalBytesLimitExceeded(lengthLimits.MaxLengthTotal)
+				return
 			} else if err == ErrTotalFullRawRequestBodyExceeded {
 				logger.Info().Int("limit", lengthLimits.MaxLengthTotalFullRawRequestBody).Msg("Request body length exceeded the limit while entire body was being scanned as a single field")
 				resultsLogger.TotalFullRawRequestBodyLimitExceeded(lengthLimits.MaxLengthTotalFullRawRequestBody)
+				return
 			} else {
 				secRuleEvaluation.BodyParseErrorOccurred()
 				logger.Info().Err(err).Msg("Request body scanning error")
 				resultsLogger.BodyParseError(err)
 			}
-
-			decision = Block
-			err = nil
 		}
 	}
 

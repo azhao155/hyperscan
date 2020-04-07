@@ -30,7 +30,6 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
 
-	rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
 	p := srrp.NewRuleParser()
 	rlfs := srrp.NewRuleLoaderFileSystem()
 	hsfs := hyperscan.NewCacheFileSystem()
@@ -55,6 +54,8 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 		}
 
+		rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
+
 		wafServer, err = waf.NewStandaloneSecruleServer(logger, rlf, sre, rbp)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating standalone SecRule engine WAF")
@@ -72,6 +73,14 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 		rl := srrp.NewCrsRuleLoader(p, rlfs)
 		sref := sreng.NewEngineFactory(logger, rl, rsf, ref)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
+
+		maxInt32 := 2147483647
+		rbp := bodyparsing.NewRequestBodyParser(waf.LengthLimits{
+			MaxLengthField:                   maxInt32,
+			MaxLengthPausable:                maxInt32,
+			MaxLengthTotal:                   maxInt32,
+			MaxLengthTotalFullRawRequestBody: maxInt32,
+		})
 
 		wafServer, err = waf.NewServer(logger, cm, c, rlf, srlf, sref, rbp, cref, ire, geoDB)
 		if err != nil {

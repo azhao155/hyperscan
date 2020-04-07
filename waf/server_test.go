@@ -467,8 +467,8 @@ func testBytesLimit(
 		t.Fatalf("Unexpected error from EvalRequest: %s", err)
 	}
 
-	if r != Pass {
-		t.Fatalf("EvalRequest did not return pass: %v", Pass)
+	if r != Block {
+		t.Fatalf("EvalRequest did not return block: %v", Block)
 	}
 
 	if mrl.fieldBytesLimitExceededCalled != expectedFieldBytesLimitExceededCalled {

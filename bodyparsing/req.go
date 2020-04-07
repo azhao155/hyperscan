@@ -38,10 +38,9 @@ func (r *reqBodyParserImpl) Parse(
 	contentLengthOptional int, // Content length if it was already known. 0 is fine if it was not known (transfer-encoding chunked), just slightly less performant.
 	multipartBoundary string, // A boundary to use if this is a multipart/form-data body. If this is a different request body type then use "" instead.
 	alsoScanFullRawBody bool,
-
 ) (err error) {
 	// If the headers already up front said that the request is going to be too large, then there is no point in starting to scan the body.
-	if contentLengthOptional > r.lengthLimits.MaxLengthTotal {
+	if contentLengthOptional >= r.lengthLimits.MaxLengthTotal {
 		err = waf.ErrTotalBytesLimitExceeded
 		return
 	}
@@ -50,7 +49,7 @@ func (r *reqBodyParserImpl) Parse(
 	fullRequestBodyBuf := bytes.Buffer{}
 	if alsoScanFullRawBody {
 		// If the headers already up front said that the request is going to be too large, there's no point in starting to scan the body.
-		if contentLengthOptional > r.lengthLimits.MaxLengthTotalFullRawRequestBody {
+		if contentLengthOptional >= r.lengthLimits.MaxLengthTotalFullRawRequestBody {
 			err = waf.ErrTotalFullRawRequestBodyExceeded
 			return
 		}
