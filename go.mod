@@ -11,3 +11,5 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20190709130402-674ba3eaed22
 	rsc.io/binaryregexp v0.2.0
 )
+
+go 1.13

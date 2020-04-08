@@ -3,6 +3,7 @@ version: "3"
 services:
   azwafdev:
     build: .
+    image: cdpxlinuxtest.azurecr.io/user/networking-azwaf/networking-azwaf:1.4
     volumes:
       - ./:/azure/azwaf
     ports:

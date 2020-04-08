@@ -239,7 +239,9 @@ func TestReqScannerBodyJSONParseErr(t *testing.T) {
 		t.Fatalf("Expected error, but got nil")
 	}
 
-	if err.Error() != "application/json body scanning error: invalid character 'n'  looking for beginning of object key string" {
+	// TODO<asridharan>: The error string seems to be very dependent on the golang version. Need to fix the spacing to make it pass with golang 1.13.
+	// Going forward we should remove this dependency.
+	if err.Error() != "application/json body scanning error: invalid character 'n' looking for beginning of object key string" {
 		t.Fatalf("Unexpected error message: %v", err.Error())
 	}
 }

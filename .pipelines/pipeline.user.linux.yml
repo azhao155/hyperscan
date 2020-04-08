@@ -6,7 +6,7 @@ environment:
     os: 'linux'
   runtime:
     provider: 'appcontainer'
-    image: 'cdpxlinuxtest.azurecr.io/user/networking-azwaf/networking-azwaf:1.3'
+    image: 'cdpxlinuxtest.azurecr.io/user/networking-azwaf/networking-azwaf:1.4'
     source_mode: 'link'
 
 version:

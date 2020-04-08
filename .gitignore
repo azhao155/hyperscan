@@ -1,7 +1,7 @@
 /server
 *.pyc
 /.idea
-/.vscode
+/.vscode/*
 /hyperscancache
 /coverage.html
 /coverage.out
@@ -9,3 +9,6 @@
 azwafnginxinproc.so
 azwafnginxinproc.h
 __debug_bin
+
+#Allow
+!/.vscode/settings.json

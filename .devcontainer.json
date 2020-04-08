@@ -1,0 +1,12 @@
+{
+    "image": "networking-azwaf_azwafdev:latest",
+    "forwardPorts": [37291],
+    "extensions": ["ms-vscode.go"],
+    "settings": { 
+      "terminal.integrated.shell.linux": "/bin/bash",
+      "go.gopath": "/root/go",
+      "go.inferGopath": true,
+      "go.useLanguageServer": true,
+      "go.toolsGopath": "/root/go"
+    },
+  }

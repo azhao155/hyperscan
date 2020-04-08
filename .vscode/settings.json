@@ -1,0 +1,7 @@
+{ 
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "go.gopath": "/root/go",
+    "go.inferGopath": false,
+    "go.useLanguageServer": true,
+    "go.toolsGopath": "/root/go"
+  }
