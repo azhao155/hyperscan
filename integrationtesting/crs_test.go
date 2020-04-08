@@ -68,7 +68,8 @@ func TestCrsRules(t *testing.T) {
 	ref := srre.NewRuleEvaluatorFactory()
 	resLog := newMockResultsLogger()
 	ef := sreng.NewEngineFactory(logger, rl, rsf, ref)
-	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbpf := bodyparsing.NewRequestBodyParserFactory()
+	rbp := rbpf.NewRequestBodyParser(waf.DefaultLengthLimits)
 	rlf := &mockResultsLoggerFactory{mockResultsLogger: resLog}
 
 	var total, pass, fail, skip int

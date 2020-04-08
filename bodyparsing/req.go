@@ -15,8 +15,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
-// NewRequestBodyParser creates a RequestBodyParser.
-func NewRequestBodyParser(lengthLimits waf.LengthLimits) waf.RequestBodyParser {
+type requestBodyParserFactoryImpl struct{}
+
+// NewRequestBodyParserFactory creates a RequestBodyParserFactory.
+func NewRequestBodyParserFactory() waf.RequestBodyParserFactory {
+	return &requestBodyParserFactoryImpl{}
+}
+
+func (f *requestBodyParserFactoryImpl) NewRequestBodyParser(lengthLimits waf.LengthLimits) waf.RequestBodyParser {
 	return &reqBodyParserImpl{
 		lengthLimits: lengthLimits,
 	}

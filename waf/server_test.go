@@ -23,15 +23,15 @@ func TestWafServerEvalRequest(t *testing.T) {
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{mpc: mockPolicyConfig{requestBodyCheck: true}}
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	d, err := s.EvalRequest(req)
@@ -120,15 +120,15 @@ func TestRequestBodyCheckOff(t *testing.T) {
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{mpc: mockPolicyConfig{requestBodyCheck: false}}
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	d, err := s.EvalRequest(req)
@@ -218,15 +218,15 @@ func TestWafDetectionMode(t *testing.T) {
 	c := make(map[int]Config)
 	mc := &mockConfig{}
 	c[0] = mc
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	mc.mpc.isDetectionMode = false
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -236,7 +236,7 @@ func TestWafDetectionMode(t *testing.T) {
 	}
 
 	mc.mpc.isDetectionMode = true
-	s, err = NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err = NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -270,15 +270,15 @@ func TestWafShadowModeCustomRuleBlock(t *testing.T) {
 	c := make(map[int]Config)
 	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: false, isShadowMode: true}}
 	c[0] = mc
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	d, err := s.EvalRequest(req)
@@ -304,15 +304,15 @@ func TestWafShadowModeSecRuleBlock(t *testing.T) {
 	c := make(map[int]Config)
 	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: false, isShadowMode: true}}
 	c[0] = mc
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	d, err := s.EvalRequest(req)
@@ -338,15 +338,15 @@ func TestWafShadowDetectionMode(t *testing.T) {
 	c := make(map[int]Config)
 	mc := &mockConfig{mpc: mockPolicyConfig{isDetectionMode: true, isShadowMode: true}}
 	c[0] = mc
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	d, err := s.EvalRequest(req)
@@ -370,11 +370,11 @@ func TestWafServerPutIPReputationList(t *testing.T) {
 	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
 	c := make(map[int]Config)
 	c[0] = &mockConfig{}
-	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Error from NewServer: %s", err)
 	}
@@ -449,15 +449,16 @@ func testBytesLimit(
 			return
 		},
 	}
+	mrbpf := &mockRequestBodyParserFactory{mrbp: mrbp}
 	mcm := &mockConfigMgr{}
 	mire := &mockIPReputationEngine{}
 	mgdb := &mockGeoDB{}
-	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbp, mcref, mire, mgdb)
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
 	if err != nil {
 		t.Fatalf("Unexpected error from NewServer: %s", err)
 	}
 
-	req := &mockWafHTTPRequest{}
+	req := newDefaultMockWafHTTPRequest()
 
 	// Act
 	r, err := s.EvalRequest(req)
@@ -468,7 +469,7 @@ func testBytesLimit(
 	}
 
 	if r != Block {
-		t.Fatalf("EvalRequest did not return block: %v", Block)
+		t.Fatalf("EvalRequest did not return pass: %v", Pass)
 	}
 
 	if mrl.fieldBytesLimitExceededCalled != expectedFieldBytesLimitExceededCalled {
@@ -492,6 +493,18 @@ func testBytesLimit(
 	}
 }
 
+type mockRequestBodyParserFactory struct {
+	mrbp *mockRequestBodyParser
+}
+
+func (m *mockRequestBodyParserFactory) NewRequestBodyParser(lengthLimits LengthLimits) RequestBodyParser {
+	if m.mrbp == nil {
+		return &mockRequestBodyParser{lengthLimits: lengthLimits}
+	}
+	m.mrbp.lengthLimits = lengthLimits
+	return m.mrbp
+}
+
 type mockRequestBodyParser struct {
 	parseCb func(
 		logger zerolog.Logger,
@@ -502,6 +515,7 @@ type mockRequestBodyParser struct {
 		multipartBoundary string,
 		alsoScanFullRawBody bool,
 	) error
+	lengthLimits LengthLimits
 }
 
 func (r *mockRequestBodyParser) Parse(
@@ -531,7 +545,7 @@ func (r *mockRequestBodyParser) Parse(
 }
 
 func (r *mockRequestBodyParser) LengthLimits() LengthLimits {
-	return LengthLimits{1000, 2000, 3000, 1000}
+	return r.lengthLimits
 }
 
 type mockSecRuleEvaluation struct {
@@ -605,15 +619,37 @@ func (m *mockIPReputationEngine) EvalRequest(req IPReputationEngineHTTPRequest, 
 	return Pass
 }
 
-type mockWafHTTPRequest struct{}
+type mockWafHTTPRequest struct {
+	uri        string
+	method     string
+	protocol   string
+	remoteAddr string
+	headers    []HeaderPair
+	configID   string
+	body       string
+}
 
-func (r *mockWafHTTPRequest) Method() string                  { return "GET" }
-func (r *mockWafHTTPRequest) URI() string                     { return "/hello.php?arg1=aaaaaaabccc" }
-func (r *mockWafHTTPRequest) Protocol() string                { return "HTTP/1.1" }
-func (r *mockWafHTTPRequest) RemoteAddr() string              { return "0.0.0.0" }
-func (r *mockWafHTTPRequest) Headers() []HeaderPair           { return nil }
-func (r *mockWafHTTPRequest) ConfigID() string                { return "waf policy 1" }
-func (r *mockWafHTTPRequest) BodyReader() io.Reader           { return &bytes.Buffer{} }
+func newDefaultMockWafHTTPRequest() HTTPRequest {
+	return &mockWafHTTPRequest{
+		method:     "GET",
+		uri:        "/hello.php?arg1=aaaaaaabccc",
+		protocol:   "HTTP/1.1",
+		remoteAddr: "0.0.0.0",
+		configID:   "waf policy 1",
+	}
+}
+
+func (r *mockWafHTTPRequest) Method() string        { return r.method }
+func (r *mockWafHTTPRequest) URI() string           { return r.uri }
+func (r *mockWafHTTPRequest) Protocol() string      { return r.protocol }
+func (r *mockWafHTTPRequest) RemoteAddr() string    { return r.remoteAddr }
+func (r *mockWafHTTPRequest) Headers() []HeaderPair { return r.headers }
+func (r *mockWafHTTPRequest) ConfigID() string      { return r.configID }
+func (r *mockWafHTTPRequest) BodyReader() io.Reader {
+	var b bytes.Buffer
+	b.WriteString(r.body)
+	return &b
+}
 func (r *mockWafHTTPRequest) LogMetaData() RequestLogMetaData { return &mockLogMetaData{} }
 func (r *mockWafHTTPRequest) TransactionID() string           { return "abc" }
 

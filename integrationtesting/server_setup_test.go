@@ -34,7 +34,8 @@ func newTestStandaloneSecruleServer(t *testing.T, msrc *mockSecRuleConfig) waf.S
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
 	}
-	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbpf := bodyparsing.NewRequestBodyParserFactory()
+	rbp := rbpf.NewRequestBodyParser(waf.DefaultLengthLimits)
 	wafServer, err := waf.NewStandaloneSecruleServer(logger, rlf, e, rbp)
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)
@@ -74,14 +75,14 @@ func newTestAzwafServer(t *testing.T) waf.Server {
 	ref := srre.NewRuleEvaluatorFactory()
 	sref := sreng.NewEngineFactory(logger, rl, rsf, ref)
 
-	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbpf := bodyparsing.NewRequestBodyParserFactory()
 
 	// Setup customrule engine
 	gfs := &mockGeoDBFileSystem{}
 	geoDB := geodb.NewGeoDB(logger, gfs)
 	cref := customrule.NewEngineFactory(mref, geoDB)
 	ire := ipreputation.NewIPReputationEngine(&mockIreFileSystem{})
-	wafServer, err := waf.NewServer(logger, cm, c, rlf, srlf, sref, rbp, cref, ire, geoDB)
+	wafServer, err := waf.NewServer(logger, cm, c, rlf, srlf, sref, rbpf, cref, ire, geoDB)
 
 	if err != nil {
 		t.Fatalf("Got unexpected error: %s", err)

@@ -82,7 +82,8 @@ func getInstance(secruleconf string) waf.Server {
 		logger.Fatal().Err(err).Msg("Error while creating file logger")
 	}
 
-	rbp := bodyparsing.NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbpf := bodyparsing.NewRequestBodyParserFactory()
+	rbp := rbpf.NewRequestBodyParser(waf.DefaultLengthLimits)
 	p := srrp.NewRuleParser()
 	rlfs := srrp.NewRuleLoaderFileSystem()
 	hsfs := hyperscan.NewCacheFileSystem()

@@ -11,13 +11,14 @@ import (
 	"github.com/rs/zerolog"
 )
 
-type engineInstances struct {
+type policy struct {
 	sre               SecRuleEngine
 	cre               CustomRuleEngine
 	ireEnabled        bool
 	isDetectionMode   bool
 	isShadowMode      bool
 	requestBodyCheck  bool
+	requestBodyParser RequestBodyParser
 	configLogMetaData ConfigLogMetaData
 }
 
@@ -33,10 +34,10 @@ type Server interface {
 type serverImpl struct {
 	logger                     zerolog.Logger
 	configMgr                  ConfigMgr
-	engines                    map[string]engineInstances
+	policies                   map[string]policy
 	secRuleEngineFactory       SecRuleEngineFactory
 	ipReputationEngine         IPReputationEngine
-	requestBodyParser          RequestBodyParser
+	requestBodyParserFactory   RequestBodyParserFactory
 	resultsLoggerFactory       ResultsLoggerFactory
 	shadowresultsLoggerFactory ResultsLoggerFactory
 	customRuleEngineFactory    CustomRuleEngineFactory
@@ -44,20 +45,20 @@ type serverImpl struct {
 }
 
 // NewServer creates a new top level AzWaf.
-func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, rlf ResultsLoggerFactory, srlf ResultsLoggerFactory, sref SecRuleEngineFactory, rbp RequestBodyParser, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
+func NewServer(logger zerolog.Logger, cm ConfigMgr, c map[int]Config, rlf ResultsLoggerFactory, srlf ResultsLoggerFactory, sref SecRuleEngineFactory, rbpf RequestBodyParserFactory, cref CustomRuleEngineFactory, ire IPReputationEngine, geoDB GeoDB) (server Server, err error) {
 	s := &serverImpl{
 		logger:                     logger,
 		configMgr:                  cm,
 		resultsLoggerFactory:       rlf,
+		requestBodyParserFactory:   rbpf,
 		shadowresultsLoggerFactory: srlf,
 		secRuleEngineFactory:       sref,
-		requestBodyParser:          rbp,
 		customRuleEngineFactory:    cref,
 		ipReputationEngine:         ire,
 		geodb:                      geoDB,
 	}
 
-	s.engines = make(map[string]engineInstances)
+	s.policies = make(map[string]policy)
 
 	var versions []int
 	for v := range c {
@@ -84,16 +85,15 @@ func NewStandaloneSecruleServer(logger zerolog.Logger, rlf ResultsLoggerFactory,
 	s := &serverImpl{
 		logger:               logger,
 		resultsLoggerFactory: rlf,
-		requestBodyParser:    rbp,
-		engines:              make(map[string]engineInstances),
+		policies:             make(map[string]policy),
 	}
-	s.engines[""] = engineInstances{
+	s.policies[""] = policy{
 		sre: sre,
 	}
 	server = s
 
-	s.engines = make(map[string]engineInstances)
-	s.engines[""] = engineInstances{sre: sre, requestBodyCheck: true}
+	s.policies = make(map[string]policy)
+	s.policies[""] = policy{sre: sre, requestBodyCheck: true, requestBodyParser: rbp}
 
 	return
 }
@@ -125,7 +125,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	configID := req.ConfigID()
 
 	// TODO Also need to check id in other Engine map, if id not in any engine map, return error
-	engines, idExists := s.engines[configID]
+	policy, idExists := s.policies[configID]
 
 	if !idExists {
 		err = fmt.Errorf("request specified an unknown ConfigID: %v", configID)
@@ -134,17 +134,17 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	defer func() {
-		if engines.isDetectionMode || engines.isShadowMode {
+		if policy.isDetectionMode || policy.isShadowMode {
 			decision = Pass
 		}
 	}()
 
 	// Create results-logger with the data specific to this request
-	resultsLogger := s.resultsLoggerFactory.NewResultsLogger(req, engines.configLogMetaData, engines.isDetectionMode)
+	resultsLogger := s.resultsLoggerFactory.NewResultsLogger(req, policy.configLogMetaData, policy.isDetectionMode)
 
 	secRuleResultsLogger := resultsLogger
-	if engines.isShadowMode {
-		secRuleResultsLogger = s.shadowresultsLoggerFactory.NewResultsLogger(req, engines.configLogMetaData, engines.isDetectionMode)
+	if policy.isShadowMode {
+		secRuleResultsLogger = s.shadowresultsLoggerFactory.NewResultsLogger(req, policy.configLogMetaData, policy.isDetectionMode)
 	}
 
 	contentLength, reqBodyType, multipartBoundary, err := getLengthAndTypeFromHeaders(req)
@@ -156,8 +156,8 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	var customRuleEvaluation CustomRuleEvaluation
-	if engines.cre != nil {
-		customRuleEvaluation = engines.cre.NewEvaluation(logger, resultsLogger, req, reqBodyType)
+	if policy.cre != nil {
+		customRuleEvaluation = policy.cre.NewEvaluation(logger, resultsLogger, req, reqBodyType)
 		defer customRuleEvaluation.Close()
 
 		err = customRuleEvaluation.ScanHeaders()
@@ -170,8 +170,8 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}
 
 	var secRuleEvaluation SecRuleEvaluation
-	if engines.sre != nil {
-		secRuleEvaluation = engines.sre.NewEvaluation(logger, secRuleResultsLogger, req, reqBodyType)
+	if policy.sre != nil {
+		secRuleEvaluation = policy.sre.NewEvaluation(logger, secRuleResultsLogger, req, reqBodyType)
 		defer secRuleEvaluation.Close()
 
 		err = secRuleEvaluation.ScanHeaders()
@@ -188,7 +188,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	if engines.requestBodyCheck {
+	if policy.requestBodyCheck {
 		var alsoScanFullRawRequestBody bool
 		if secRuleEvaluation != nil && alsoScanFullRawRequestBody == false {
 			alsoScanFullRawRequestBody = secRuleEvaluation.AlsoScanFullRawRequestBody()
@@ -213,10 +213,10 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 			return
 		}
 
-		err = s.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
+		err = policy.requestBodyParser.Parse(logger, req.BodyReader(), bodyFieldCb, reqBodyType, contentLength, multipartBoundary, alsoScanFullRawRequestBody)
 		if err != nil {
 			decision = Block
-			lengthLimits := s.requestBodyParser.LengthLimits()
+			lengthLimits := policy.requestBodyParser.LengthLimits()
 			defer func() {
 				err = nil
 			}()
@@ -246,7 +246,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	// Custom rule evaluation always occurs first
 	if customRuleEvaluation != nil {
-		if !engines.isShadowMode {
+		if !policy.isShadowMode {
 			decision = customRuleEvaluation.EvalRules()
 			// Short-circuiting
 			if decision == Allow || decision == Block {
@@ -255,7 +255,7 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 		}
 	}
 
-	if engines.ireEnabled {
+	if policy.ireEnabled {
 		decision = s.ipReputationEngine.EvalRequest(req, resultsLogger)
 		if decision == Allow || decision == Block {
 			return
@@ -281,13 +281,23 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 	}
 
 	for _, config := range c.PolicyConfigs() {
-		engines := engineInstances{
+		p := policy{
 			configLogMetaData: c.LogMetaData(),
 		}
 		configID := config.ConfigID()
-		engines.isDetectionMode = config.IsDetectionMode()
-		engines.isShadowMode = config.IsShadowMode()
-		engines.requestBodyCheck = config.RequestBodyCheck()
+		p.isDetectionMode = config.IsDetectionMode()
+		p.isShadowMode = config.IsShadowMode()
+		p.requestBodyCheck = config.RequestBodyCheck()
+
+		maxInt := 2147483647
+		limits := LengthLimits{
+			MaxLengthField:                   maxInt,
+			MaxLengthPausable:                maxInt,
+			MaxLengthTotal:                   maxInt,
+			MaxLengthTotalFullRawRequestBody: maxInt,
+		}
+
+		p.requestBodyParser = s.requestBodyParserFactory.NewRequestBodyParser(limits)
 
 		// Create SecRuleEngine.
 		if secRuleConfig := config.SecRuleConfig(); secRuleConfig != nil && secRuleConfig.Enabled() {
@@ -297,7 +307,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 				err = fmt.Errorf("failed to create SecRule engine for configID %v: %v", configID, err)
 				return
 			}
-			engines.sre = sre
+			p.sre = sre
 		}
 
 		// Create CustomRuleEngine.
@@ -308,15 +318,15 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 				err = fmt.Errorf("failed to create CustomRule engine for configID %v: %v", configID, err)
 				return
 			}
-			engines.cre = cre
+			p.cre = cre
 		}
 
 		// Populate IpReputation Enabled
 		if ipReputationConfig := config.IPReputationConfig(); ipReputationConfig != nil {
-			engines.ireEnabled = ipReputationConfig.Enabled()
+			p.ireEnabled = ipReputationConfig.Enabled()
 		}
 
-		s.engines[configID] = engines
+		s.policies[configID] = p
 	}
 
 	return
@@ -336,17 +346,11 @@ func (s *serverImpl) DisposeConfig(version int) (err error) {
 	}
 
 	for _, id := range ids {
-		_, idExists := s.engines[id]
-		// TODO Also need to check id in other Engine map,
-		// if id not in any engine map, return error
-
+		_, idExists := s.policies[id]
 		if !idExists {
 			return fmt.Errorf("configID %v not valid, can't delete", id)
 		}
-
-		delete(s.engines, id)
-
-		// TODO add other engine
+		delete(s.policies, id)
 	}
 
 	return nil

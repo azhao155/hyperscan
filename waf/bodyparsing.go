@@ -13,6 +13,11 @@ import (
 // ParsedBodyFieldCb is will be called for each parsed field.
 type ParsedBodyFieldCb = func(contentType FieldContentType, fieldName string, data string) error
 
+// RequestBodyParserFactory creates instances of RequestBodyParser.
+type RequestBodyParserFactory interface {
+	NewRequestBodyParser(lengthLimits LengthLimits) RequestBodyParser
+}
+
 // RequestBodyParser parses HTTP request bodies.
 type RequestBodyParser interface {
 	Parse(

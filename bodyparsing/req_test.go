@@ -9,8 +9,10 @@ import (
 	"testing"
 )
 
+var rbpf = NewRequestBodyParserFactory()
+
 func arrangeAndRunBodyParser(t *testing.T, body io.Reader, fieldCb waf.ParsedBodyFieldCb, reqBodyType waf.ReqBodyType, multipartBoundary string) (err error) {
-	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbp := rbpf.NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
 	err = rbp.Parse(logger, body, fieldCb, reqBodyType, 0, multipartBoundary, false)
 	return
@@ -629,7 +631,7 @@ func TestReqScannerContentLengthHeaderSaysTooLong(t *testing.T) {
 	// Arrange
 	contentLength := 1024 * 1024 * 1024            // 1 GiB
 	body := bytes.NewBufferString(`a=helloworld1`) // Note that the body in reality is not actually 1 GiB
-	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbp := rbpf.NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
 
 	// Act
@@ -649,7 +651,7 @@ func TestReqScannerBodyRaw(t *testing.T) {
 		return
 	}
 	body := bytes.NewBufferString(`b=aaaaaaabccc&a=helloworld1`)
-	rbp := NewRequestBodyParser(waf.DefaultLengthLimits)
+	rbp := rbpf.NewRequestBodyParser(waf.DefaultLengthLimits)
 	logger := testutils.NewTestLogger(t)
 
 	// Act

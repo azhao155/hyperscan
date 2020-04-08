@@ -37,6 +37,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 	mref := hyperscan.NewMultiRegexEngineFactory(hscache)
 	rsf := srrs.NewReqScannerFactory(mref)
 	ref := srre.NewRuleEvaluatorFactory()
+	rbpf := bodyparsing.NewRequestBodyParserFactory()
 
 	// Initialize a WAF server, either via config manager, or standalone just with a SecRule engine
 	var wafServer waf.Server
@@ -54,7 +55,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 			logger.Fatal().Err(err).Msg("Error while creating SecRule engine")
 		}
 
-		rbp := bodyparsing.NewRequestBodyParser(lengthLimits)
+		rbp := rbpf.NewRequestBodyParser(lengthLimits)
 
 		wafServer, err = waf.NewStandaloneSecruleServer(logger, rlf, sre, rbp)
 		if err != nil {
@@ -74,15 +75,7 @@ func StartServer(logger zerolog.Logger, secruleconf string, lengthLimits waf.Len
 		sref := sreng.NewEngineFactory(logger, rl, rsf, ref)
 		ire := ipreputation.NewIPReputationEngine(&ipreputation.FileSystemImpl{})
 
-		maxInt32 := 2147483647
-		rbp := bodyparsing.NewRequestBodyParser(waf.LengthLimits{
-			MaxLengthField:                   maxInt32,
-			MaxLengthPausable:                maxInt32,
-			MaxLengthTotal:                   maxInt32,
-			MaxLengthTotalFullRawRequestBody: maxInt32,
-		})
-
-		wafServer, err = waf.NewServer(logger, cm, c, rlf, srlf, sref, rbp, cref, ire, geoDB)
+		wafServer, err = waf.NewServer(logger, cm, c, rlf, srlf, sref, rbpf, cref, ire, geoDB)
 		if err != nil {
 			logger.Fatal().Err(err).Msg("Error while creating service manager")
 		}
