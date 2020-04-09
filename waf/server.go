@@ -289,6 +289,8 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		p.isShadowMode = config.IsShadowMode()
 		p.requestBodyCheck = config.RequestBodyCheck()
 
+		// Temporary placeholder value to bypass length limit checks
+		// TODO: update limits with config received from Tenant
 		maxInt := 2147483647
 		limits := LengthLimits{
 			MaxLengthField:                   maxInt,

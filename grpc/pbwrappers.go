@@ -104,10 +104,12 @@ func (c *ipReputationConfigImpl) Enabled() bool { return c.pb.Enabled }
 
 type policyConfigWrapper struct{ pb *pb.PolicyConfig }
 
-func (c *policyConfigWrapper) ConfigID() string       { return c.pb.ConfigID }
-func (c *policyConfigWrapper) IsDetectionMode() bool  { return c.pb.IsDetectionMode }
-func (c *policyConfigWrapper) IsShadowMode() bool     { return c.pb.IsShadowMode }
-func (c *policyConfigWrapper) RequestBodyCheck() bool { return c.pb.RequestBodyCheck }
+func (c *policyConfigWrapper) ConfigID() string                { return c.pb.ConfigID }
+func (c *policyConfigWrapper) IsDetectionMode() bool           { return c.pb.IsDetectionMode }
+func (c *policyConfigWrapper) IsShadowMode() bool              { return c.pb.IsShadowMode }
+func (c *policyConfigWrapper) RequestBodyCheck() bool          { return c.pb.RequestBodyCheck }
+func (c *policyConfigWrapper) RequestBodySizeLimitInKb() int32 { return c.pb.RequestBodySizeLimitInKb }
+func (c *policyConfigWrapper) FileUploadSizeLimitInMb() int32  { return c.pb.FileUploadSizeLimitInMb }
 func (c *policyConfigWrapper) SecRuleConfig() waf.SecRuleConfig {
 	if c.pb.SecRuleConfig == nil {
 		return nil

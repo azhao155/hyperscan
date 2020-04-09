@@ -38,6 +38,8 @@ type PolicyConfig interface {
 	IsDetectionMode() bool
 	IsShadowMode() bool
 	RequestBodyCheck() bool
+	RequestBodySizeLimitInKb() int32
+	FileUploadSizeLimitInMb() int32
 	SecRuleConfig() SecRuleConfig
 	CustomRuleConfig() CustomRuleConfig
 	IPReputationConfig() IPReputationConfig

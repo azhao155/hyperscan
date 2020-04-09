@@ -52,9 +52,11 @@ type mockCustomRuleConfig struct{}
 func (c *mockCustomRuleConfig) CustomRules() []CustomRule { return []CustomRule{&mockCustomRule{}} }
 
 type mockPolicyConfig struct {
-	isDetectionMode  bool
-	isShadowMode     bool
-	requestBodyCheck bool
+	isDetectionMode          bool
+	isShadowMode             bool
+	requestBodyCheck         bool
+	requestBodySizeLimitInKb int32
+	fileUploadSizeLimitInMb  int32
 }
 
 type mockIPReputationConfig struct{}
@@ -68,6 +70,8 @@ func (c *mockPolicyConfig) RequestBodyCheck() bool                 { return c.re
 func (c *mockPolicyConfig) SecRuleConfig() SecRuleConfig           { return &mockSecRuleConfig{} }
 func (c *mockPolicyConfig) CustomRuleConfig() CustomRuleConfig     { return &mockCustomRuleConfig{} }
 func (c *mockPolicyConfig) IPReputationConfig() IPReputationConfig { return &mockIPReputationConfig{} }
+func (c *mockPolicyConfig) RequestBodySizeLimitInKb() int32        { return c.requestBodySizeLimitInKb }
+func (c *mockPolicyConfig) FileUploadSizeLimitInMb() int32         { return c.fileUploadSizeLimitInMb }
 
 type mockConfigLogMetaData struct {
 }

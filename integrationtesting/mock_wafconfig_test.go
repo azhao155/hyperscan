@@ -27,13 +27,15 @@ func (mc *mockWAFConfig) LogMetaData() waf.ConfigLogMetaData {
 }
 
 type mockPolicyConfig struct {
-	configID           string
-	isDetectionMode    bool
-	isShadowMode       bool
-	requestBodyCheck   bool
-	secRuleConfig      waf.SecRuleConfig
-	customRuleConfig   waf.CustomRuleConfig
-	ipReputationConfig waf.IPReputationConfig
+	configID                 string
+	isDetectionMode          bool
+	isShadowMode             bool
+	requestBodyCheck         bool
+	secRuleConfig            waf.SecRuleConfig
+	customRuleConfig         waf.CustomRuleConfig
+	ipReputationConfig       waf.IPReputationConfig
+	fileUploadSizeLimitInMb  int32
+	requestBodySizeLimitInKb int32
 }
 
 func (mpc *mockPolicyConfig) ConfigID() string {
@@ -62,6 +64,14 @@ func (mpc *mockPolicyConfig) CustomRuleConfig() waf.CustomRuleConfig {
 
 func (mpc *mockPolicyConfig) IPReputationConfig() waf.IPReputationConfig {
 	return mpc.ipReputationConfig
+}
+
+func (mpc *mockPolicyConfig) RequestBodySizeLimitInKb() int32 {
+	return mpc.requestBodySizeLimitInKb
+}
+
+func (mpc *mockPolicyConfig) FileUploadSizeLimitInMb() int32 {
+	return mpc.fileUploadSizeLimitInMb
 }
 
 type mockSecRuleConfig struct {

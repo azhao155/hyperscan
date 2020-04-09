@@ -95,6 +95,8 @@ message PolicyConfig {
   bool isDetectionMode = 5;
   bool isShadowMode = 7;
   bool requestBodyCheck = 8;
+  int32 requestBodySizeLimitInKb = 9;
+  int32 fileUploadSizeLimitInMb = 10;
 
   SecRuleConfig secRuleConfig = 2;
   CustomRuleConfig customRuleConfig = 3;
