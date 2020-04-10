@@ -26,6 +26,12 @@ go run azwaf/cmd/server -secruleconf=secrule/rulesetfiles/crs3.0/main.conf -logl
 # To run all tests
 go test -cover azwaf/...
 
+# To run CRS regression tests for a specific version
+go test azwaf/integrationtesting -run TestCrsRules -ruleSetVersion 3.0
+
+# To run CRS regression tests for a specific rule
+go test azwaf/integrationtesting -run TestCrsRules --ruleID=941100
+
 # To wait for a remote debugger to attach and debug tests
 dlv test --api-version=2 --headless --listen=:2345 "azwaf/somepackage" -- -test.run TestSomeFunction
 
