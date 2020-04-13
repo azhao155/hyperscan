@@ -21,14 +21,21 @@ func newWafServiceClient(t *testing.T) pb.WafServiceClient {
 }
 
 func evalRequest(ctx context.Context, t *testing.T, c pb.WafServiceClient, r *pb.WafHttpRequest) (wafDecision *pb.WafDecision) {
+	requests := []*pb.WafHttpRequest{ r }
+	return evalMultiChunkRequest(ctx, t, c, requests) 
+}
+
+func evalMultiChunkRequest(ctx context.Context, t *testing.T, c pb.WafServiceClient, r []*pb.WafHttpRequest) (wafDecision *pb.WafDecision) {
 	erStream, err := c.EvalRequest(ctx, grpc.WaitForReady(true))
 	if err != nil {
 		t.Fatalf("Got unexpected error: %v", err)
 	}
 
-	err = erStream.Send(r)
-	if err != nil {
-		t.Fatalf("Got unexpected error: %v", err)
+	for i := 0; i < len(r); i++ {
+		err = erStream.Send(r[i])
+		if err != nil {
+			t.Fatalf("Got unexpected error: %v", err)
+		}
 	}
 
 	wafDecision, err = erStream.CloseAndRecv()

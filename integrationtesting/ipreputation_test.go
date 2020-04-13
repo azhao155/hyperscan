@@ -14,8 +14,8 @@ func newIPReputationConfig() waf.Config {
 			&mockPolicyConfig{
 				configID: "abc",
 				secRuleConfig: &mockSecRuleConfig{
-					enabled:    false,
-					ruleSetID:  "OWASP CRS 3.0",
+					enabled:   false,
+					ruleSetID: "OWASP CRS 3.0",
 				},
 				customRuleConfig:   &mockCustomRuleConfig{},
 				ipReputationConfig: &mockIPReputationConfig{enabled: true},
@@ -26,7 +26,7 @@ func newIPReputationConfig() waf.Config {
 	return config
 }
 
-func TestPutConfig(t *testing.T) {
+func TestPutIPReputationConfig(t *testing.T) {
 	assert := assert.New(t)
 
 	// Arrange

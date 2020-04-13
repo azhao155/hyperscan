@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWafServerEvalRequest(t *testing.T) {
@@ -491,6 +492,46 @@ func testBytesLimit(
 	if mrl.bodyParseErrorCalled != 0 {
 		t.Fatalf("Unexpected number of calls to mockResultsLogger.BodyParseError: %v", mrl.bodyParseErrorCalled)
 	}
+}
+
+func TestWafServerPutConfigLengthLimits(t *testing.T) {
+	// Arrange
+	assert := assert.New(t)
+	logger := testutils.NewTestLogger(t)
+	mrl := &mockResultsLogger{}
+	mrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	smrlf := &mockResultsLoggerFactory{mockResultsLogger: mrl}
+	msrev := &mockSecRuleEvaluation{decision: Pass}
+	msre := &mockSecRuleEngine{msrev: msrev}
+	msref := &mockSecRuleEngineFactory{msre: msre}
+	mcrev := &mockCustomRuleEvaluation{}
+	mcre := &mockCustomRuleEngine{mcrev: mcrev}
+	mcref := &mockCustomRuleEngineFactory{mcre: mcre}
+	c := make(map[int]Config)
+	c[0] = &mockConfig{mpc: mockPolicyConfig{requestBodyCheck: false}}
+	mrbp := &mockRequestBodyParser{}
+	mrbpf := &mockRequestBodyParserFactory{mrbp: mrbp}
+	mcm := &mockConfigMgr{}
+	mire := &mockIPReputationEngine{}
+	mgdb := &mockGeoDB{}
+	s, err := NewServer(logger, mcm, c, mrlf, smrlf, msref, mrbpf, mcref, mire, mgdb)
+
+	assert.Nil(err)
+
+	s.PutConfig(&mockConfig{
+		mpc: mockPolicyConfig{
+			isDetectionMode:          true,
+			fileUploadSizeLimitInMb:  10,
+			isShadowMode:             true,
+			requestBodyCheck:         true,
+			requestBodySizeLimitInKb: 128,
+		},
+	})
+
+	assert.Equal(1024*128, mrbp.LengthLimits().MaxLengthPausable)
+	assert.Equal(2147483647, mrbp.LengthLimits().MaxLengthField)
+	assert.Equal(2147483647, mrbp.LengthLimits().MaxLengthTotal)
+	assert.Equal(2147483647, mrbp.LengthLimits().MaxLengthTotalFullRawRequestBody)
 }
 
 type mockRequestBodyParserFactory struct {

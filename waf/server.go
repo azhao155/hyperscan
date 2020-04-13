@@ -294,7 +294,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		maxInt := 2147483647
 		limits := LengthLimits{
 			MaxLengthField:                   maxInt,
-			MaxLengthPausable:                maxInt,
+			MaxLengthPausable:                1024 * int(config.RequestBodySizeLimitInKb()),
 			MaxLengthTotal:                   maxInt,
 			MaxLengthTotalFullRawRequestBody: maxInt,
 		}
