@@ -288,6 +288,10 @@ func TestWafShadowModeCustomRuleBlock(t *testing.T) {
 	if d != Pass {
 		t.Fatalf("Unexpected decision: %v", d)
 	}
+
+	if mcrev.evalRulesCalled != 1 {
+		t.Fatalf("Unexpected number of calls to mockCustomRuleEvaluation.EvalRules: %v", mcrev.evalRulesCalled)
+	}
 }
 
 func TestWafShadowModeSecRuleBlock(t *testing.T) {

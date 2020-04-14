@@ -140,11 +140,11 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	}()
 
 	// Create results-logger with the data specific to this request
-	resultsLogger := s.resultsLoggerFactory.NewResultsLogger(req, policy.configLogMetaData, policy.isDetectionMode)
-
-	secRuleResultsLogger := resultsLogger
-	if policy.isShadowMode {
-		secRuleResultsLogger = s.shadowresultsLoggerFactory.NewResultsLogger(req, policy.configLogMetaData, policy.isDetectionMode)
+	var resultsLogger ResultsLogger
+	if !policy.isShadowMode {
+		resultsLogger = s.resultsLoggerFactory.NewResultsLogger(req, policy.configLogMetaData, policy.isDetectionMode)
+	} else {
+		resultsLogger = s.shadowresultsLoggerFactory.NewResultsLogger(req, policy.configLogMetaData, policy.isDetectionMode)
 	}
 
 	contentLength, reqBodyType, multipartBoundary, err := getLengthAndTypeFromHeaders(req)
@@ -171,12 +171,12 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	var secRuleEvaluation SecRuleEvaluation
 	if policy.sre != nil {
-		secRuleEvaluation = policy.sre.NewEvaluation(logger, secRuleResultsLogger, req, reqBodyType)
+		secRuleEvaluation = policy.sre.NewEvaluation(logger, resultsLogger, req, reqBodyType)
 		defer secRuleEvaluation.Close()
 
 		err = secRuleEvaluation.ScanHeaders()
 		if err != nil {
-			secRuleResultsLogger.HeaderParseError(err)
+			resultsLogger.HeaderParseError(err)
 			secRuleDecision = Block
 			err = nil
 			secRuleEvaluation = nil
@@ -246,12 +246,10 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 
 	// Custom rule evaluation always occurs first
 	if customRuleEvaluation != nil {
-		if !policy.isShadowMode {
-			decision = customRuleEvaluation.EvalRules()
-			// Short-circuiting
-			if decision == Allow || decision == Block {
-				return
-			}
+		decision = customRuleEvaluation.EvalRules()
+		// Short-circuiting
+		if decision == Allow || decision == Block {
+			return
 		}
 	}
 
