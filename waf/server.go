@@ -136,6 +136,10 @@ func (s *serverImpl) EvalRequest(req HTTPRequest) (decision Decision, err error)
 	defer func() {
 		if policy.isDetectionMode || policy.isShadowMode {
 			decision = Pass
+			if err != nil {
+				logger.Warn().Err(err).Msg("Throwing err as warning in detection/shadow mode")
+			}
+			err = nil
 		}
 	}()
 
