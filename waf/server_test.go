@@ -534,7 +534,7 @@ func TestWafServerPutConfigLengthLimits(t *testing.T) {
 
 	assert.Equal(1024*128, mrbp.LengthLimits().MaxLengthPausable)
 	assert.Equal(2147483647, mrbp.LengthLimits().MaxLengthField)
-	assert.Equal(2147483647, mrbp.LengthLimits().MaxLengthTotal)
+	assert.Equal(1024*1024*10, mrbp.LengthLimits().MaxLengthTotal)
 	assert.Equal(2147483647, mrbp.LengthLimits().MaxLengthTotalFullRawRequestBody)
 }
 

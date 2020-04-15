@@ -297,7 +297,7 @@ func (s *serverImpl) PutConfig(c Config) (err error) {
 		limits := LengthLimits{
 			MaxLengthField:                   maxInt,
 			MaxLengthPausable:                1024 * int(config.RequestBodySizeLimitInKb()),
-			MaxLengthTotal:                   maxInt,
+			MaxLengthTotal:                   1024 * 1024 * int(config.FileUploadSizeLimitInMb()),
 			MaxLengthTotalFullRawRequestBody: maxInt,
 		}
 
