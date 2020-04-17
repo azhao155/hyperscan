@@ -1246,6 +1246,9 @@ else (FAT_RUNTIME)
 
     if (BUILD_STATIC_AND_SHARED OR BUILD_SHARED_LIBS)
         # build shared libs
+        if (BUILD_WITH_TCMALLOC)
+            link_libraries("-ltcmalloc")
+        endif()
         add_library(hs_compile_shared OBJECT ${hs_compile_SRCS})
         set_target_properties(hs_compile_shared PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
         add_library(hs_exec_shared_core2 OBJECT ${hs_exec_SRCS})
