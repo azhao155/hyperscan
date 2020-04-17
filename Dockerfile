@@ -4,7 +4,7 @@ SHELL ["/bin/bash", "-c"]
 
 # Install dependencies from apt and then tidy up cache
 RUN apt-get update && \
-    apt-get install -y vim curl wget git build-essential pkg-config unzip && \
+    apt-get install -y vim curl wget git build-essential pkg-config unzip libgoogle-perftools-dev && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
