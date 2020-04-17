@@ -1,3 +1,3 @@
 [submodule "hyperscanLib"]
 	path = hyperscanLib
-	url = https://github.com/intel/hyperscan.git
+	url = https://github.com/microsoft/hyperscan.git
