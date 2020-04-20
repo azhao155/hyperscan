@@ -51,3 +51,5 @@ protoc -I./proto/ waf.proto --go_out=plugins=grpc:proto
 ```
 
 Use the Grpcurl tool to manually test Azwaf's gRPC API. See [this doc](docs/grpcurl.md) for examples.
+
+To Compile and Generate HyperScan deb package, Please refer to AppGw repo src\Tools\hyperscanpkg\README.md
